@@ -1,6 +1,6 @@
 # Qdrant MCP Server
 
-[![CI](https://github.com/YOUR_USERNAME/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/qdrant-mcp-server/actions/workflows/ci.yml)
+[![CI](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml)
 
 A Model Context Protocol (MCP) server that provides semantic search capabilities using a local Qdrant vector database and OpenAI embeddings.
 
@@ -432,6 +432,6 @@ All pull requests will automatically run through CI checks that validate:
 
 After forking or cloning, update the CI badge URL in README.md:
 ```markdown
-[![CI](https://github.com/YOUR_USERNAME/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/qdrant-mcp-server/actions/workflows/ci.yml)
+[![CI](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml)
 ```
 Replace `YOUR_USERNAME` with your GitHub username or organization name.
