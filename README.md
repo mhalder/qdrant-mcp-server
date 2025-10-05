@@ -262,6 +262,45 @@ Build for production:
 npm run build
 ```
 
+## Testing
+
+The project includes comprehensive unit and integration tests using Vitest.
+
+### Run Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm test -- --watch
+
+# Run tests with UI
+npm run test:ui
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Test Coverage
+
+The test suite covers:
+- **QdrantManager** (`src/qdrant/client.test.ts`): All collection and point operations
+- **OpenAIEmbeddings** (`src/embeddings/openai.test.ts`): Embedding generation and batch processing
+- **MCP Server** (`src/index.test.ts`): Tool schemas and resource URI patterns
+
+### Writing Tests
+
+Tests are located next to the files they test with a `.test.ts` extension:
+- `src/qdrant/client.test.ts` - Qdrant client wrapper tests
+- `src/embeddings/openai.test.ts` - OpenAI embeddings provider tests
+- `src/index.test.ts` - MCP server integration tests
+
+Run tests before committing:
+```bash
+npm test -- --run
+```
+
 ## License
 
 MIT
