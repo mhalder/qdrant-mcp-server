@@ -1,5 +1,7 @@
 # Qdrant MCP Server
 
+[![CI](https://github.com/YOUR_USERNAME/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/qdrant-mcp-server/actions/workflows/ci.yml)
+
 A Model Context Protocol (MCP) server that provides semantic search capabilities using a local Qdrant vector database and OpenAI embeddings.
 
 ## Features
@@ -323,15 +325,36 @@ If you encounter "Bad Request" errors with filters:
 
 ## Development
 
+### Development Mode
+
 Run in development mode with auto-reload:
 ```bash
 npm run dev
 ```
 
+### Build
+
 Build for production:
 ```bash
 npm run build
 ```
+
+### Type Checking
+
+Run TypeScript type checking without emitting files:
+```bash
+npm run type-check
+```
+
+### Continuous Integration
+
+The project uses GitHub Actions for CI/CD:
+- **Build**: Compiles TypeScript to JavaScript
+- **Type Check**: Validates TypeScript types
+- **Test**: Runs all 114 unit and integration tests
+- **Multi-version**: Tests on Node.js 18, 20, and 22
+
+The CI workflow runs on every push and pull request to the main branch.
 
 ## Testing
 
@@ -381,3 +404,34 @@ MIT
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Before Submitting a PR
+
+1. **Run tests**: Ensure all tests pass
+   ```bash
+   npm test -- --run
+   ```
+
+2. **Type check**: Verify no TypeScript errors
+   ```bash
+   npm run type-check
+   ```
+
+3. **Build**: Confirm the project builds successfully
+   ```bash
+   npm run build
+   ```
+
+All pull requests will automatically run through CI checks that validate:
+- TypeScript compilation
+- Type checking
+- Test suite (114 tests)
+- Compatibility with Node.js 18, 20, and 22
+
+### Note for Repository Owners
+
+After forking or cloning, update the CI badge URL in README.md:
+```markdown
+[![CI](https://github.com/YOUR_USERNAME/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/qdrant-mcp-server/actions/workflows/ci.yml)
+```
+Replace `YOUR_USERNAME` with your GitHub username or organization name.
