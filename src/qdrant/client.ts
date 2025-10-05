@@ -92,10 +92,21 @@ export class QdrantManager {
     limit: number = 5,
     filter?: Record<string, any>
   ): Promise<SearchResult[]> {
+    // Convert simple key-value filter to Qdrant filter format
+    let qdrantFilter;
+    if (filter && Object.keys(filter).length > 0) {
+      qdrantFilter = {
+        must: Object.entries(filter).map(([key, value]) => ({
+          key,
+          match: { value },
+        })),
+      };
+    }
+
     const results = await this.client.search(collectionName, {
       vector,
       limit,
-      filter,
+      filter: qdrantFilter,
     });
 
     return results.map((result) => ({
