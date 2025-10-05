@@ -5,9 +5,10 @@ A Model Context Protocol (MCP) server that provides semantic search capabilities
 ## Features
 
 - **Semantic Search**: Natural language search across your document collections
+- **Metadata Filtering**: Filter search results by metadata fields using Qdrant's powerful filter syntax
 - **Local Vector Database**: Runs Qdrant locally via Docker for complete data privacy
 - **Automatic Embeddings**: Uses OpenAI's embedding models to convert text to vectors
-- **MCP Integration**: Works seamlessly with Claude Desktop and other MCP clients
+- **MCP Integration**: Works seamlessly with Claude Code and other MCP clients
 - **Collection Management**: Create, list, and delete vector collections
 - **Document Operations**: Add, search, and delete documents with metadata support
 
@@ -132,6 +133,9 @@ Search for documents using natural language.
 - `filter` (object, optional): Metadata filter in Qdrant format
 
 **Filter Format:**
+
+The filter parameter accepts Qdrant's native filter format for powerful metadata-based filtering:
+
 ```json
 {
   "must": [
@@ -140,14 +144,36 @@ Search for documents using natural language.
 }
 ```
 
+You can also use more complex filters:
+- **Multiple conditions (AND)**: Use `must` with multiple conditions
+- **Any condition (OR)**: Use `should` with multiple conditions
+- **Negation (NOT)**: Use `must_not` with conditions
+
+Example with multiple conditions:
+```json
+{
+  "must": [
+    { "key": "category", "match": { "value": "database" } },
+    { "key": "level", "match": { "value": "beginner" } }
+  ]
+}
+```
+
 **Examples:**
+
+Basic search:
 ```
 Search "my-docs" for information about vector databases
 ```
 
-With filter:
+With single filter:
 ```
 Search "my-docs" for "vector databases" with filter {"must": [{"key": "category", "match": {"value": "technical"}}]}
+```
+
+With multiple filters (AND):
+```
+Search "knowledge-base" for "machine learning" with filter {"must": [{"key": "category", "match": {"value": "ml"}}, {"key": "level", "match": {"value": "advanced"}}]}
 ```
 
 ### `list_collections`
@@ -207,16 +233,27 @@ qdrant-mcp-server/
 2. **Add documents:**
    ```
    Add these documents to knowledge-base:
-   - id: "doc1", text: "MCP is a protocol for AI model context", metadata: {"type": "definition"}
-   - id: "doc2", text: "Vector databases store embeddings for semantic search", metadata: {"type": "definition"}
+   - id: "doc1", text: "MCP is a protocol for AI model context", metadata: {"type": "definition", "category": "protocol"}
+   - id: "doc2", text: "Vector databases store embeddings for semantic search", metadata: {"type": "definition", "category": "database"}
+   - id: "doc3", text: "Qdrant provides high-performance vector similarity search", metadata: {"type": "product", "category": "database"}
    ```
 
-3. **Search:**
+3. **Search without filters:**
    ```
    Search knowledge-base for "how does semantic search work"
    ```
 
-4. **View collections:**
+4. **Search with filters:**
+   ```
+   Search knowledge-base for "vector database" with filter {"must": [{"key": "category", "match": {"value": "database"}}]}
+   ```
+
+5. **Get collection information:**
+   ```
+   Get info about "knowledge-base" collection
+   ```
+
+6. **View all collections:**
    ```
    What collections do I have?
    ```
@@ -235,6 +272,20 @@ qdrant-mcp-server/
 Available OpenAI models:
 - `text-embedding-3-small` (1536 dims, faster, cheaper)
 - `text-embedding-3-large` (3072 dims, higher quality)
+
+## Advanced Features
+
+### Metadata Filtering
+
+The server supports Qdrant's powerful filtering capabilities for refined search results. Filters can be applied to any metadata field stored with your documents.
+
+**Supported filter types:**
+- **Match filters**: Exact value matching for strings, numbers, and booleans
+- **Logical operators**: `must` (AND), `should` (OR), `must_not` (NOT)
+- **Range filters**: Greater than, less than, between (for numeric values)
+- **Nested filters**: Complex boolean expressions
+
+See the `semantic_search` tool documentation for filter syntax examples.
 
 ## Troubleshooting
 
@@ -262,6 +313,13 @@ Create a collection named "my-collection"
 - Verify your API key is correct in `.env`
 - Check your OpenAI account has available credits
 - Ensure you have access to the embedding models
+
+### Filter errors
+
+If you encounter "Bad Request" errors with filters:
+- Ensure you're using Qdrant's native filter format
+- Check that field names match your metadata exactly
+- Verify the filter structure has proper nesting
 
 ## Development
 
@@ -297,10 +355,12 @@ npm run test:coverage
 
 ### Test Coverage
 
-The test suite covers:
-- **QdrantManager** (`src/qdrant/client.test.ts`): All collection and point operations
-- **OpenAIEmbeddings** (`src/embeddings/openai.test.ts`): Embedding generation and batch processing
-- **MCP Server** (`src/index.test.ts`): Tool schemas and resource URI patterns
+The test suite includes 114 tests covering:
+- **QdrantManager** (`src/qdrant/client.test.ts`): Collection management, point operations, and search functionality
+- **OpenAIEmbeddings** (`src/embeddings/openai.test.ts`): Embedding generation, batch processing, and error handling
+- **MCP Server** (`src/index.test.ts`): Tool schemas, resource URI patterns, and MCP protocol compliance
+
+All tests are passing with comprehensive coverage of core functionality.
 
 ### Writing Tests
 
