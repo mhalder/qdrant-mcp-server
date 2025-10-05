@@ -65,19 +65,16 @@ For production:
 node build/index.js
 ```
 
-### Claude Desktop Configuration
+### Claude Code Configuration (Linux)
 
-Add this to your Claude Desktop configuration file:
-
-**MacOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+Add this to your Claude Code configuration file at `~/.claude/claude_code_config.json`:
 
 ```json
 {
   "mcpServers": {
     "qdrant": {
       "command": "node",
-      "args": ["/absolute/path/to/qdrant-mcp-server/build/index.js"],
+      "args": ["/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"],
       "env": {
         "OPENAI_API_KEY": "sk-your-api-key-here",
         "QDRANT_URL": "http://localhost:6333"
@@ -87,7 +84,9 @@ Add this to your Claude Desktop configuration file:
 }
 ```
 
-Restart Claude Desktop after making this change.
+Replace `YOUR_USERNAME` and the path with your actual username and installation path.
+
+Restart Claude Code after making this change.
 
 ## Available Tools
 
