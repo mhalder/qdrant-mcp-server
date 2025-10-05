@@ -129,11 +129,25 @@ Search for documents using natural language.
 - `collection` (string, required): Collection to search
 - `query` (string, required): Search query
 - `limit` (number, optional): Max results (default: 5)
-- `filter` (object, optional): Metadata filter
+- `filter` (object, optional): Metadata filter in Qdrant format
 
-**Example:**
+**Filter Format:**
+```json
+{
+  "must": [
+    { "key": "category", "match": { "value": "database" } }
+  ]
+}
+```
+
+**Examples:**
 ```
 Search "my-docs" for information about vector databases
+```
+
+With filter:
+```
+Search "my-docs" for "vector databases" with filter {"must": [{"key": "category", "match": {"value": "technical"}}]}
 ```
 
 ### `list_collections`

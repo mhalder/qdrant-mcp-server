@@ -93,14 +93,23 @@ export class QdrantManager {
     filter?: Record<string, any>
   ): Promise<SearchResult[]> {
     // Convert simple key-value filter to Qdrant filter format
+    // Accepts either:
+    // 1. Simple format: {"category": "database"}
+    // 2. Qdrant format: {must: [{key: "category", match: {value: "database"}}]}
     let qdrantFilter;
     if (filter && Object.keys(filter).length > 0) {
-      qdrantFilter = {
-        must: Object.entries(filter).map(([key, value]) => ({
-          key,
-          match: { value },
-        })),
-      };
+      // Check if already in Qdrant format (has must/should/must_not keys)
+      if (filter.must || filter.should || filter.must_not) {
+        qdrantFilter = filter;
+      } else {
+        // Convert simple key-value format to Qdrant format
+        qdrantFilter = {
+          must: Object.entries(filter).map(([key, value]) => ({
+            key,
+            match: { value },
+          })),
+        };
+      }
     }
 
     const results = await this.client.search(collectionName, {
