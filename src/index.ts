@@ -382,12 +382,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           isError: true,
         };
     }
-  } catch (error) {
+  } catch (error: any) {
+    // Enhanced error details for debugging
+    const errorDetails = error instanceof Error
+      ? error.message
+      : JSON.stringify(error, null, 2);
+
+    console.error('Tool execution error:', {
+      tool: name,
+      error: errorDetails,
+      stack: error?.stack,
+      data: error?.data,
+    });
+
     return {
       content: [
         {
           type: 'text',
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+          text: `Error: ${errorDetails}`,
         },
       ],
       isError: true,

@@ -1,4 +1,5 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
+import { createHash } from 'crypto';
 
 export interface CollectionInfo {
   name: string;
@@ -18,6 +19,26 @@ export class QdrantManager {
 
   constructor(url: string = 'http://localhost:6333') {
     this.client = new QdrantClient({ url });
+  }
+
+  /**
+   * Converts a string ID to UUID format if it's not already a UUID.
+   * Qdrant requires string IDs to be in UUID format.
+   */
+  private normalizeId(id: string | number): string | number {
+    if (typeof id === 'number') {
+      return id;
+    }
+
+    // Check if already a valid UUID (8-4-4-4-12 format)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(id)) {
+      return id;
+    }
+
+    // Convert arbitrary string to deterministic UUID v5-like format
+    const hash = createHash('sha256').update(id).digest('hex');
+    return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
   }
 
   async createCollection(
@@ -80,10 +101,21 @@ export class QdrantManager {
       payload?: Record<string, any>;
     }>
   ): Promise<void> {
-    await this.client.upsert(collectionName, {
-      wait: true,
-      points,
-    });
+    try {
+      // Normalize all IDs to ensure string IDs are in UUID format
+      const normalizedPoints = points.map(point => ({
+        ...point,
+        id: this.normalizeId(point.id),
+      }));
+
+      await this.client.upsert(collectionName, {
+        wait: true,
+        points: normalizedPoints,
+      });
+    } catch (error: any) {
+      const errorMessage = error?.data?.status?.error || error?.message || String(error);
+      throw new Error(`Failed to add points to collection "${collectionName}": ${errorMessage}`);
+    }
   }
 
   async search(
@@ -130,8 +162,9 @@ export class QdrantManager {
     id: string | number
   ): Promise<{ id: string | number; payload?: Record<string, any> } | null> {
     try {
+      const normalizedId = this.normalizeId(id);
       const points = await this.client.retrieve(collectionName, {
-        ids: [id],
+        ids: [normalizedId],
       });
 
       if (points.length === 0) {
@@ -151,9 +184,12 @@ export class QdrantManager {
     collectionName: string,
     ids: (string | number)[]
   ): Promise<void> {
+    // Normalize IDs to ensure string IDs are in UUID format
+    const normalizedIds = ids.map(id => this.normalizeId(id));
+
     await this.client.delete(collectionName, {
       wait: true,
-      points: ids,
+      points: normalizedIds,
     });
   }
 }
