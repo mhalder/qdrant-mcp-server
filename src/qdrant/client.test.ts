@@ -291,7 +291,7 @@ describe('QdrantManager', () => {
 
       expect(mockClient.delete).toHaveBeenCalledWith('test-collection', {
         wait: true,
-        points: ['doc-1'],
+        points: ['bb0e4f49-4437-94d9-01e8-969ff11bd112'], // Normalized UUID from 'doc-1'
       });
     });
   });

@@ -114,9 +114,11 @@ Add documents to a collection with automatic embedding generation.
 **Parameters:**
 - `collection` (string, required): Collection name
 - `documents` (array, required): Array of documents with:
-  - `id` (string/number, required): Unique identifier
+  - `id` (string/number, required): Unique identifier (string IDs are automatically normalized to UUID format)
   - `text` (string, required): Document text content
   - `metadata` (object, optional): Additional metadata
+
+**Note:** String IDs are automatically normalized to UUID format for Qdrant compatibility. The normalization is deterministic, so the same string ID will always produce the same UUID.
 
 **Example:**
 ```
@@ -203,7 +205,9 @@ Delete specific documents from a collection.
 
 **Parameters:**
 - `collection` (string, required): Collection name
-- `ids` (array, required): Array of document IDs to delete
+- `ids` (array, required): Array of document IDs to delete (string IDs are automatically normalized to UUID format)
+
+**Note:** String IDs will be normalized to the same UUID format used when adding documents.
 
 ## Available Resources
 
