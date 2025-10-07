@@ -66,13 +66,19 @@ export class OpenAIEmbeddings {
         error?.message?.toLowerCase().includes("rate limit");
 
       if (isRateLimitError && attempt < this.retryAttempts) {
-        // Check for Retry-After header
-        const retryAfter = error?.headers?.["retry-after"];
+        // Check for Retry-After header (different HTTP clients may nest differently)
+        const retryAfter =
+          error?.response?.headers?.["retry-after"] ||
+          error?.headers?.["retry-after"];
         let delayMs: number;
 
         if (retryAfter) {
           // Use Retry-After header if available (in seconds)
-          delayMs = parseInt(retryAfter) * 1000;
+          const parsed = parseInt(retryAfter, 10);
+          delayMs =
+            !isNaN(parsed) && parsed > 0
+              ? parsed * 1000
+              : this.retryDelayMs * Math.pow(2, attempt);
         } else {
           // Exponential backoff: 1s, 2s, 4s, 8s...
           delayMs = this.retryDelayMs * Math.pow(2, attempt);

@@ -267,6 +267,39 @@ describe("OpenAIEmbeddings", () => {
       expect(duration).toBeGreaterThanOrEqual(1900); // Allow small margin
     });
 
+    it("should fallback to exponential backoff with invalid Retry-After header", async () => {
+      const rateLimitEmbeddings = new OpenAIEmbeddings(
+        "test-api-key",
+        "text-embedding-3-small",
+        undefined,
+        {
+          retryAttempts: 2,
+          retryDelayMs: 100, // 100ms for faster tests
+        },
+      );
+
+      const mockEmbedding = Array(1536).fill(0.5);
+
+      // Test various invalid Retry-After values
+      const invalidRetryAfterError = {
+        status: 429,
+        message: "Rate limit exceeded",
+        headers: { "retry-after": "invalid" }, // Non-numeric value
+      };
+
+      mockOpenAI.embeddings.create
+        .mockRejectedValueOnce(invalidRetryAfterError)
+        .mockResolvedValue({ data: [{ embedding: mockEmbedding }] });
+
+      const startTime = Date.now();
+      await rateLimitEmbeddings.embed("test text");
+      const duration = Date.now() - startTime;
+
+      // Should fallback to exponential backoff (100ms) instead of using invalid header
+      expect(duration).toBeGreaterThanOrEqual(90); // Allow small margin
+      expect(duration).toBeLessThan(500); // Should not wait too long
+    });
+
     it("should use exponential backoff when no Retry-After header", async () => {
       const rateLimitEmbeddings = new OpenAIEmbeddings(
         "test-api-key",
