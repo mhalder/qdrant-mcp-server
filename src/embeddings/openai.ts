@@ -12,6 +12,16 @@ export interface RateLimitConfig {
   retryDelayMs?: number;
 }
 
+interface OpenAIError {
+  status?: number;
+  code?: string;
+  message?: string;
+  headers?: Record<string, string>;
+  response?: {
+    headers?: Record<string, string>;
+  };
+}
+
 export class OpenAIEmbeddings {
   private client: OpenAI;
   private model: string;
@@ -59,17 +69,18 @@ export class OpenAIEmbeddings {
   ): Promise<T> {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const apiError = error as OpenAIError;
       const isRateLimitError =
-        error?.status === 429 ||
-        error?.code === "rate_limit_exceeded" ||
-        error?.message?.toLowerCase().includes("rate limit");
+        apiError?.status === 429 ||
+        apiError?.code === "rate_limit_exceeded" ||
+        apiError?.message?.toLowerCase().includes("rate limit");
 
       if (isRateLimitError && attempt < this.retryAttempts) {
         // Check for Retry-After header (different HTTP clients may nest differently)
         const retryAfter =
-          error?.response?.headers?.["retry-after"] ||
-          error?.headers?.["retry-after"];
+          apiError?.response?.headers?.["retry-after"] ||
+          apiError?.headers?.["retry-after"];
         let delayMs: number;
 
         if (retryAfter) {
