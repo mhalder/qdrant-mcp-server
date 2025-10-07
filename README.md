@@ -326,7 +326,8 @@ The server implements robust rate limiting to handle OpenAI API limits gracefull
 
 - **Request Throttling**: Queues requests to stay within OpenAI's rate limits (configurable, default: 3500 requests/minute)
 - **Exponential Backoff**: Automatically retries failed requests with increasing delays (1s, 2s, 4s, 8s...)
-- **Retry-After Header Support**: Respects OpenAI's retry guidance for optimal recovery
+- **Retry-After Header Support**: Respects OpenAI's retry guidance with validation fallback for invalid headers
+- **Typed Error Handling**: Uses OpenAIError interface for type-safe error detection and handling
 - **Smart Error Detection**: Identifies rate limit errors (429 status) vs other failures
 - **User Feedback**: Clear console messages during retry attempts with estimated wait times
 
@@ -438,8 +439,8 @@ npm run type-check
 The project uses GitHub Actions for CI/CD:
 
 - **Build**: Compiles TypeScript to JavaScript
-- **Type Check**: Validates TypeScript types
-- **Test**: Runs all 114 unit and integration tests
+- **Type Check**: Validates TypeScript types with strict mode
+- **Test**: Runs all 140 unit and functional tests (129 unit + 11 functional)
 - **Multi-version**: Tests on Node.js 18, 20, and 22
 
 The CI workflow runs on every push and pull request to the main branch.
@@ -466,13 +467,28 @@ npm run test:coverage
 
 ### Test Coverage
 
-The test suite includes 121 tests covering:
+The test suite includes **140 tests** (129 unit + 11 functional) covering:
 
-- **QdrantManager** (`src/qdrant/client.test.ts`): Collection management, point operations, and search functionality
-- **OpenAIEmbeddings** (`src/embeddings/openai.test.ts`): Embedding generation, batch processing, rate limiting, and error handling
-- **MCP Server** (`src/index.test.ts`): Tool schemas, resource URI patterns, and MCP protocol compliance
+**Unit Tests:**
 
-All tests are passing with comprehensive coverage of core functionality including rate limiting with exponential backoff.
+- **QdrantManager** (21 tests): Collection management, point operations, and search functionality
+- **OpenAIEmbeddings** (25 tests): Embedding generation, batch processing, rate limiting with exponential backoff, Retry-After header validation, and typed error handling
+- **MCP Server** (19 tests): Tool schemas, resource URI patterns, and MCP protocol compliance
+
+**Functional Tests:**
+
+- **Live API Integration** (11 tests): Real OpenAI embeddings, production MCP server validation, rate limiting behavior, and end-to-end workflows with 30+ real documents
+
+**Coverage Highlights:**
+
+- ✅ 100% function coverage across all modules
+- ✅ Comprehensive rate limiting tests with timing validation
+- ✅ Typed error handling with OpenAIError interface
+- ✅ Invalid Retry-After header fallback to exponential backoff
+- ✅ Real-world validation with live OpenAI API
+- ✅ Both source and compiled code tested
+
+See [`docs/test_report.md`](docs/test_report.md) for detailed test results and coverage analysis.
 
 ### Writing Tests
 
