@@ -1,81 +1,120 @@
 #!/usr/bin/env node
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-import { QdrantManager } from './qdrant/client.js';
-import { OpenAIEmbeddings } from './embeddings/openai.js';
-import { z } from 'zod';
+} from "@modelcontextprotocol/sdk/types.js";
+import { QdrantManager } from "./qdrant/client.js";
+import { OpenAIEmbeddings } from "./embeddings/openai.js";
+import { z } from "zod";
 
 // Validate environment variables
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
-const OPENAI_EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small';
+const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
+const OPENAI_EMBEDDING_MODEL =
+  process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
 const OPENAI_EMBEDDING_DIMENSIONS = process.env.OPENAI_EMBEDDING_DIMENSIONS
   ? parseInt(process.env.OPENAI_EMBEDDING_DIMENSIONS)
   : undefined;
 
+// Rate limiting configuration
+const OPENAI_MAX_REQUESTS_PER_MINUTE = process.env
+  .OPENAI_MAX_REQUESTS_PER_MINUTE
+  ? parseInt(process.env.OPENAI_MAX_REQUESTS_PER_MINUTE)
+  : 3500;
+const OPENAI_RETRY_ATTEMPTS = process.env.OPENAI_RETRY_ATTEMPTS
+  ? parseInt(process.env.OPENAI_RETRY_ATTEMPTS)
+  : 3;
+const OPENAI_RETRY_DELAY = process.env.OPENAI_RETRY_DELAY
+  ? parseInt(process.env.OPENAI_RETRY_DELAY)
+  : 1000;
+
 if (!OPENAI_API_KEY) {
-  console.error('Error: OPENAI_API_KEY environment variable is required');
+  console.error("Error: OPENAI_API_KEY environment variable is required");
   process.exit(1);
 }
 
 // Initialize clients
 const qdrant = new QdrantManager(QDRANT_URL);
-const embeddings = new OpenAIEmbeddings(OPENAI_API_KEY, OPENAI_EMBEDDING_MODEL, OPENAI_EMBEDDING_DIMENSIONS);
+const embeddings = new OpenAIEmbeddings(
+  OPENAI_API_KEY,
+  OPENAI_EMBEDDING_MODEL,
+  OPENAI_EMBEDDING_DIMENSIONS,
+  {
+    maxRequestsPerMinute: OPENAI_MAX_REQUESTS_PER_MINUTE,
+    retryAttempts: OPENAI_RETRY_ATTEMPTS,
+    retryDelayMs: OPENAI_RETRY_DELAY,
+  },
+);
 
 // Create MCP server
 const server = new Server(
   {
-    name: 'qdrant-mcp-server',
-    version: '1.0.0',
+    name: "qdrant-mcp-server",
+    version: "1.0.0",
   },
   {
     capabilities: {
       tools: {},
       resources: {},
     },
-  }
+  },
 );
 
 // Tool schemas
 const CreateCollectionSchema = z.object({
-  name: z.string().describe('Name of the collection'),
-  distance: z.enum(['Cosine', 'Euclid', 'Dot']).optional().describe('Distance metric (default: Cosine)'),
+  name: z.string().describe("Name of the collection"),
+  distance: z
+    .enum(["Cosine", "Euclid", "Dot"])
+    .optional()
+    .describe("Distance metric (default: Cosine)"),
 });
 
 const AddDocumentsSchema = z.object({
-  collection: z.string().describe('Name of the collection'),
-  documents: z.array(z.object({
-    id: z.union([z.string(), z.number()]).describe('Unique identifier for the document'),
-    text: z.string().describe('Text content to embed and store'),
-    metadata: z.record(z.any()).optional().describe('Optional metadata to store with the document'),
-  })).describe('Array of documents to add'),
+  collection: z.string().describe("Name of the collection"),
+  documents: z
+    .array(
+      z.object({
+        id: z
+          .union([z.string(), z.number()])
+          .describe("Unique identifier for the document"),
+        text: z.string().describe("Text content to embed and store"),
+        metadata: z
+          .record(z.any())
+          .optional()
+          .describe("Optional metadata to store with the document"),
+      }),
+    )
+    .describe("Array of documents to add"),
 });
 
 const SemanticSearchSchema = z.object({
-  collection: z.string().describe('Name of the collection to search'),
-  query: z.string().describe('Search query text'),
-  limit: z.number().optional().describe('Maximum number of results (default: 5)'),
-  filter: z.record(z.any()).optional().describe('Optional metadata filter'),
+  collection: z.string().describe("Name of the collection to search"),
+  query: z.string().describe("Search query text"),
+  limit: z
+    .number()
+    .optional()
+    .describe("Maximum number of results (default: 5)"),
+  filter: z.record(z.any()).optional().describe("Optional metadata filter"),
 });
 
 const DeleteCollectionSchema = z.object({
-  name: z.string().describe('Name of the collection to delete'),
+  name: z.string().describe("Name of the collection to delete"),
 });
 
 const GetCollectionInfoSchema = z.object({
-  name: z.string().describe('Name of the collection'),
+  name: z.string().describe("Name of the collection"),
 });
 
 const DeleteDocumentsSchema = z.object({
-  collection: z.string().describe('Name of the collection'),
-  ids: z.array(z.union([z.string(), z.number()])).describe('Array of document IDs to delete'),
+  collection: z.string().describe("Name of the collection"),
+  ids: z
+    .array(z.union([z.string(), z.number()]))
+    .describe("Array of document IDs to delete"),
 });
 
 // List available tools
@@ -83,141 +122,146 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: 'create_collection',
-        description: 'Create a new vector collection in Qdrant. The collection will be configured with the embedding model\'s dimensions automatically.',
+        name: "create_collection",
+        description:
+          "Create a new vector collection in Qdrant. The collection will be configured with the embedding model's dimensions automatically.",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
             name: {
-              type: 'string',
-              description: 'Name of the collection',
+              type: "string",
+              description: "Name of the collection",
             },
             distance: {
-              type: 'string',
-              enum: ['Cosine', 'Euclid', 'Dot'],
-              description: 'Distance metric (default: Cosine)',
+              type: "string",
+              enum: ["Cosine", "Euclid", "Dot"],
+              description: "Distance metric (default: Cosine)",
             },
           },
-          required: ['name'],
+          required: ["name"],
         },
       },
       {
-        name: 'add_documents',
-        description: 'Add documents to a collection. Documents will be automatically embedded using OpenAI embeddings.',
+        name: "add_documents",
+        description:
+          "Add documents to a collection. Documents will be automatically embedded using OpenAI embeddings.",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
             collection: {
-              type: 'string',
-              description: 'Name of the collection',
+              type: "string",
+              description: "Name of the collection",
             },
             documents: {
-              type: 'array',
-              description: 'Array of documents to add',
+              type: "array",
+              description: "Array of documents to add",
               items: {
-                type: 'object',
+                type: "object",
                 properties: {
                   id: {
-                    type: ['string', 'number'],
-                    description: 'Unique identifier for the document',
+                    type: ["string", "number"],
+                    description: "Unique identifier for the document",
                   },
                   text: {
-                    type: 'string',
-                    description: 'Text content to embed and store',
+                    type: "string",
+                    description: "Text content to embed and store",
                   },
                   metadata: {
-                    type: 'object',
-                    description: 'Optional metadata to store with the document',
+                    type: "object",
+                    description: "Optional metadata to store with the document",
                   },
                 },
-                required: ['id', 'text'],
+                required: ["id", "text"],
               },
             },
           },
-          required: ['collection', 'documents'],
+          required: ["collection", "documents"],
         },
       },
       {
-        name: 'semantic_search',
-        description: 'Search for documents using natural language queries. Returns the most semantically similar documents.',
+        name: "semantic_search",
+        description:
+          "Search for documents using natural language queries. Returns the most semantically similar documents.",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
             collection: {
-              type: 'string',
-              description: 'Name of the collection to search',
+              type: "string",
+              description: "Name of the collection to search",
             },
             query: {
-              type: 'string',
-              description: 'Search query text',
+              type: "string",
+              description: "Search query text",
             },
             limit: {
-              type: 'number',
-              description: 'Maximum number of results (default: 5)',
+              type: "number",
+              description: "Maximum number of results (default: 5)",
             },
             filter: {
-              type: 'object',
-              description: 'Optional metadata filter',
+              type: "object",
+              description: "Optional metadata filter",
             },
           },
-          required: ['collection', 'query'],
+          required: ["collection", "query"],
         },
       },
       {
-        name: 'list_collections',
-        description: 'List all available collections in Qdrant.',
+        name: "list_collections",
+        description: "List all available collections in Qdrant.",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {},
         },
       },
       {
-        name: 'delete_collection',
-        description: 'Delete a collection and all its documents.',
+        name: "delete_collection",
+        description: "Delete a collection and all its documents.",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
             name: {
-              type: 'string',
-              description: 'Name of the collection to delete',
+              type: "string",
+              description: "Name of the collection to delete",
             },
           },
-          required: ['name'],
+          required: ["name"],
         },
       },
       {
-        name: 'get_collection_info',
-        description: 'Get detailed information about a collection including vector size, point count, and distance metric.',
+        name: "get_collection_info",
+        description:
+          "Get detailed information about a collection including vector size, point count, and distance metric.",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
             name: {
-              type: 'string',
-              description: 'Name of the collection',
+              type: "string",
+              description: "Name of the collection",
             },
           },
-          required: ['name'],
+          required: ["name"],
         },
       },
       {
-        name: 'delete_documents',
-        description: 'Delete specific documents from a collection by their IDs.',
+        name: "delete_documents",
+        description:
+          "Delete specific documents from a collection by their IDs.",
         inputSchema: {
-          type: 'object',
+          type: "object",
           properties: {
             collection: {
-              type: 'string',
-              description: 'Name of the collection',
+              type: "string",
+              description: "Name of the collection",
             },
             ids: {
-              type: 'array',
-              description: 'Array of document IDs to delete',
+              type: "array",
+              description: "Array of document IDs to delete",
               items: {
-                type: ['string', 'number'],
+                type: ["string", "number"],
               },
             },
           },
-          required: ['collection', 'ids'],
+          required: ["collection", "ids"],
         },
       },
     ],
@@ -230,21 +274,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case 'create_collection': {
+      case "create_collection": {
         const { name, distance } = CreateCollectionSchema.parse(args);
         const vectorSize = embeddings.getDimensions();
         await qdrant.createCollection(name, vectorSize, distance);
         return {
           content: [
             {
-              type: 'text',
-              text: `Collection "${name}" created successfully with ${vectorSize} dimensions and ${distance || 'Cosine'} distance metric.`,
+              type: "text",
+              text: `Collection "${name}" created successfully with ${vectorSize} dimensions and ${distance || "Cosine"} distance metric.`,
             },
           ],
         };
       }
 
-      case 'add_documents': {
+      case "add_documents": {
         const { collection, documents } = AddDocumentsSchema.parse(args);
 
         // Check if collection exists
@@ -253,7 +297,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return {
             content: [
               {
-                type: 'text',
+                type: "text",
                 text: `Error: Collection "${collection}" does not exist. Create it first using create_collection.`,
               },
             ],
@@ -262,7 +306,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         // Generate embeddings for all documents
-        const texts = documents.map(doc => doc.text);
+        const texts = documents.map((doc) => doc.text);
         const embeddingResults = await embeddings.embedBatch(texts);
 
         // Prepare points for insertion
@@ -280,15 +324,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: `Successfully added ${documents.length} document(s) to collection "${collection}".`,
             },
           ],
         };
       }
 
-      case 'semantic_search': {
-        const { collection, query, limit, filter } = SemanticSearchSchema.parse(args);
+      case "semantic_search": {
+        const { collection, query, limit, filter } =
+          SemanticSearchSchema.parse(args);
 
         // Check if collection exists
         const exists = await qdrant.collectionExists(collection);
@@ -296,7 +341,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return {
             content: [
               {
-                type: 'text',
+                type: "text",
                 text: `Error: Collection "${collection}" does not exist.`,
               },
             ],
@@ -308,63 +353,68 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { embedding } = await embeddings.embed(query);
 
         // Search
-        const results = await qdrant.search(collection, embedding, limit || 5, filter);
+        const results = await qdrant.search(
+          collection,
+          embedding,
+          limit || 5,
+          filter,
+        );
 
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: JSON.stringify(results, null, 2),
             },
           ],
         };
       }
 
-      case 'list_collections': {
+      case "list_collections": {
         const collections = await qdrant.listCollections();
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: JSON.stringify(collections, null, 2),
             },
           ],
         };
       }
 
-      case 'delete_collection': {
+      case "delete_collection": {
         const { name } = DeleteCollectionSchema.parse(args);
         await qdrant.deleteCollection(name);
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: `Collection "${name}" deleted successfully.`,
             },
           ],
         };
       }
 
-      case 'get_collection_info': {
+      case "get_collection_info": {
         const { name } = GetCollectionInfoSchema.parse(args);
         const info = await qdrant.getCollectionInfo(name);
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: JSON.stringify(info, null, 2),
             },
           ],
         };
       }
 
-      case 'delete_documents': {
+      case "delete_documents": {
         const { collection, ids } = DeleteDocumentsSchema.parse(args);
         await qdrant.deletePoints(collection, ids);
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: `Successfully deleted ${ids.length} document(s) from collection "${collection}".`,
             },
           ],
@@ -375,7 +425,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [
             {
-              type: 'text',
+              type: "text",
               text: `Unknown tool: ${name}`,
             },
           ],
@@ -384,11 +434,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
   } catch (error: any) {
     // Enhanced error details for debugging
-    const errorDetails = error instanceof Error
-      ? error.message
-      : JSON.stringify(error, null, 2);
+    const errorDetails =
+      error instanceof Error ? error.message : JSON.stringify(error, null, 2);
 
-    console.error('Tool execution error:', {
+    console.error("Tool execution error:", {
       tool: name,
       error: errorDetails,
       stack: error?.stack,
@@ -398,7 +447,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return {
       content: [
         {
-          type: 'text',
+          type: "text",
           text: `Error: ${errorDetails}`,
         },
       ],
@@ -414,16 +463,16 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
   return {
     resources: [
       {
-        uri: 'qdrant://collections',
-        name: 'All Collections',
-        description: 'List of all vector collections in Qdrant',
-        mimeType: 'application/json',
+        uri: "qdrant://collections",
+        name: "All Collections",
+        description: "List of all vector collections in Qdrant",
+        mimeType: "application/json",
       },
       ...collections.map((name) => ({
         uri: `qdrant://collection/${name}`,
         name: `Collection: ${name}`,
         description: `Details and statistics for collection "${name}"`,
-        mimeType: 'application/json',
+        mimeType: "application/json",
       })),
     ],
   };
@@ -433,13 +482,13 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
 
-  if (uri === 'qdrant://collections') {
+  if (uri === "qdrant://collections") {
     const collections = await qdrant.listCollections();
     return {
       contents: [
         {
           uri,
-          mimeType: 'application/json',
+          mimeType: "application/json",
           text: JSON.stringify(collections, null, 2),
         },
       ],
@@ -454,7 +503,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       contents: [
         {
           uri,
-          mimeType: 'application/json',
+          mimeType: "application/json",
           text: JSON.stringify(info, null, 2),
         },
       ],
@@ -465,7 +514,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     contents: [
       {
         uri,
-        mimeType: 'text/plain',
+        mimeType: "text/plain",
         text: `Unknown resource: ${uri}`,
       },
     ],
@@ -476,10 +525,10 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Qdrant MCP server running on stdio');
+  console.error("Qdrant MCP server running on stdio");
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  console.error("Fatal error:", error);
   process.exit(1);
 });
