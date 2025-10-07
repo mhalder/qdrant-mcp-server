@@ -54,6 +54,10 @@ export class OpenAIEmbeddings {
     this.retryDelayMs = rateLimitConfig?.retryDelayMs || 1000;
 
     // Initialize bottleneck limiter
+    // Uses reservoir (token bucket) pattern for burst handling with per-minute refresh
+    // Note: Using both reservoir and minTime provides defense in depth but may be
+    // more conservative than necessary. Future optimization could use reservoir-only
+    // for better burst handling or minTime-only for simpler even distribution.
     this.limiter = new Bottleneck({
       reservoir: maxRequestsPerMinute,
       reservoirRefreshAmount: maxRequestsPerMinute,
