@@ -28,6 +28,29 @@ Learn fundamental operations:
 
 ---
 
+### ⚡ [Rate Limiting](./rate-limiting/)
+
+**Understand automatic rate limit handling for batch operations.**
+
+Topics covered:
+
+- Configuring rate limits for your OpenAI tier
+- Batch document processing
+- Exponential backoff retry behavior
+- Monitoring and troubleshooting
+
+**Use cases:**
+
+- High-volume document ingestion
+- Free tier optimization
+- Production reliability
+- Batch operations
+
+**Time:** 10-15 minutes
+**Difficulty:** Beginner to Intermediate
+
+---
+
 ### 📚 [Knowledge Base](./knowledge-base/)
 
 **Build a searchable documentation system with metadata.**
@@ -119,6 +142,13 @@ Use examples as templates:
 ┌─────────────┐
 │   Basic     │  Start here - core operations
 └──────┬──────┘
+       │
+       ├──────────┐
+       │          ▼
+       │     ┌─────────────┐
+       │     │    Rate     │  Learn automatic rate limit handling
+       │     │  Limiting   │  (especially for batch operations)
+       │     └─────────────┘
        │
        ▼
 ┌─────────────┐
