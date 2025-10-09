@@ -70,7 +70,8 @@ export class OllamaEmbeddings implements EmbeddingProvider {
 
       const isRateLimitError =
         apiError.status === 429 ||
-        apiError.message?.toLowerCase().includes("rate limit");
+        (typeof apiError.message === "string" &&
+          apiError.message.toLowerCase().includes("rate limit"));
 
       if (isRateLimitError && attempt < this.retryAttempts) {
         const delayMs = this.retryDelayMs * Math.pow(2, attempt);

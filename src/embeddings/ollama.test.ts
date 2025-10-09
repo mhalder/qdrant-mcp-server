@@ -479,5 +479,38 @@ describe("OllamaEmbeddings", () => {
       const defaultEmbeddings = new OllamaEmbeddings();
       expect(defaultEmbeddings).toBeDefined();
     });
+
+    it("should handle primitive error values in retry logic", async () => {
+      const mockEmbedding = Array(768).fill(0.5);
+
+      mockFetch
+        .mockRejectedValueOnce(123) // Number primitive
+        .mockResolvedValue({
+          ok: true,
+          json: async () => ({ embedding: mockEmbedding }),
+        });
+
+      await expect(embeddings.embed("test")).rejects.toThrow();
+    });
+
+    it("should handle error objects with non-string message property", async () => {
+      mockFetch.mockRejectedValue({
+        message: 404, // Non-string message
+        code: "NOT_FOUND",
+      });
+
+      // Should not treat this as a rate limit error even though it has a message property
+      await expect(embeddings.embed("test")).rejects.toThrow();
+      expect(mockFetch).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it("should handle Error instance in retry logic", async () => {
+      const testError = new Error("Connection timeout");
+      mockFetch.mockRejectedValue(testError);
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Connection timeout",
+      );
+    });
   });
 });
