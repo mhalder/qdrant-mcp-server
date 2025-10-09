@@ -11,6 +11,15 @@ import {
 import { QdrantManager } from "./qdrant/client.js";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { z } from "zod";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+// Read package.json for version
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(
+  readFileSync(join(__dirname, "../package.json"), "utf-8"),
+);
 
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
@@ -68,7 +77,9 @@ async function checkOllamaAvailability() {
       const tagsResponse = await fetch(`${baseUrl}/api/tags`);
       const { models } = await tagsResponse.json();
       const modelName = process.env.EMBEDDING_MODEL || "nomic-embed-text";
-      const modelExists = models.some((m: any) => m.name.includes(modelName));
+      const modelExists = models.some(
+        (m: any) => m.name === modelName || m.name.startsWith(`${modelName}:`),
+      );
 
       if (!modelExists) {
         let errorMessage = `Error: Model '${modelName}' not found in Ollama.\n`;
@@ -88,24 +99,28 @@ async function checkOllamaAvailability() {
         process.exit(1);
       }
     } catch (error) {
-      let errorMessage = `Error: Ollama is not running at ${baseUrl}.\n`;
+      const errorMessage =
+        error instanceof Error
+          ? `Error: ${error.message}`
+          : `Error: Ollama is not running at ${baseUrl}.\n`;
 
+      let helpText = "";
       if (isLocalhost) {
-        errorMessage +=
+        helpText =
           `Please start Ollama:\n` +
           `  - Using Docker: docker compose up -d\n` +
           `  - Or install locally: curl -fsSL https://ollama.ai/install.sh | sh\n` +
           `\nThen pull the embedding model:\n` +
           `  ollama pull nomic-embed-text`;
       } else {
-        errorMessage +=
+        helpText =
           `Please ensure:\n` +
           `  - Ollama is running at the specified URL\n` +
           `  - The URL is accessible from this machine\n` +
           `  - The embedding model is available (e.g., nomic-embed-text)`;
       }
 
-      console.error(errorMessage);
+      console.error(`${errorMessage}\n${helpText}`);
       process.exit(1);
     }
   }
@@ -118,8 +133,8 @@ const embeddings = EmbeddingProviderFactory.createFromEnv();
 // Create MCP server
 const server = new Server(
   {
-    name: "qdrant-mcp-server",
-    version: "1.0.0",
+    name: pkg.name,
+    version: pkg.version,
   },
   {
     capabilities: {

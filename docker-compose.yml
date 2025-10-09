@@ -1,3 +1,4 @@
+# No version field needed for Docker Compose v1.27.0+
 services:
   qdrant:
     image: qdrant/qdrant:latest
