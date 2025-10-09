@@ -12,7 +12,7 @@ This example demonstrates the fundamental operations of the Qdrant MCP Server.
 ## Prerequisites
 
 - Qdrant MCP Server running
-- OpenAI API key configured
+- Embedding provider configured (OpenAI, Cohere, Voyage AI, or Ollama)
 - Claude Code or another MCP client
 
 ## Example Workflow
@@ -23,7 +23,7 @@ This example demonstrates the fundamental operations of the Qdrant MCP Server.
 Create a collection named "basic-example"
 ```
 
-This creates a new vector collection with default settings (Cosine distance, 1536 dimensions for OpenAI embeddings).
+This creates a new vector collection with default settings (Cosine distance, dimensions based on your embedding provider).
 
 ### 2. Add Documents
 
@@ -34,7 +34,7 @@ Add these documents to basic-example:
 - id: 3, text: "Python is a popular programming language"
 ```
 
-Documents are automatically embedded using OpenAI's embedding model.
+Documents are automatically embedded using your configured embedding provider.
 
 ### 3. Search for Similar Documents
 

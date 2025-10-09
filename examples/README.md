@@ -8,7 +8,7 @@ Before running these examples, ensure you have:
 
 1. **Qdrant running**: `docker compose up -d`
 2. **MCP Server configured**: See main [README](../README.md) for setup
-3. **OpenAI API key**: Set in your environment or MCP configuration
+3. **Embedding provider configured**: API key for OpenAI, Cohere, Voyage AI, or Ollama running locally
 
 ## Available Examples
 
@@ -34,7 +34,7 @@ Learn fundamental operations:
 
 Topics covered:
 
-- Configuring rate limits for your OpenAI tier
+- Configuring rate limits for your embedding provider
 - Batch document processing
 - Exponential backoff retry behavior
 - Monitoring and troubleshooting
@@ -281,7 +281,7 @@ Create a collection named "name"
 
 - **"Collection not found"**: Create the collection first
 - **"Bad Request"**: Check filter JSON syntax
-- **"OpenAI API error"**: Verify API key and credits
+- **"API error"**: Verify your embedding provider API key and credits
 
 ## Next Steps
 
@@ -307,5 +307,8 @@ We're especially interested in:
 
 - [Qdrant Documentation](https://qdrant.tech/documentation/)
 - [OpenAI Embeddings Guide](https://platform.openai.com/docs/guides/embeddings)
+- [Cohere Embeddings Guide](https://docs.cohere.com/docs/embeddings)
+- [Voyage AI Documentation](https://docs.voyageai.com/)
+- [Ollama Documentation](https://ollama.ai/docs)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [Main Project README](../README.md)

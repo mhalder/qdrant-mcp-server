@@ -3,24 +3,30 @@
 [![CI](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mhalder/qdrant-mcp-server/branch/main/graph/badge.svg)](https://codecov.io/gh/mhalder/qdrant-mcp-server)
 
-A Model Context Protocol (MCP) server that provides semantic search capabilities using a local Qdrant vector database and OpenAI embeddings.
+A Model Context Protocol (MCP) server that provides semantic search capabilities using a local Qdrant vector database with support for multiple embedding providers (OpenAI, Cohere, Voyage AI, and Ollama).
 
 ## Features
 
 - **Semantic Search**: Natural language search across your document collections
+- **Multiple Embedding Providers**: Support for OpenAI, Cohere, Voyage AI, and Ollama (local)
 - **Metadata Filtering**: Filter search results by metadata fields using Qdrant's powerful filter syntax
 - **Local Vector Database**: Runs Qdrant locally via Docker for complete data privacy
-- **Automatic Embeddings**: Uses OpenAI's embedding models to convert text to vectors
+- **Automatic Embeddings**: Converts text to vectors using your choice of embedding provider
 - **Rate Limiting**: Intelligent request throttling with exponential backoff to prevent API rate limit errors
 - **MCP Integration**: Works seamlessly with Claude Code and other MCP clients
 - **Collection Management**: Create, list, and delete vector collections
 - **Document Operations**: Add, search, and delete documents with metadata support
+- **Flexible Configuration**: Easy provider switching via environment variables
 
 ## Prerequisites
 
 - Node.js 18+
 - Docker and Docker Compose
-- OpenAI API key
+- API key for your chosen embedding provider:
+  - OpenAI API key (default)
+  - Cohere API key
+  - Voyage AI API key
+  - Ollama (no API key required, runs locally)
 
 ## Installation
 
@@ -43,17 +49,41 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and add your OpenAI API key:
+Edit `.env` and configure your embedding provider:
+
+**Option 1: OpenAI (default)**
 
 ```bash
+EMBEDDING_PROVIDER=openai
 OPENAI_API_KEY=sk-your-api-key-here
 QDRANT_URL=http://localhost:6333
-
-# Optional: OpenAI Rate Limiting (defaults shown)
-OPENAI_MAX_REQUESTS_PER_MINUTE=3500
-OPENAI_RETRY_ATTEMPTS=3
-OPENAI_RETRY_DELAY=1000
 ```
+
+**Option 2: Cohere**
+
+```bash
+EMBEDDING_PROVIDER=cohere
+COHERE_API_KEY=your-cohere-api-key-here
+QDRANT_URL=http://localhost:6333
+```
+
+**Option 3: Voyage AI**
+
+```bash
+EMBEDDING_PROVIDER=voyage
+VOYAGE_API_KEY=your-voyage-api-key-here
+QDRANT_URL=http://localhost:6333
+```
+
+**Option 4: Ollama (Local)**
+
+```bash
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_BASE_URL=http://localhost:11434
+QDRANT_URL=http://localhost:6333
+```
+
+See the [Configuration Options](#configuration-options) section for advanced settings.
 
 4. Start Qdrant:
 
@@ -87,6 +117,8 @@ node build/index.js
 
 Add this to your Claude Code configuration file at `~/.claude/claude_code_config.json`:
 
+**With OpenAI:**
+
 ```json
 {
   "mcpServers": {
@@ -96,7 +128,68 @@ Add this to your Claude Code configuration file at `~/.claude/claude_code_config
         "/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"
       ],
       "env": {
+        "EMBEDDING_PROVIDER": "openai",
         "OPENAI_API_KEY": "sk-your-api-key-here",
+        "QDRANT_URL": "http://localhost:6333"
+      }
+    }
+  }
+}
+```
+
+**With Cohere:**
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": [
+        "/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"
+      ],
+      "env": {
+        "EMBEDDING_PROVIDER": "cohere",
+        "COHERE_API_KEY": "your-cohere-api-key-here",
+        "QDRANT_URL": "http://localhost:6333"
+      }
+    }
+  }
+}
+```
+
+**With Voyage AI:**
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": [
+        "/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"
+      ],
+      "env": {
+        "EMBEDDING_PROVIDER": "voyage",
+        "VOYAGE_API_KEY": "your-voyage-api-key-here",
+        "QDRANT_URL": "http://localhost:6333"
+      }
+    }
+  }
+}
+```
+
+**With Ollama (Local):**
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": [
+        "/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"
+      ],
+      "env": {
+        "EMBEDDING_PROVIDER": "ollama",
+        "EMBEDDING_BASE_URL": "http://localhost:11434",
         "QDRANT_URL": "http://localhost:6333"
       }
     }
@@ -250,8 +343,14 @@ qdrant-mcp-server/
 │   ├── qdrant/
 │   │   └── client.ts         # Qdrant client wrapper
 │   └── embeddings/
-│       └── openai.ts         # OpenAI embeddings provider
+│       ├── base.ts           # Provider interface and types
+│       ├── factory.ts        # Provider factory
+│       ├── openai.ts         # OpenAI embeddings provider
+│       ├── cohere.ts         # Cohere embeddings provider
+│       ├── voyage.ts         # Voyage AI embeddings provider
+│       └── ollama.ts         # Ollama embeddings provider
 ├── docker-compose.yml        # Qdrant Docker setup
+├── .env.example              # Environment configuration template
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -301,46 +400,92 @@ qdrant-mcp-server/
 
 ### Environment Variables
 
-- `OPENAI_API_KEY` (required): Your OpenAI API key
+#### Common Configuration
+
+- `EMBEDDING_PROVIDER` (optional): Embedding provider to use - "openai", "cohere", "voyage", or "ollama" (default: "openai")
 - `QDRANT_URL` (optional): Qdrant server URL (default: http://localhost:6333)
-- `OPENAI_EMBEDDING_MODEL` (optional): Embedding model (default: text-embedding-3-small)
-- `OPENAI_EMBEDDING_DIMENSIONS` (optional): Custom embedding dimensions
-- `OPENAI_MAX_REQUESTS_PER_MINUTE` (optional): Maximum OpenAI API requests per minute (default: 3500)
-- `OPENAI_RETRY_ATTEMPTS` (optional): Number of retry attempts for rate limit errors (default: 3)
-- `OPENAI_RETRY_DELAY` (optional): Initial retry delay in milliseconds with exponential backoff (default: 1000)
+- `EMBEDDING_MODEL` (optional): Model name for the selected provider (provider-specific defaults apply)
+- `EMBEDDING_DIMENSIONS` (optional): Custom embedding dimensions (overrides model defaults)
+- `EMBEDDING_BASE_URL` (optional): Custom API base URL (for Voyage AI and Ollama)
+- `EMBEDDING_MAX_REQUESTS_PER_MINUTE` (optional): Rate limit (provider-specific defaults)
+- `EMBEDDING_RETRY_ATTEMPTS` (optional): Retry attempts for rate limit errors (default: 3)
+- `EMBEDDING_RETRY_DELAY` (optional): Initial retry delay in ms with exponential backoff (default: 1000)
+
+#### Provider-Specific API Keys
+
+- `OPENAI_API_KEY`: Required for OpenAI provider
+- `COHERE_API_KEY`: Required for Cohere provider
+- `VOYAGE_API_KEY`: Required for Voyage AI provider
+- Ollama: No API key required
 
 ### Embedding Models
 
-Available OpenAI models:
+#### OpenAI Models
 
-- `text-embedding-3-small` (1536 dims, faster, cheaper)
-- `text-embedding-3-large` (3072 dims, higher quality)
+- `text-embedding-3-small` (1536 dims, default) - Faster, more cost-effective
+- `text-embedding-3-large` (3072 dims) - Higher quality
+- `text-embedding-ada-002` (1536 dims) - Legacy model
+
+Default rate limit: 3500 requests/minute (paid tier)
+
+#### Cohere Models
+
+- `embed-english-v3.0` (1024 dims, default) - English-optimized
+- `embed-multilingual-v3.0` (1024 dims) - Multi-language support
+- `embed-english-light-v3.0` (384 dims) - Lightweight English model
+- `embed-multilingual-light-v3.0` (384 dims) - Lightweight multilingual model
+
+Default rate limit: 100 requests/minute
+
+#### Voyage AI Models
+
+- `voyage-2` (1024 dims, default) - General purpose
+- `voyage-large-2` (1536 dims) - Enhanced quality
+- `voyage-code-2` (1536 dims) - Code-specialized
+- `voyage-lite-02-instruct` (1024 dims) - Instruction-tuned
+
+Default rate limit: 300 requests/minute
+
+#### Ollama Models (Local)
+
+- `nomic-embed-text` (768 dims, default) - High-quality local embeddings
+- `mxbai-embed-large` (1024 dims) - Larger context window
+- `all-minilm` (384 dims) - Lightweight option
+
+Default rate limit: 1000 requests/minute (local, can be adjusted)
+
+**Note:** Ollama models must be downloaded first using `ollama pull <model-name>`
 
 ## Advanced Features
 
 ### Rate Limiting and Error Handling
 
-The server implements robust rate limiting to handle OpenAI API limits gracefully:
+The server implements robust rate limiting for all embedding providers:
 
 **Features:**
 
-- **Request Throttling**: Queues requests to stay within OpenAI's rate limits (configurable, default: 3500 requests/minute)
+- **Request Throttling**: Queues requests to stay within provider rate limits (provider-specific defaults)
 - **Exponential Backoff**: Automatically retries failed requests with increasing delays (1s, 2s, 4s, 8s...)
-- **Retry-After Header Support**: Respects OpenAI's retry guidance with validation fallback for invalid headers
-- **Typed Error Handling**: Uses OpenAIError interface for type-safe error detection and handling
+- **Retry-After Header Support**: Respects provider retry guidance (OpenAI) with validation fallback
+- **Typed Error Handling**: Provider-specific error interfaces for type-safe error detection
 - **Smart Error Detection**: Identifies rate limit errors (429 status) vs other failures
 - **User Feedback**: Clear console messages during retry attempts with estimated wait times
 
 **Configuration:**
 
 ```bash
-# Adjust for your OpenAI tier (free tier: 500/min, paid tiers: 3500+/min)
-OPENAI_MAX_REQUESTS_PER_MINUTE=3500
-
-# Retry behavior
-OPENAI_RETRY_ATTEMPTS=3      # Number of retries before failing
-OPENAI_RETRY_DELAY=1000      # Initial delay (doubles each retry)
+# Common settings (apply to all providers)
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=3500  # Adjust based on your provider tier
+EMBEDDING_RETRY_ATTEMPTS=3              # Number of retries before failing
+EMBEDDING_RETRY_DELAY=1000              # Initial delay (doubles each retry)
 ```
+
+**Provider-Specific Defaults:**
+
+- OpenAI: 3500 requests/minute (paid tier)
+- Cohere: 100 requests/minute
+- Voyage AI: 300 requests/minute
+- Ollama: 1000 requests/minute (local, configurable)
 
 **Benefits:**
 
@@ -348,6 +493,7 @@ OPENAI_RETRY_DELAY=1000      # Initial delay (doubles each retry)
 - Automatic recovery from temporary API issues
 - Optimized for batch document processing
 - Works seamlessly with both single and batch embedding operations
+- Consistent behavior across all providers
 
 ### Metadata Filtering
 
@@ -386,19 +532,43 @@ Create the collection first before adding documents:
 Create a collection named "my-collection"
 ```
 
-### OpenAI API errors
+### Embedding Provider Errors
+
+**OpenAI:**
 
 - Verify your API key is correct in `.env`
 - Check your OpenAI account has available credits
 - Ensure you have access to the embedding models
 
+**Cohere:**
+
+- Verify your Cohere API key is correct
+- Check your Cohere account status and credits
+- Ensure you're using a valid model name
+
+**Voyage AI:**
+
+- Verify your Voyage API key is correct
+- Check your Voyage AI account status
+- Ensure the base URL is correct (default: https://api.voyageai.com/v1)
+
+**Ollama:**
+
+- Ensure Ollama is running: `curl http://localhost:11434`
+- Pull the required model: `ollama pull nomic-embed-text`
+- Check the base URL matches your Ollama installation
+
 ### Rate limit errors
 
 The server automatically handles rate limits, but if you see persistent rate limit errors:
 
-- Reduce `OPENAI_MAX_REQUESTS_PER_MINUTE` to match your OpenAI tier (free: 500, paid: 3500+)
-- Increase `OPENAI_RETRY_ATTEMPTS` for more resilient retries
-- Check your OpenAI dashboard for current usage and limits
+- Reduce `EMBEDDING_MAX_REQUESTS_PER_MINUTE` to match your provider's tier
+  - OpenAI free: 500/min, paid: 3500+/min
+  - Cohere: 100/min (adjust based on your plan)
+  - Voyage AI: 300/min (adjust based on your plan)
+  - Ollama: No limits (local), but adjust based on system capacity
+- Increase `EMBEDDING_RETRY_ATTEMPTS` for more resilient retries
+- Check your provider's dashboard for current usage and limits
 
 ### Filter errors
 
@@ -463,6 +633,9 @@ npm run test:ui
 
 # Run tests with coverage
 npm run test:coverage
+
+# Run provider verification tests
+npm run test:providers
 ```
 
 ### Test Coverage
