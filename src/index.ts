@@ -20,14 +20,32 @@ const EMBEDDING_PROVIDER = (
 
 // Check for required API keys based on provider
 if (EMBEDDING_PROVIDER !== "ollama") {
-  const apiKey =
-    process.env.OPENAI_API_KEY ||
-    process.env.COHERE_API_KEY ||
-    process.env.VOYAGE_API_KEY;
+  let apiKey: string | undefined;
+  let requiredKeyName: string;
+
+  switch (EMBEDDING_PROVIDER) {
+    case "openai":
+      apiKey = process.env.OPENAI_API_KEY;
+      requiredKeyName = "OPENAI_API_KEY";
+      break;
+    case "cohere":
+      apiKey = process.env.COHERE_API_KEY;
+      requiredKeyName = "COHERE_API_KEY";
+      break;
+    case "voyage":
+      apiKey = process.env.VOYAGE_API_KEY;
+      requiredKeyName = "VOYAGE_API_KEY";
+      break;
+    default:
+      console.error(
+        `Error: Unknown embedding provider "${EMBEDDING_PROVIDER}". Supported providers: openai, cohere, voyage, ollama.`,
+      );
+      process.exit(1);
+  }
 
   if (!apiKey) {
     console.error(
-      `Error: API key is required for ${EMBEDDING_PROVIDER} provider. Set OPENAI_API_KEY, COHERE_API_KEY, or VOYAGE_API_KEY.`,
+      `Error: ${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider.`,
     );
     process.exit(1);
   }
@@ -37,20 +55,33 @@ if (EMBEDDING_PROVIDER !== "ollama") {
 async function checkOllamaAvailability() {
   if (EMBEDDING_PROVIDER === "ollama") {
     const baseUrl = process.env.EMBEDDING_BASE_URL || "http://localhost:11434";
+    const isLocalhost =
+      baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
+
     try {
       const response = await fetch(`${baseUrl}/api/version`);
       if (!response.ok) {
         throw new Error(`Ollama returned status ${response.status}`);
       }
     } catch (error) {
-      console.error(
-        `Error: Ollama is not running at ${baseUrl}.\n` +
+      let errorMessage = `Error: Ollama is not running at ${baseUrl}.\n`;
+
+      if (isLocalhost) {
+        errorMessage +=
           `Please start Ollama:\n` +
           `  - Using Docker: docker compose up -d\n` +
           `  - Or install locally: curl -fsSL https://ollama.ai/install.sh | sh\n` +
           `\nThen pull the embedding model:\n` +
-          `  ollama pull nomic-embed-text`,
-      );
+          `  ollama pull nomic-embed-text`;
+      } else {
+        errorMessage +=
+          `Please ensure:\n` +
+          `  - Ollama is running at the specified URL\n` +
+          `  - The URL is accessible from this machine\n` +
+          `  - The embedding model is available (e.g., nomic-embed-text)`;
+      }
+
+      console.error(errorMessage);
       process.exit(1);
     }
   }
