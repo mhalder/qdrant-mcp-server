@@ -22,7 +22,7 @@ A Model Context Protocol (MCP) server that provides semantic search capabilities
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20+ (tested on Node.js 20 and 22)
 - Docker and Docker Compose
 
 **Optional** (for alternative embedding providers):
@@ -576,8 +576,8 @@ The project uses GitHub Actions for CI/CD:
 
 - **Build**: Compiles TypeScript to JavaScript
 - **Type Check**: Validates TypeScript types with strict mode
-- **Test**: Runs all 140 unit and functional tests (129 unit + 11 functional)
-- **Multi-version**: Tests on Node.js 18, 20, and 22
+- **Test**: Runs all 376 unit tests with 98.27% coverage
+- **Multi-version**: Tests on Node.js 20 and 22
 
 The CI workflow runs on every push and pull request to the main branch.
 
@@ -606,17 +606,21 @@ npm run test:providers
 
 ### Test Coverage
 
-The test suite includes **140 tests** (129 unit + 11 functional) covering:
+The test suite includes **422 tests** (376 unit + 46 functional/interactive) covering:
 
 **Unit Tests:**
 
 - **QdrantManager** (21 tests): Collection management, point operations, and search functionality
-- **OpenAIEmbeddings** (25 tests): Embedding generation, batch processing, rate limiting with exponential backoff, Retry-After header validation, and typed error handling
+- **OllamaEmbeddings** (31 tests): Local embedding generation, batch processing, rate limiting - DEFAULT PROVIDER
+- **OpenAIEmbeddings** (25 tests): Cloud embedding generation, batch processing, rate limiting with Retry-After header
+- **CohereEmbeddings** (29 tests): Cohere API integration, batch processing, rate limiting
+- **VoyageEmbeddings** (31 tests): Voyage AI integration, batch processing, rate limiting
+- **Factory Pattern** (32 tests): Provider instantiation, configuration, error handling
 - **MCP Server** (19 tests): Tool schemas, resource URI patterns, and MCP protocol compliance
 
-**Functional Tests:**
+**Functional/Interactive Tests:**
 
-- **Live API Integration** (11 tests): Real OpenAI embeddings, production MCP server validation, rate limiting behavior, and end-to-end workflows with 30+ real documents
+- **Live API Integration** (46 tests): Real embedding APIs, production MCP server validation, rate limiting behavior, and end-to-end workflows with real documents
 
 **Coverage Highlights:**
 
@@ -674,8 +678,8 @@ All pull requests will automatically run through CI checks that validate:
 
 - TypeScript compilation
 - Type checking
-- Test suite (114 tests)
-- Compatibility with Node.js 18, 20, and 22
+- Test suite (376 tests, 98.27% coverage)
+- Compatibility with Node.js 20 and 22
 
 ### Note for Repository Owners
 
