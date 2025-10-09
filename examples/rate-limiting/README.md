@@ -1,6 +1,6 @@
 # Rate Limiting Example
 
-Learn how the Qdrant MCP Server handles OpenAI API rate limits automatically with intelligent throttling and retry mechanisms.
+Learn how the Qdrant MCP Server handles embedding provider API rate limits automatically with intelligent throttling and retry mechanisms.
 
 ## Overview
 
@@ -17,14 +17,21 @@ This example demonstrates:
 
 ## Why Rate Limiting Matters
 
-OpenAI enforces rate limits based on your account tier:
+Embedding providers enforce rate limits based on your account tier:
 
-| Tier    | Requests/Minute |
+**OpenAI:**
+| Tier | Requests/Minute |
 | ------- | --------------- |
-| Free    | 500             |
-| Tier 1  | 3,500           |
-| Tier 2  | 5,000           |
-| Tier 3+ | 10,000+         |
+| Free | 500 |
+| Tier 1 | 3,500 |
+| Tier 2 | 5,000 |
+| Tier 3+ | 10,000+ |
+
+**Other Providers:**
+
+- **Cohere**: ~100 requests/minute (varies by plan)
+- **Voyage AI**: ~300 requests/minute (varies by plan)
+- **Ollama**: No API limits (local), limited by system resources
 
 Without rate limiting, batch operations can exceed these limits and fail.
 
@@ -34,35 +41,56 @@ The server automatically:
 
 1. **Throttles Requests**: Queues API calls to stay within limits
 2. **Retries on Failure**: Uses exponential backoff (1s, 2s, 4s, 8s...)
-3. **Respects Retry-After**: Follows OpenAI's retry guidance
+3. **Respects Retry-After**: Follows provider retry guidance (when available)
 4. **Provides Feedback**: Shows retry progress in console
 
 ## Configuration
 
-### Default Settings (Tier 1 Paid)
+### OpenAI Settings
+
+**Default (Tier 1 Paid):**
 
 ```bash
-OPENAI_MAX_REQUESTS_PER_MINUTE=3500
-OPENAI_RETRY_ATTEMPTS=3
-OPENAI_RETRY_DELAY=1000  # milliseconds
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=3500
+EMBEDDING_RETRY_ATTEMPTS=3
+EMBEDDING_RETRY_DELAY=1000
 ```
 
-### Free Tier Configuration
-
-If you're on the free tier, update your `.env`:
+**Free Tier:**
 
 ```bash
-OPENAI_MAX_REQUESTS_PER_MINUTE=500
-OPENAI_RETRY_ATTEMPTS=5
-OPENAI_RETRY_DELAY=2000
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=500
+EMBEDDING_RETRY_ATTEMPTS=5
+EMBEDDING_RETRY_DELAY=2000
 ```
 
-### High-Volume Configuration (Tier 3+)
+### Cohere Settings
 
 ```bash
-OPENAI_MAX_REQUESTS_PER_MINUTE=10000
-OPENAI_RETRY_ATTEMPTS=3
-OPENAI_RETRY_DELAY=500
+EMBEDDING_PROVIDER=cohere
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=100
+EMBEDDING_RETRY_ATTEMPTS=3
+EMBEDDING_RETRY_DELAY=1000
+```
+
+### Voyage AI Settings
+
+```bash
+EMBEDDING_PROVIDER=voyage
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=300
+EMBEDDING_RETRY_ATTEMPTS=3
+EMBEDDING_RETRY_DELAY=1000
+```
+
+### Ollama Settings (Local)
+
+```bash
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=1000
+EMBEDDING_RETRY_ATTEMPTS=3
+EMBEDDING_RETRY_DELAY=500
 ```
 
 ## Example: Batch Document Processing
@@ -156,36 +184,46 @@ OPENAI_MAX_REQUESTS_PER_MINUTE=500
 
 ## Best Practices
 
-### 1. Configure for Your Tier
+### 1. Configure for Your Provider
 
-Always set `OPENAI_MAX_REQUESTS_PER_MINUTE` to match your OpenAI account:
+Always set `EMBEDDING_MAX_REQUESTS_PER_MINUTE` to match your provider's limits:
+
+**OpenAI:**
 
 ```bash
 # Check your tier at: https://platform.openai.com/account/limits
-OPENAI_MAX_REQUESTS_PER_MINUTE=<your-limit>
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=<your-limit>
 ```
+
+**Other Providers:**
+
+- Check your provider's dashboard for rate limits
+- Start conservative and increase if needed
 
 ### 2. Adjust Retry Settings for Reliability
 
 For critical operations, increase retry attempts:
 
 ```bash
-OPENAI_RETRY_ATTEMPTS=5  # More resilient
+EMBEDDING_RETRY_ATTEMPTS=5  # More resilient
 ```
 
 For development/testing, reduce retries:
 
 ```bash
-OPENAI_RETRY_ATTEMPTS=1  # Fail faster
+EMBEDDING_RETRY_ATTEMPTS=1  # Fail faster
 ```
 
 ### 3. Batch Operations Wisely
 
-The OpenAI API supports batch embeddings (up to 2048 texts per request):
+Most embedding providers support batch operations:
 
-- Server automatically uses batch API when you add multiple documents
-- More efficient than individual requests
-- Still respects rate limits
+- **OpenAI**: Up to 2048 texts per request
+- **Cohere**: Batch support available
+- **Voyage AI**: Batch support available
+- **Ollama**: Sequential processing (one at a time)
+
+The server automatically uses batch APIs when available for efficiency.
 
 ### 4. Monitor Your Usage
 
@@ -210,7 +248,7 @@ With `OPENAI_RETRY_DELAY=1000`:
 
 ### Retry-After Header
 
-If OpenAI provides a `Retry-After` header:
+If the provider provides a `Retry-After` header (OpenAI, some others):
 
 - Server uses that exact delay
 - Ignores exponential backoff
@@ -235,19 +273,19 @@ Rate limit reached. Retrying in 2.0s (attempt 1/3)...
 ### Max Retries Exceeded (Rare)
 
 ```
-Error: OpenAI API rate limit exceeded after 3 retry attempts.
+Error: [Provider] API rate limit exceeded after 3 retry attempts.
 Please try again later or reduce request frequency.
 ```
 
 **Action:**
 
 - Wait a few minutes
-- Reduce `OPENAI_MAX_REQUESTS_PER_MINUTE`
-- Check OpenAI dashboard for current usage
+- Reduce `EMBEDDING_MAX_REQUESTS_PER_MINUTE`
+- Check your provider's dashboard for current usage
 
 ## Integration with Claude Code
 
-The rate limiting works seamlessly with Claude Code:
+The rate limiting works seamlessly with Claude Code. Example with OpenAI:
 
 ```json
 {
@@ -256,11 +294,12 @@ The rate limiting works seamlessly with Claude Code:
       "command": "node",
       "args": ["/path/to/qdrant-mcp-server/build/index.js"],
       "env": {
+        "EMBEDDING_PROVIDER": "openai",
         "OPENAI_API_KEY": "sk-your-key",
         "QDRANT_URL": "http://localhost:6333",
-        "OPENAI_MAX_REQUESTS_PER_MINUTE": "3500",
-        "OPENAI_RETRY_ATTEMPTS": "3",
-        "OPENAI_RETRY_DELAY": "1000"
+        "EMBEDDING_MAX_REQUESTS_PER_MINUTE": "3500",
+        "EMBEDDING_RETRY_ATTEMPTS": "3",
+        "EMBEDDING_RETRY_DELAY": "1000"
       }
     }
   }
@@ -291,9 +330,9 @@ Delete collection "rate-limit-test"
 
 ### Still Getting Rate Limit Errors?
 
-1. **Check your OpenAI tier**: Visit https://platform.openai.com/account/limits
-2. **Reduce request rate**: Lower `OPENAI_MAX_REQUESTS_PER_MINUTE` by 20%
-3. **Increase retry attempts**: Set `OPENAI_RETRY_ATTEMPTS=5`
+1. **Check your provider's limits**: Visit your provider's dashboard
+2. **Reduce request rate**: Lower `EMBEDDING_MAX_REQUESTS_PER_MINUTE` by 20%
+3. **Increase retry attempts**: Set `EMBEDDING_RETRY_ATTEMPTS=5`
 4. **Wait between batches**: For very large operations, split into multiple sessions
 
 ### Slow Performance?
@@ -302,5 +341,5 @@ If operations seem slow:
 
 - This is expected with rate limiting
 - It's better than failed operations
-- Upgrade your OpenAI tier for higher limits
-- Current tier limits displayed in OpenAI dashboard
+- Upgrade your provider's tier for higher limits
+- Consider using Ollama for unlimited local processing
