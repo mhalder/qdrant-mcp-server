@@ -34,13 +34,21 @@ jobs:
     - name: Build project
       run: npm run build
 
-    - name: Run tests
+    - name: Run unit tests
       if: matrix.node-version != '22.x'
       run: npm test -- --run
+
+    - name: Run provider verification tests
+      if: matrix.node-version != '22.x'
+      run: npm run test:providers
 
     - name: Run tests with coverage (Node 22.x only)
       if: matrix.node-version == '22.x'
       run: npm run test:coverage
+
+    - name: Run provider verification tests (Node 22.x only)
+      if: matrix.node-version == '22.x'
+      run: npm run test:providers
 
     - name: Upload coverage to Codecov (Node 22.x only)
       if: matrix.node-version == '22.x'
