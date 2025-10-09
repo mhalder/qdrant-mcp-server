@@ -481,16 +481,19 @@ describe("OllamaEmbeddings", () => {
     });
 
     it("should handle primitive error values in retry logic", async () => {
-      const mockEmbedding = Array(768).fill(0.5);
-
-      mockFetch
-        .mockRejectedValueOnce(123) // Number primitive
-        .mockResolvedValue({
-          ok: true,
-          json: async () => ({ embedding: mockEmbedding }),
-        });
+      // This tests line 69: when error is not an OllamaError, convert to { status: 0, message: String(error) }
+      mockFetch.mockRejectedValue(null);
 
       await expect(embeddings.embed("test")).rejects.toThrow();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle string primitive errors", async () => {
+      mockFetch.mockRejectedValue("Network unreachable");
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Network unreachable",
+      );
     });
 
     it("should handle error objects with non-string message property", async () => {
@@ -510,6 +513,30 @@ describe("OllamaEmbeddings", () => {
 
       await expect(embeddings.embed("test")).rejects.toThrow(
         "Connection timeout",
+      );
+    });
+
+    it("should handle Error instance from network error with enhanced message", async () => {
+      // This tests error instanceof Error path for network errors
+      const networkError = new Error("ECONNREFUSED");
+      mockFetch.mockRejectedValue(networkError);
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text: ECONNREFUSED. Text preview:",
+      );
+    });
+
+    it("should handle object with string message property", async () => {
+      // This tests lines 143-144: object with message property that is a string
+      const customError = {
+        code: "API_ERROR",
+        message: "Custom API failure",
+        details: "Something went wrong",
+      };
+      mockFetch.mockRejectedValue(customError);
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Custom API failure",
       );
     });
   });

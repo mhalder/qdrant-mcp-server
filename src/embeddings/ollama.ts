@@ -125,24 +125,25 @@ export class OllamaEmbeddings implements EmbeddingProvider {
         throw error;
       }
 
-      // Handle network or other errors - preserve the original error structure
+      // For Error instances (like network errors), enhance the message
+      if (error instanceof Error) {
+        const textPreview =
+          text.length > 100 ? text.substring(0, 100) + "..." : text;
+        throw new Error(
+          `Failed to call Ollama API at ${this.baseUrl} with model ${this.model}: ${error.message}. Text preview: "${textPreview}"`,
+        );
+      }
+
+      // Handle objects with 'message' property - preserve the original error structure
       // This ensures objects with 'message' property work correctly in tests
       if (this.isOllamaError(error)) {
         throw error;
       }
 
-      // For Error objects or other types, create a descriptive error message
+      // For other types, create a descriptive error message
       const textPreview =
         text.length > 100 ? text.substring(0, 100) + "..." : text;
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : error &&
-              typeof error === "object" &&
-              "message" in error &&
-              typeof error.message === "string"
-            ? error.message
-            : JSON.stringify(error);
+      const errorMessage = JSON.stringify(error);
 
       throw new Error(
         `Failed to call Ollama API at ${this.baseUrl} with model ${this.model}: ${errorMessage}. Text preview: "${textPreview}"`,
