@@ -808,7 +808,9 @@ npm test -- --watch
 
 ### Provider Factory Tests
 
-Created comprehensive verification script (`verify-providers.js`) to test provider instantiation logic without requiring API keys for all providers.
+Created comprehensive verification script (`scripts/verify-providers.js`) to test provider instantiation logic without requiring API keys for all providers.
+
+**Run with:** `npm run test:providers`
 
 #### Test 1: Unknown Provider Rejection
 

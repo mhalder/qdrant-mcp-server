@@ -12,6 +12,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:providers": "node scripts/verify-providers.js",
     "type-check": "tsc --noEmit",
     "prepare": "npm run build"
   },

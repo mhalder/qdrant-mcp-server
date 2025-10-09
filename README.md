@@ -633,6 +633,9 @@ npm run test:ui
 
 # Run tests with coverage
 npm run test:coverage
+
+# Run provider verification tests
+npm run test:providers
 ```
 
 ### Test Coverage
