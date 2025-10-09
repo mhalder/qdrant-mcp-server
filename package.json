@@ -1,7 +1,7 @@
 {
   "name": "qdrant-mcp-server",
-  "version": "1.0.0",
-  "description": "MCP server for semantic search using local Qdrant vector database",
+  "version": "1.1.0",
+  "description": "MCP server for semantic search using local Qdrant and Ollama (default) with support for OpenAI, Cohere, and Voyage AI",
   "type": "module",
   "bin": {
     "qdrant-mcp-server": "./build/index.js"
