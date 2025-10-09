@@ -9,47 +9,33 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { QdrantManager } from "./qdrant/client.js";
-import { OpenAIEmbeddings } from "./embeddings/openai.js";
+import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { z } from "zod";
 
 // Validate environment variables
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
-const OPENAI_EMBEDDING_MODEL =
-  process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
-const OPENAI_EMBEDDING_DIMENSIONS = process.env.OPENAI_EMBEDDING_DIMENSIONS
-  ? parseInt(process.env.OPENAI_EMBEDDING_DIMENSIONS)
-  : undefined;
+const EMBEDDING_PROVIDER = (
+  process.env.EMBEDDING_PROVIDER || "openai"
+).toLowerCase();
 
-// Rate limiting configuration
-const OPENAI_MAX_REQUESTS_PER_MINUTE = process.env
-  .OPENAI_MAX_REQUESTS_PER_MINUTE
-  ? parseInt(process.env.OPENAI_MAX_REQUESTS_PER_MINUTE)
-  : 3500;
-const OPENAI_RETRY_ATTEMPTS = process.env.OPENAI_RETRY_ATTEMPTS
-  ? parseInt(process.env.OPENAI_RETRY_ATTEMPTS)
-  : 3;
-const OPENAI_RETRY_DELAY = process.env.OPENAI_RETRY_DELAY
-  ? parseInt(process.env.OPENAI_RETRY_DELAY)
-  : 1000;
+// Check for required API keys based on provider
+if (EMBEDDING_PROVIDER !== "ollama") {
+  const apiKey =
+    process.env.OPENAI_API_KEY ||
+    process.env.COHERE_API_KEY ||
+    process.env.VOYAGE_API_KEY;
 
-if (!OPENAI_API_KEY) {
-  console.error("Error: OPENAI_API_KEY environment variable is required");
-  process.exit(1);
+  if (!apiKey) {
+    console.error(
+      `Error: API key is required for ${EMBEDDING_PROVIDER} provider. Set OPENAI_API_KEY, COHERE_API_KEY, or VOYAGE_API_KEY.`,
+    );
+    process.exit(1);
+  }
 }
 
 // Initialize clients
 const qdrant = new QdrantManager(QDRANT_URL);
-const embeddings = new OpenAIEmbeddings(
-  OPENAI_API_KEY,
-  OPENAI_EMBEDDING_MODEL,
-  OPENAI_EMBEDDING_DIMENSIONS,
-  {
-    maxRequestsPerMinute: OPENAI_MAX_REQUESTS_PER_MINUTE,
-    retryAttempts: OPENAI_RETRY_ATTEMPTS,
-    retryDelayMs: OPENAI_RETRY_DELAY,
-  },
-);
+const embeddings = EmbeddingProviderFactory.createFromEnv();
 
 // Create MCP server
 const server = new Server(
@@ -124,7 +110,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_collection",
         description:
-          "Create a new vector collection in Qdrant. The collection will be configured with the embedding model's dimensions automatically.",
+          "Create a new vector collection in Qdrant. The collection will be configured with the embedding provider's dimensions automatically.",
         inputSchema: {
           type: "object",
           properties: {
@@ -144,7 +130,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "add_documents",
         description:
-          "Add documents to a collection. Documents will be automatically embedded using OpenAI embeddings.",
+          "Add documents to a collection. Documents will be automatically embedded using the configured embedding provider.",
         inputSchema: {
           type: "object",
           properties: {

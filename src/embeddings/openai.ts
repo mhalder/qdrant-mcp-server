@@ -1,16 +1,11 @@
 import OpenAI from "openai";
 import Bottleneck from "bottleneck";
-
-export interface EmbeddingResult {
-  embedding: number[];
-  dimensions: number;
-}
-
-export interface RateLimitConfig {
-  maxRequestsPerMinute?: number;
-  retryAttempts?: number;
-  retryDelayMs?: number;
-}
+import {
+  EmbeddingProvider,
+  EmbeddingResult,
+  RateLimitConfig,
+  ProviderConfig,
+} from "./base.js";
 
 interface OpenAIError {
   status?: number;
@@ -22,7 +17,7 @@ interface OpenAIError {
   };
 }
 
-export class OpenAIEmbeddings {
+export class OpenAIEmbeddings implements EmbeddingProvider {
   private client: OpenAI;
   private model: string;
   private dimensions: number;
