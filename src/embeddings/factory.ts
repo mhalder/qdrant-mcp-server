@@ -70,11 +70,22 @@ export class EmbeddingProviderFactory {
       process.env.EMBEDDING_PROVIDER || "openai"
     ).toLowerCase() as EmbeddingProviderType;
 
-    // Provider-specific API keys
-    const apiKey =
-      process.env.OPENAI_API_KEY ||
-      process.env.COHERE_API_KEY ||
-      process.env.VOYAGE_API_KEY;
+    // Select API key based on provider
+    let apiKey: string | undefined;
+    switch (provider) {
+      case "openai":
+        apiKey = process.env.OPENAI_API_KEY;
+        break;
+      case "cohere":
+        apiKey = process.env.COHERE_API_KEY;
+        break;
+      case "voyage":
+        apiKey = process.env.VOYAGE_API_KEY;
+        break;
+      case "ollama":
+        // No API key needed for local Ollama
+        break;
+    }
 
     // Common configuration
     const model = process.env.EMBEDDING_MODEL;
