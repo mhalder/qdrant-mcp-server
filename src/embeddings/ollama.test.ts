@@ -157,6 +157,47 @@ describe("OllamaEmbeddings", () => {
 
       await expect(embeddings.embed("test")).rejects.toThrow("Network Error");
     });
+
+    it("should include text preview in API error for long text", async () => {
+      const longText = "a".repeat(150);
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: async () => "Server error",
+      });
+
+      await expect(embeddings.embed(longText)).rejects.toThrow(
+        expect.objectContaining({
+          message: expect.stringContaining("Text preview:"),
+        }),
+      );
+    });
+
+    it("should include model and URL in network error messages for non-Error objects", async () => {
+      mockFetch.mockRejectedValue("Connection refused");
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text",
+      );
+    });
+
+    it("should handle errors with message property", async () => {
+      mockFetch.mockRejectedValue({
+        message: "Custom error message",
+      });
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Custom error message",
+      );
+    });
+
+    it("should handle non-Error objects in catch block", async () => {
+      mockFetch.mockRejectedValue({ code: "ERR_UNKNOWN", details: "info" });
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text",
+      );
+    });
   });
 
   describe("embedBatch", () => {
