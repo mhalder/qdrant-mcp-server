@@ -63,6 +63,30 @@ async function checkOllamaAvailability() {
       if (!response.ok) {
         throw new Error(`Ollama returned status ${response.status}`);
       }
+
+      // Check if the required embedding model exists
+      const tagsResponse = await fetch(`${baseUrl}/api/tags`);
+      const { models } = await tagsResponse.json();
+      const modelName = process.env.EMBEDDING_MODEL || "nomic-embed-text";
+      const modelExists = models.some((m: any) => m.name.includes(modelName));
+
+      if (!modelExists) {
+        let errorMessage = `Error: Model '${modelName}' not found in Ollama.\n`;
+
+        if (isLocalhost) {
+          errorMessage +=
+            `Pull it with:\n` +
+            `  - Using Docker: docker exec ollama ollama pull ${modelName}\n` +
+            `  - Or locally: ollama pull ${modelName}`;
+        } else {
+          errorMessage +=
+            `Please ensure the model is available on your Ollama instance:\n` +
+            `  ollama pull ${modelName}`;
+        }
+
+        console.error(errorMessage);
+        process.exit(1);
+      }
     } catch (error) {
       let errorMessage = `Error: Ollama is not running at ${baseUrl}.\n`;
 
