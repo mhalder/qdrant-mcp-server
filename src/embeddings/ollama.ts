@@ -124,16 +124,9 @@ export class OllamaEmbeddings implements EmbeddingProvider {
   }
 
   async embedBatch(texts: string[]): Promise<EmbeddingResult[]> {
-    // Ollama doesn't support batch embeddings natively, so we'll call sequentially
-    // The limiter will handle rate limiting
-    const results: EmbeddingResult[] = [];
-
-    for (const text of texts) {
-      const result = await this.embed(text);
-      results.push(result);
-    }
-
-    return results;
+    // Ollama doesn't support batch embeddings natively, so we process in parallel
+    // The Bottleneck limiter will handle rate limiting and concurrency (maxConcurrent: 10)
+    return Promise.all(texts.map((text) => this.embed(text)));
   }
 
   getDimensions(): number {
