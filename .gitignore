@@ -30,3 +30,6 @@ npm-debug.log*
 
 # Qdrant data (local)
 qdrant_storage/
+
+# Ollama data (local)
+ollama_storage/
