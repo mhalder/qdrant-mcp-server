@@ -15,7 +15,7 @@ import { z } from "zod";
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const EMBEDDING_PROVIDER = (
-  process.env.EMBEDDING_PROVIDER || "openai"
+  process.env.EMBEDDING_PROVIDER || "ollama"
 ).toLowerCase();
 
 // Check for required API keys based on provider
@@ -30,6 +30,29 @@ if (EMBEDDING_PROVIDER !== "ollama") {
       `Error: API key is required for ${EMBEDDING_PROVIDER} provider. Set OPENAI_API_KEY, COHERE_API_KEY, or VOYAGE_API_KEY.`,
     );
     process.exit(1);
+  }
+}
+
+// Check if Ollama is running when using Ollama provider
+async function checkOllamaAvailability() {
+  if (EMBEDDING_PROVIDER === "ollama") {
+    const baseUrl = process.env.EMBEDDING_BASE_URL || "http://localhost:11434";
+    try {
+      const response = await fetch(`${baseUrl}/api/version`);
+      if (!response.ok) {
+        throw new Error(`Ollama returned status ${response.status}`);
+      }
+    } catch (error) {
+      console.error(
+        `Error: Ollama is not running at ${baseUrl}.\n` +
+          `Please start Ollama:\n` +
+          `  - Using Docker: docker compose up -d\n` +
+          `  - Or install locally: curl -fsSL https://ollama.ai/install.sh | sh\n` +
+          `\nThen pull the embedding model:\n` +
+          `  ollama pull nomic-embed-text`,
+      );
+      process.exit(1);
+    }
   }
 }
 
@@ -509,6 +532,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
 // Start server
 async function main() {
+  await checkOllamaAvailability();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Qdrant MCP server running on stdio");

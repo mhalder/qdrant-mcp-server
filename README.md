@@ -3,12 +3,14 @@
 [![CI](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mhalder/qdrant-mcp-server/branch/main/graph/badge.svg)](https://codecov.io/gh/mhalder/qdrant-mcp-server)
 
-A Model Context Protocol (MCP) server that provides semantic search capabilities using a local Qdrant vector database with support for multiple embedding providers (OpenAI, Cohere, Voyage AI, and Ollama).
+A Model Context Protocol (MCP) server that provides semantic search capabilities using a local Qdrant vector database with support for multiple embedding providers (Ollama, OpenAI, Cohere, and Voyage AI).
 
 ## Features
 
+- **Zero Setup Required**: Works out of the box with Ollama (no API keys needed)
 - **Semantic Search**: Natural language search across your document collections
-- **Multiple Embedding Providers**: Support for OpenAI, Cohere, Voyage AI, and Ollama (local)
+- **Multiple Embedding Providers**: Support for Ollama (local, default), OpenAI, Cohere, and Voyage AI
+- **Privacy-First**: Default local embeddings with Ollama - your data never leaves your machine
 - **Metadata Filtering**: Filter search results by metadata fields using Qdrant's powerful filter syntax
 - **Local Vector Database**: Runs Qdrant locally via Docker for complete data privacy
 - **Automatic Embeddings**: Converts text to vectors using your choice of embedding provider
@@ -22,11 +24,12 @@ A Model Context Protocol (MCP) server that provides semantic search capabilities
 
 - Node.js 18+
 - Docker and Docker Compose
-- API key for your chosen embedding provider:
-  - OpenAI API key (default)
-  - Cohere API key
-  - Voyage AI API key
-  - Ollama (no API key required, runs locally)
+
+**Optional** (for alternative embedding providers):
+
+- OpenAI API key
+- Cohere API key
+- Voyage AI API key
 
 ## Installation
 
@@ -43,52 +46,16 @@ cd qdrant-mcp-server
 npm install
 ```
 
-3. Set up environment variables:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and configure your embedding provider:
-
-**Option 1: OpenAI (default)**
-
-```bash
-EMBEDDING_PROVIDER=openai
-OPENAI_API_KEY=sk-your-api-key-here
-QDRANT_URL=http://localhost:6333
-```
-
-**Option 2: Cohere**
-
-```bash
-EMBEDDING_PROVIDER=cohere
-COHERE_API_KEY=your-cohere-api-key-here
-QDRANT_URL=http://localhost:6333
-```
-
-**Option 3: Voyage AI**
-
-```bash
-EMBEDDING_PROVIDER=voyage
-VOYAGE_API_KEY=your-voyage-api-key-here
-QDRANT_URL=http://localhost:6333
-```
-
-**Option 4: Ollama (Local)**
-
-```bash
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_BASE_URL=http://localhost:11434
-QDRANT_URL=http://localhost:6333
-```
-
-See the [Configuration Options](#configuration-options) section for advanced settings.
-
-4. Start Qdrant:
+3. Start Qdrant and Ollama:
 
 ```bash
 docker compose up -d
+```
+
+4. Pull the Ollama embedding model:
+
+```bash
+docker exec ollama ollama pull nomic-embed-text
 ```
 
 5. Build the project:
@@ -117,7 +84,26 @@ node build/index.js
 
 Add this to your Claude Code configuration file at `~/.claude/claude_code_config.json`:
 
-**With OpenAI:**
+**Default (Ollama - No API Key Required):**
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": [
+        "/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"
+      ],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "EMBEDDING_BASE_URL": "http://localhost:11434"
+      }
+    }
+  }
+}
+```
+
+**With OpenAI (Alternative):**
 
 ```json
 {
@@ -137,7 +123,7 @@ Add this to your Claude Code configuration file at `~/.claude/claude_code_config
 }
 ```
 
-**With Cohere:**
+**With Cohere (Alternative):**
 
 ```json
 {
@@ -157,7 +143,7 @@ Add this to your Claude Code configuration file at `~/.claude/claude_code_config
 }
 ```
 
-**With Voyage AI:**
+**With Voyage AI (Alternative):**
 
 ```json
 {
@@ -170,26 +156,6 @@ Add this to your Claude Code configuration file at `~/.claude/claude_code_config
       "env": {
         "EMBEDDING_PROVIDER": "voyage",
         "VOYAGE_API_KEY": "your-voyage-api-key-here",
-        "QDRANT_URL": "http://localhost:6333"
-      }
-    }
-  }
-}
-```
-
-**With Ollama (Local):**
-
-```json
-{
-  "mcpServers": {
-    "qdrant": {
-      "command": "node",
-      "args": [
-        "/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"
-      ],
-      "env": {
-        "EMBEDDING_PROVIDER": "ollama",
-        "EMBEDDING_BASE_URL": "http://localhost:11434",
         "QDRANT_URL": "http://localhost:6333"
       }
     }
@@ -402,7 +368,7 @@ qdrant-mcp-server/
 
 #### Common Configuration
 
-- `EMBEDDING_PROVIDER` (optional): Embedding provider to use - "openai", "cohere", "voyage", or "ollama" (default: "openai")
+- `EMBEDDING_PROVIDER` (optional): Embedding provider to use - "openai", "cohere", "voyage", or "ollama" (default: "ollama")
 - `QDRANT_URL` (optional): Qdrant server URL (default: http://localhost:6333)
 - `EMBEDDING_MODEL` (optional): Model name for the selected provider (provider-specific defaults apply)
 - `EMBEDDING_DIMENSIONS` (optional): Custom embedding dimensions (overrides model defaults)

@@ -226,12 +226,10 @@ describe("EmbeddingProviderFactory", () => {
   });
 
   describe("createFromEnv", () => {
-    it("should default to OpenAI provider", () => {
-      process.env.OPENAI_API_KEY = "test-key";
-
+    it("should default to Ollama provider", () => {
       const provider = EmbeddingProviderFactory.createFromEnv();
 
-      expect(provider).toBeInstanceOf(OpenAIEmbeddings);
+      expect(provider).toBeInstanceOf(OllamaEmbeddings);
     });
 
     it("should create OpenAI provider from environment", () => {

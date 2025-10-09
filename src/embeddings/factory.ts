@@ -67,7 +67,7 @@ export class EmbeddingProviderFactory {
 
   static createFromEnv(): EmbeddingProvider {
     const provider = (
-      process.env.EMBEDDING_PROVIDER || "openai"
+      process.env.EMBEDDING_PROVIDER || "ollama"
     ).toLowerCase() as EmbeddingProviderType;
 
     // Select API key based on provider
