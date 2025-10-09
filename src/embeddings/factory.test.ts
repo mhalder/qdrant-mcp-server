@@ -337,5 +337,117 @@ describe("EmbeddingProviderFactory", () => {
 
       expect(provider).toBeInstanceOf(OllamaEmbeddings);
     });
+
+    describe("Environment variable validation", () => {
+      it("should throw error for invalid EMBEDDING_DIMENSIONS (NaN)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_DIMENSIONS = "not-a-number";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "not-a-number"',
+        );
+      });
+
+      it("should throw error for invalid EMBEDDING_DIMENSIONS (negative)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_DIMENSIONS = "-100";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "-100"',
+        );
+      });
+
+      it("should throw error for invalid EMBEDDING_DIMENSIONS (zero)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_DIMENSIONS = "0";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "0"',
+        );
+      });
+
+      it("should throw error for invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE (NaN)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE = "invalid";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "invalid"',
+        );
+      });
+
+      it("should throw error for invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE (negative)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE = "-50";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "-50"',
+        );
+      });
+
+      it("should throw error for invalid EMBEDDING_RETRY_ATTEMPTS (NaN)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_RETRY_ATTEMPTS = "abc";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "abc"',
+        );
+      });
+
+      it("should throw error for invalid EMBEDDING_RETRY_ATTEMPTS (negative)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_RETRY_ATTEMPTS = "-5";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "-5"',
+        );
+      });
+
+      it("should throw error for invalid EMBEDDING_RETRY_DELAY (NaN)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_RETRY_DELAY = "xyz";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "xyz"',
+        );
+      });
+
+      it("should throw error for invalid EMBEDDING_RETRY_DELAY (negative)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_RETRY_DELAY = "-1000";
+
+        expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
+          'Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "-1000"',
+        );
+      });
+
+      it("should accept valid EMBEDDING_RETRY_ATTEMPTS (zero)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_RETRY_ATTEMPTS = "0";
+
+        const provider = EmbeddingProviderFactory.createFromEnv();
+
+        expect(provider).toBeInstanceOf(OpenAIEmbeddings);
+      });
+
+      it("should accept valid EMBEDDING_RETRY_DELAY (zero)", () => {
+        process.env.EMBEDDING_PROVIDER = "openai";
+        process.env.OPENAI_API_KEY = "test-key";
+        process.env.EMBEDDING_RETRY_DELAY = "0";
+
+        const provider = EmbeddingProviderFactory.createFromEnv();
+
+        expect(provider).toBeInstanceOf(OpenAIEmbeddings);
+      });
+    });
   });
 });
