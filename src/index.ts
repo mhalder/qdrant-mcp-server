@@ -797,6 +797,8 @@ async function startHttpServer() {
       // Set request timeout
       timeoutId = setTimeout(() => {
         isTimedOut = true;
+        // Close transport on timeout to prevent resource leaks
+        transport.close().catch((e) => console.error("Error closing transport on timeout:", e));
         if (!res.headersSent) {
           res.status(408).json({
             jsonrpc: "2.0",
@@ -819,6 +821,12 @@ async function startHttpServer() {
       // In stateless mode, each request gets a new transport connection.
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
+
+      // Clear timeout immediately on success to prevent race condition
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
     } catch (error) {
       console.error("Error handling MCP request:", error);
       if (!res.headersSent && !isTimedOut) {
