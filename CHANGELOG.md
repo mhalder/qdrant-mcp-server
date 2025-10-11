@@ -1,3 +1,11 @@
+## <small>1.1.1 (2025-10-11)</small>
+
+* Merge pull request #22 from mhalder/docs/clean-and-condense ([991cb9d](https://github.com/mhalder/qdrant-mcp-server/commit/991cb9d)), closes [#22](https://github.com/mhalder/qdrant-mcp-server/issues/22)
+* docs: clean and condense all documentation ([9f54ab8](https://github.com/mhalder/qdrant-mcp-server/commit/9f54ab8))
+* docs: improve consistency and remove redundancy across all documentation ([176cb05](https://github.com/mhalder/qdrant-mcp-server/commit/176cb05))
+* docs: remove test report and references - redundant with CI ([db0b8b7](https://github.com/mhalder/qdrant-mcp-server/commit/db0b8b7))
+* docs: streamline README for clarity and conciseness ([bd34c91](https://github.com/mhalder/qdrant-mcp-server/commit/bd34c91))
+
 ## [1.1.0](https://github.com/mhalder/qdrant-mcp-server/compare/v1.0.0...v1.1.0) (2025-10-11)
 
 ### Features
