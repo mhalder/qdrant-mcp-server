@@ -653,9 +653,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for detailed information about:
 
-### Before Submitting a PR
+- Code of conduct
+- Development workflow
+- Commit message conventions (Conventional Commits)
+- Pull request process
+- Testing requirements
+
+### Quick Start for Contributors
 
 1. **Run tests**: Ensure all tests pass
 
@@ -670,8 +676,15 @@ Contributions are welcome! Please feel free to submit a Pull Request.
    ```
 
 3. **Build**: Confirm the project builds successfully
+
    ```bash
    npm run build
+   ```
+
+4. **Commit**: Use conventional commit format
+   ```bash
+   git commit -m "feat: add new feature"
+   git commit -m "fix: resolve bug"
    ```
 
 All pull requests will automatically run through CI checks that validate:
@@ -680,6 +693,15 @@ All pull requests will automatically run through CI checks that validate:
 - Type checking
 - Test suite (376 tests, 98.27% coverage)
 - Compatibility with Node.js 20 and 22
+- Conventional commit format
+
+### Automated Releases
+
+This project uses semantic-release for automated versioning and releases based on conventional commits. Version numbers follow Semantic Versioning based on your commit types:
+
+- `feat:` commits trigger minor version bumps (1.x.0)
+- `fix:` commits trigger patch version bumps (1.0.x)
+- Commits with `BREAKING CHANGE:` trigger major version bumps (x.0.0)
 
 ### Note for Repository Owners
 
