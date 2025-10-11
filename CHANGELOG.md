@@ -1,3 +1,16 @@
+## 1.3.0 (2025-10-11)
+
+* Merge pull request #25 from mhalder/feature/http-transport ([efc90c3](https://github.com/mhalder/qdrant-mcp-server/commit/efc90c3)), closes [#25](https://github.com/mhalder/qdrant-mcp-server/issues/25)
+* fix: address PR feedback for HTTP transport implementation ([1aec6d5](https://github.com/mhalder/qdrant-mcp-server/commit/1aec6d5))
+* fix: address PR feedback for HTTP transport implementation ([3243d0e](https://github.com/mhalder/qdrant-mcp-server/commit/3243d0e))
+* fix: clear cleanup interval on shutdown and improve error messages ([6aa29f3](https://github.com/mhalder/qdrant-mcp-server/commit/6aa29f3))
+* fix: implement per-IP rate limiting and consolidate port validation ([c3bfc92](https://github.com/mhalder/qdrant-mcp-server/commit/c3bfc92))
+* fix: prevent transport double closure and add rate limiter memory management ([2f92d78](https://github.com/mhalder/qdrant-mcp-server/commit/2f92d78))
+* fix: resolve critical issues in HTTP transport implementation ([7951f2b](https://github.com/mhalder/qdrant-mcp-server/commit/7951f2b))
+* fix: resolve race condition and resource leak in HTTP timeout handler ([6635ccb](https://github.com/mhalder/qdrant-mcp-server/commit/6635ccb))
+* docs: add Try It and Cleanup sections to hybrid-search example ([5e32f16](https://github.com/mhalder/qdrant-mcp-server/commit/5e32f16))
+* feat: add HTTP transport support for remote MCP server deployment ([983a9d6](https://github.com/mhalder/qdrant-mcp-server/commit/983a9d6)), closes [#24](https://github.com/mhalder/qdrant-mcp-server/issues/24)
+
 ## 1.2.0 (2025-10-11)
 
 * Merge pull request #23 from mhalder/feature/hybrid-search ([5925df7](https://github.com/mhalder/qdrant-mcp-server/commit/5925df7)), closes [#23](https://github.com/mhalder/qdrant-mcp-server/issues/23)
