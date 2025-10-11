@@ -175,6 +175,28 @@ Benefits:
 - **Query time**: Hybrid search performs two searches and fusion
 - **Scalability**: Qdrant optimizes both vector types efficiently
 
+## Try It
+
+Practice hybrid search with your own example:
+
+```
+Create a collection named "my-hybrid-docs" with Cosine distance and enableHybrid set to true
+
+Add these documents to my-hybrid-docs:
+- id: "doc1", text: "The calculateTax function computes sales tax based on location and product type", metadata: {"category": "finance", "type": "function"}
+- id: "doc2", text: "Tax calculation involves applying regional rates and exemptions", metadata: {"category": "finance", "type": "concept"}
+- id: "doc3", text: "The generateInvoice method creates PDF invoices with itemized charges", metadata: {"category": "billing", "type": "function"}
+- id: "doc4", text: "Invoice generation includes customer details, line items, and payment terms", metadata: {"category": "billing", "type": "concept"}
+
+Search my-hybrid-docs for "calculateTax invoice" with limit 3 using hybrid_search
+
+Search my-hybrid-docs for "tax calculation" with limit 2 using semantic_search
+
+# Compare the results - notice how hybrid search finds both exact function names and concepts
+
+Delete collection "my-hybrid-docs"
+```
+
 ## Troubleshooting
 
 ### "Collection does not have hybrid search enabled"
@@ -197,3 +219,18 @@ Benefits:
 1. Reduce prefetch limit (contact support for tuning)
 2. Add filters to narrow search space
 3. Use fewer documents or partition data
+
+## Cleanup
+
+```
+Delete collection "technical_docs"
+```
+
+## Next Steps
+
+Continue learning with these examples:
+
+- **[Knowledge Base](../knowledge-base/)** - Searchable documentation with metadata
+- **[Advanced Filtering](../filters/)** - Complex search queries
+- **[Rate Limiting](../rate-limiting/)** - Batch processing patterns
+- **[Basic Usage](../basic/)** - Fundamental operations

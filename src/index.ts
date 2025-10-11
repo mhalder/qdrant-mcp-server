@@ -5,12 +5,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import Bottleneck from "bottleneck";
+import express from "express";
 import { z } from "zod";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { BM25SparseVectorGenerator } from "./embeddings/sparse.js";
@@ -23,6 +26,18 @@ const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf-8")
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerCase();
+const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
+const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
+
+// Validate HTTP_PORT when HTTP mode is selected
+if (TRANSPORT_MODE === "http") {
+  if (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) {
+    console.error(
+      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`
+    );
+    process.exit(1);
+  }
+}
 
 // Check for required API keys based on provider
 if (EMBEDDING_PROVIDER !== "ollama") {
@@ -704,12 +719,227 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   };
 });
 
-// Start server
-async function main() {
+// Start server with stdio transport
+async function startStdioServer() {
   await checkOllamaAvailability();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Qdrant MCP server running on stdio");
+}
+
+// Start server with HTTP transport
+async function startHttpServer() {
+  await checkOllamaAvailability();
+
+  const app = express();
+  app.use(express.json({ limit: "10mb" }));
+
+  // Configure Express to trust proxy for correct IP detection
+  app.set("trust proxy", true);
+
+  // Rate limiter group: max 100 requests per 15 minutes per IP, max 10 concurrent per IP
+  const rateLimiterGroup = new Bottleneck.Group({
+    reservoir: 100, // initial capacity per IP
+    reservoirRefreshAmount: 100, // refresh back to 100
+    reservoirRefreshInterval: 15 * 60 * 1000, // every 15 minutes
+    maxConcurrent: 10, // max concurrent requests per IP
+  });
+
+  // Periodic cleanup of inactive rate limiters to prevent memory leaks
+  // Track last access time for each IP
+  const ipLastAccess = new Map<string, number>();
+  const INACTIVE_TIMEOUT = 60 * 60 * 1000; // 1 hour
+
+  const cleanupIntervalId = setInterval(() => {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+
+    ipLastAccess.forEach((lastAccess, ip) => {
+      if (now - lastAccess > INACTIVE_TIMEOUT) {
+        keysToDelete.push(ip);
+      }
+    });
+
+    keysToDelete.forEach((ip) => {
+      rateLimiterGroup.deleteKey(ip);
+      ipLastAccess.delete(ip);
+    });
+
+    if (keysToDelete.length > 0) {
+      console.error(`Cleaned up ${keysToDelete.length} inactive rate limiters`);
+    }
+  }, INACTIVE_TIMEOUT);
+
+  // Rate limiting middleware
+  const rateLimitMiddleware = async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+
+    try {
+      // Update last access time for this IP
+      ipLastAccess.set(clientIp, Date.now());
+
+      // Get or create a limiter for this specific IP
+      const limiter = rateLimiterGroup.key(clientIp);
+      await limiter.schedule(() => Promise.resolve());
+      next();
+    } catch (error) {
+      // Differentiate between rate limit errors and unexpected errors
+      if (error instanceof Bottleneck.BottleneckError) {
+        // Rate limit exceeded or Bottleneck operational error
+        console.error(`Rate limit exceeded for IP ${clientIp}:`, error.message);
+      } else {
+        // Unexpected error in rate limiting logic
+        console.error("Unexpected rate limiting error:", error);
+      }
+      res.status(429).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32000,
+          message: "Too many requests",
+        },
+        id: null,
+      });
+    }
+  };
+
+  // Health check endpoint
+  app.get("/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      mode: TRANSPORT_MODE,
+      version: pkg.version,
+      embedding_provider: EMBEDDING_PROVIDER,
+    });
+  });
+
+  app.post("/mcp", rateLimitMiddleware, async (req, res) => {
+    const REQUEST_TIMEOUT = 60000; // 60 seconds
+    let timeoutId: NodeJS.Timeout | undefined;
+    let isTimedOut = false;
+    let transportClosed = false;
+
+    // Create a new transport for each request in stateless mode.
+    // This prevents request ID collisions when different clients use the same JSON-RPC request IDs.
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // Stateless mode
+      enableJsonResponse: true,
+    });
+
+    // Helper to safely close transport only once
+    const closeTransport = async () => {
+      if (!transportClosed) {
+        transportClosed = true;
+        await transport.close().catch((e) => console.error("Error closing transport:", e));
+      }
+    };
+
+    try {
+      // Set request timeout
+      timeoutId = setTimeout(async () => {
+        isTimedOut = true;
+        // Close transport on timeout to prevent resource leaks
+        await closeTransport();
+        if (!res.headersSent) {
+          res.status(408).json({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: "Request timeout",
+            },
+            id: null,
+          });
+        }
+      }, REQUEST_TIMEOUT);
+
+      // Clean up transport when response closes
+      res.on("close", async () => {
+        await closeTransport();
+        if (timeoutId) clearTimeout(timeoutId);
+      });
+
+      // Connect the transport to the shared server instance.
+      // In stateless mode, each request gets a new transport connection.
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+
+      // Clear timeout immediately on success to prevent race condition
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+    } catch (error) {
+      console.error("Error handling MCP request:", error);
+      if (!res.headersSent && !isTimedOut) {
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: {
+            code: -32603,
+            message: "Internal server error",
+          },
+          id: null,
+        });
+      }
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+      // Ensure transport is closed even if an error occurs
+      await closeTransport();
+    }
+  });
+
+  const httpServer = app
+    .listen(HTTP_PORT, () => {
+      console.error(`Qdrant MCP server running on http://localhost:${HTTP_PORT}/mcp`);
+    })
+    .on("error", (error) => {
+      console.error("HTTP server error:", error);
+      process.exit(1);
+    });
+
+  // Graceful shutdown handling
+  let isShuttingDown = false;
+
+  const shutdown = () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    console.error("Shutdown signal received, closing HTTP server gracefully...");
+
+    // Clear the cleanup interval to allow graceful shutdown
+    clearInterval(cleanupIntervalId);
+
+    // Force shutdown after 10 seconds
+    const forceTimeout = setTimeout(() => {
+      console.error("Forcing shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+
+    httpServer.close(() => {
+      clearTimeout(forceTimeout);
+      console.error("HTTP server closed");
+      process.exit(0);
+    });
+  };
+
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+}
+
+// Main entry point
+async function main() {
+  if (TRANSPORT_MODE === "http") {
+    await startHttpServer();
+  } else if (TRANSPORT_MODE === "stdio") {
+    await startStdioServer();
+  } else {
+    console.error(
+      `Error: Invalid TRANSPORT_MODE "${TRANSPORT_MODE}". Supported modes: stdio, http.`
+    );
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {
