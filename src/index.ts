@@ -33,7 +33,7 @@ const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
 if (TRANSPORT_MODE === "http") {
   if (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) {
     console.error(
-      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT || "3000"}". Must be a number between 1 and 65535.`
+      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`
     );
     process.exit(1);
   }
@@ -750,7 +750,7 @@ async function startHttpServer() {
   const ipLastAccess = new Map<string, number>();
   const INACTIVE_TIMEOUT = 60 * 60 * 1000; // 1 hour
 
-  setInterval(() => {
+  const cleanupIntervalId = setInterval(() => {
     const now = Date.now();
     const keysToDelete: string[] = [];
 
@@ -787,7 +787,14 @@ async function startHttpServer() {
       await limiter.schedule(() => Promise.resolve());
       next();
     } catch (error) {
-      console.error("Rate limiting error:", error);
+      // Differentiate between rate limit errors and unexpected errors
+      if (error instanceof Bottleneck.BottleneckError) {
+        // Rate limit exceeded or Bottleneck operational error
+        console.error(`Rate limit exceeded for IP ${clientIp}:`, error.message);
+      } else {
+        // Unexpected error in rate limiting logic
+        console.error("Unexpected rate limiting error:", error);
+      }
       res.status(429).json({
         jsonrpc: "2.0",
         error: {
@@ -900,6 +907,9 @@ async function startHttpServer() {
     isShuttingDown = true;
 
     console.error("Shutdown signal received, closing HTTP server gracefully...");
+
+    // Clear the cleanup interval to allow graceful shutdown
+    clearInterval(cleanupIntervalId);
 
     // Force shutdown after 10 seconds
     const forceTimeout = setTimeout(() => {
