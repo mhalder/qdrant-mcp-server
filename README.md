@@ -10,6 +10,7 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 - **Zero Setup**: Works out of the box with Ollama - no API keys required
 - **Privacy-First**: Local embeddings and vector storage - data never leaves your machine
 - **Multiple Providers**: Ollama (default), OpenAI, Cohere, and Voyage AI
+- **Hybrid Search**: Combine semantic and keyword search for better results
 - **Semantic Search**: Natural language search with metadata filtering
 - **Rate Limiting**: Intelligent throttling with exponential backoff
 - **Full CRUD**: Create, search, and manage collections and documents
@@ -87,6 +88,7 @@ See [Advanced Configuration](#advanced-configuration) section below for all opti
 | ------------------ | ----------------------------------------------------------------------------- |
 | `add_documents`    | Add documents with automatic embedding (supports string/number IDs, metadata) |
 | `semantic_search`  | Natural language search with optional metadata filtering                      |
+| `hybrid_search`    | Hybrid search combining semantic and keyword (BM25) search with RRF           |
 | `delete_documents` | Delete specific documents by ID                                               |
 
 ### Resources

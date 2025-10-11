@@ -14,10 +14,10 @@ export default defineConfig({
         "**/*.test.ts",
         "**/*.spec.ts",
         "vitest.config.ts",
-        "src/index.ts", // MCP server SDK integration - tested via integration
-        "scripts/**", // Exclude utility scripts from coverage
+        "commitlint.config.js",
+        "src/index.ts",
+        "scripts/**",
       ],
-      // Set thresholds for core business logic modules
       thresholds: {
         "src/qdrant/client.ts": {
           lines: 90,

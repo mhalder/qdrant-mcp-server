@@ -52,6 +52,7 @@ Delete collection "my-first-collection"
 
 Continue learning with these examples:
 
+- **[Hybrid Search](../hybrid-search/)** - Combine semantic and keyword search
 - **[Knowledge Base](../knowledge-base/)** - Metadata and content organization
 - **[Advanced Filtering](../filters/)** - Complex search queries
 - **[Rate Limiting](../rate-limiting/)** - Batch processing patterns
