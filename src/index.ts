@@ -29,19 +29,11 @@ const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerC
 const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
 
-// Validate HTTP_PORT whenever it's provided, regardless of transport mode
-if (process.env.HTTP_PORT && (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535)) {
-  console.error(
-    `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`
-  );
-  process.exit(1);
-}
-
-// Additional validation when HTTP mode is selected
+// Validate HTTP_PORT when HTTP mode is selected
 if (TRANSPORT_MODE === "http") {
-  if (Number.isNaN(HTTP_PORT)) {
+  if (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) {
     console.error(
-      `Error: HTTP_PORT is required and must be a valid number when using HTTP transport mode.`
+      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT || "3000"}". Must be a number between 1 and 65535.`
     );
     process.exit(1);
   }
@@ -742,12 +734,15 @@ async function startHttpServer() {
   const app = express();
   app.use(express.json({ limit: "10mb" }));
 
-  // Rate limiter: max 100 requests per 15 minutes per IP
-  const rateLimiter = new Bottleneck({
-    reservoir: 100, // initial capacity
+  // Configure Express to trust proxy for correct IP detection
+  app.set("trust proxy", true);
+
+  // Rate limiter group: max 100 requests per 15 minutes per IP, max 10 concurrent per IP
+  const rateLimiterGroup = new Bottleneck.Group({
+    reservoir: 100, // initial capacity per IP
     reservoirRefreshAmount: 100, // refresh back to 100
     reservoirRefreshInterval: 15 * 60 * 1000, // every 15 minutes
-    maxConcurrent: 10, // max concurrent requests
+    maxConcurrent: 10, // max concurrent requests per IP
   });
 
   // Rate limiting middleware
@@ -759,9 +754,12 @@ async function startHttpServer() {
     const clientIp = req.ip || req.socket.remoteAddress || "unknown";
 
     try {
-      await rateLimiter.schedule({ id: clientIp }, () => Promise.resolve());
+      // Get or create a limiter for this specific IP
+      const limiter = rateLimiterGroup.key(clientIp);
+      await limiter.schedule(() => Promise.resolve());
       next();
-    } catch (_error) {
+    } catch (error) {
+      console.error("Rate limiting error:", error);
       res.status(429).json({
         jsonrpc: "2.0",
         error: {
