@@ -788,6 +788,13 @@ async function startHttpServer() {
     let timeoutId: NodeJS.Timeout | undefined;
     let isTimedOut = false;
 
+    // Create a new transport for each request in stateless mode.
+    // This prevents request ID collisions when different clients use the same JSON-RPC request IDs.
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // Stateless mode
+      enableJsonResponse: true,
+    });
+
     try {
       // Set request timeout
       timeoutId = setTimeout(() => {
@@ -804,18 +811,14 @@ async function startHttpServer() {
         }
       }, REQUEST_TIMEOUT);
 
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: undefined, // Stateless mode
-        enableJsonResponse: true,
-      });
-
+      // Clean up transport when response closes
       res.on("close", () => {
         transport.close();
         if (timeoutId) clearTimeout(timeoutId);
       });
 
-      // Note: Each request creates a new connection to the shared server instance.
-      // The MCP SDK handles connection lifecycle internally per the official documentation.
+      // Connect the transport to the shared server instance.
+      // In stateless mode, each request gets a new transport connection.
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
@@ -832,6 +835,8 @@ async function startHttpServer() {
       }
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
+      // Ensure transport is closed even if an error occurs
+      await transport.close();
     }
   });
 
@@ -845,18 +850,25 @@ async function startHttpServer() {
     });
 
   // Graceful shutdown handling
+  let isShuttingDown = false;
+
   const shutdown = () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
     console.error("Shutdown signal received, closing HTTP server gracefully...");
-    httpServer.close(() => {
-      console.error("HTTP server closed");
-      process.exit(0);
-    });
 
     // Force shutdown after 10 seconds
-    setTimeout(() => {
+    const forceTimeout = setTimeout(() => {
       console.error("Forcing shutdown after timeout");
       process.exit(1);
     }, 10000);
+
+    httpServer.close(() => {
+      clearTimeout(forceTimeout);
+      console.error("HTTP server closed");
+      process.exit(0);
+    });
   };
 
   process.on("SIGTERM", shutdown);
