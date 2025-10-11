@@ -12,6 +12,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import Bottleneck from "bottleneck";
 import express from "express";
 import { z } from "zod";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
@@ -28,11 +29,19 @@ const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerC
 const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
 
-// Validate HTTP_PORT if in HTTP mode
+// Validate HTTP_PORT whenever it's provided, regardless of transport mode
+if (process.env.HTTP_PORT && (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535)) {
+  console.error(
+    `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`
+  );
+  process.exit(1);
+}
+
+// Additional validation when HTTP mode is selected
 if (TRANSPORT_MODE === "http") {
-  if (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) {
+  if (Number.isNaN(HTTP_PORT)) {
     console.error(
-      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`
+      `Error: HTTP_PORT is required and must be a valid number when using HTTP transport mode.`
     );
     process.exit(1);
   }
@@ -733,8 +742,68 @@ async function startHttpServer() {
   const app = express();
   app.use(express.json({ limit: "10mb" }));
 
-  app.post("/mcp", async (req, res) => {
+  // Rate limiter: max 100 requests per 15 minutes per IP
+  const rateLimiter = new Bottleneck({
+    reservoir: 100, // initial capacity
+    reservoirRefreshAmount: 100, // refresh back to 100
+    reservoirRefreshInterval: 15 * 60 * 1000, // every 15 minutes
+    maxConcurrent: 10, // max concurrent requests
+  });
+
+  // Rate limiting middleware
+  const rateLimitMiddleware = async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+
     try {
+      await rateLimiter.schedule({ id: clientIp }, () => Promise.resolve());
+      next();
+    } catch (_error) {
+      res.status(429).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32000,
+          message: "Too many requests",
+        },
+        id: null,
+      });
+    }
+  };
+
+  // Health check endpoint
+  app.get("/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      mode: TRANSPORT_MODE,
+      version: pkg.version,
+      embedding_provider: EMBEDDING_PROVIDER,
+    });
+  });
+
+  app.post("/mcp", rateLimitMiddleware, async (req, res) => {
+    const REQUEST_TIMEOUT = 60000; // 60 seconds
+    let timeoutId: NodeJS.Timeout | undefined;
+    let isTimedOut = false;
+
+    try {
+      // Set request timeout
+      timeoutId = setTimeout(() => {
+        isTimedOut = true;
+        if (!res.headersSent) {
+          res.status(408).json({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: "Request timeout",
+            },
+            id: null,
+          });
+        }
+      }, REQUEST_TIMEOUT);
+
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined, // Stateless mode
         enableJsonResponse: true,
@@ -742,15 +811,16 @@ async function startHttpServer() {
 
       res.on("close", () => {
         transport.close();
+        if (timeoutId) clearTimeout(timeoutId);
       });
 
       // Note: Each request creates a new connection to the shared server instance.
-      // The MCP SDK handles connection lifecycle internally.
+      // The MCP SDK handles connection lifecycle internally per the official documentation.
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
       console.error("Error handling MCP request:", error);
-      if (!res.headersSent) {
+      if (!res.headersSent && !isTimedOut) {
         res.status(500).json({
           jsonrpc: "2.0",
           error: {
@@ -760,6 +830,8 @@ async function startHttpServer() {
           id: null,
         });
       }
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   });
 
