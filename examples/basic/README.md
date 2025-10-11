@@ -4,12 +4,6 @@ Learn fundamental operations: create collections, add documents, search, and man
 
 **Time:** 5-10 minutes | **Difficulty:** Beginner
 
-## Prerequisites
-
-- Qdrant and Ollama running: `docker compose up -d`
-- Model pulled: `docker exec ollama ollama pull nomic-embed-text`
-- MCP Server configured (see main README)
-
 ## Workflow
 
 ```
@@ -54,8 +48,10 @@ Search my-first-collection for "healthy drinks"
 Delete collection "my-first-collection"
 ```
 
-## Next
+## Next Steps
 
-- [Knowledge Base](../knowledge-base/) - Metadata and organization
-- [Filters](../filters/) - Advanced search filtering
-- [Rate Limiting](../rate-limiting/) - Batch operations
+Continue learning with these examples:
+
+- **[Knowledge Base](../knowledge-base/)** - Metadata and content organization
+- **[Advanced Filtering](../filters/)** - Complex search queries
+- **[Rate Limiting](../rate-limiting/)** - Batch processing patterns

@@ -26,15 +26,15 @@ git commit -m "feat: add new feature"
 
 ## Development Commands
 
-| Command | Purpose |
-|---------|---------|
-| `npm run build` | Build for production |
-| `npm run dev` | Development with auto-reload |
-| `npm test` | Run test suite |
-| `npm run test:ui` | Tests with UI |
-| `npm run test:coverage` | Coverage report |
-| `npm run test:providers` | Provider verification |
-| `npm run type-check` | TypeScript validation |
+| Command                  | Purpose                      |
+| ------------------------ | ---------------------------- |
+| `npm run build`          | Build for production         |
+| `npm run dev`            | Development with auto-reload |
+| `npm test`               | Run test suite               |
+| `npm run test:ui`        | Tests with UI                |
+| `npm run test:coverage`  | Coverage report              |
+| `npm run test:providers` | Provider verification        |
+| `npm run type-check`     | TypeScript validation        |
 
 ## Commit Convention
 
@@ -52,17 +52,17 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/) f
 
 ### Types
 
-| Type | Description | Version Bump |
-|------|-------------|--------------|
-| `feat` | New feature | Minor (1.x.0) |
-| `fix` | Bug fix | Patch (1.0.x) |
-| `docs` | Documentation | Patch |
-| `refactor` | Code refactoring | Patch |
-| `perf` | Performance improvement | Patch |
-| `test` | Adding/updating tests | None |
-| `chore` | Build/dependencies | None |
-| `ci` | CI/CD changes | None |
-| `style` | Code style/formatting | None |
+| Type       | Description             | Version Bump  |
+| ---------- | ----------------------- | ------------- |
+| `feat`     | New feature             | Minor (1.x.0) |
+| `fix`      | Bug fix                 | Patch (1.0.x) |
+| `docs`     | Documentation           | Patch         |
+| `refactor` | Code refactoring        | Patch         |
+| `perf`     | Performance improvement | Patch         |
+| `test`     | Adding/updating tests   | None          |
+| `chore`    | Build/dependencies      | None          |
+| `ci`       | CI/CD changes           | None          |
+| `style`    | Code style/formatting   | None          |
 
 ### Breaking Changes
 
@@ -95,6 +95,7 @@ feat!: change collection schema format
 ### Validation
 
 Commitlint enforces:
+
 - Conventional commits format required
 - Valid type required
 - Subject must not be empty or end with period
@@ -146,11 +147,13 @@ Automated via [semantic-release](https://semantic-release.gitbook.io/):
 ```
 qdrant-mcp-server/
 ├── src/              # Source code
+│   ├── embeddings/   # Embedding providers
+│   └── qdrant/       # Qdrant client
 ├── build/            # Compiled output
+├── examples/         # Usage examples
 ├── scripts/          # Utility scripts
 ├── .github/          # GitHub Actions workflows
-├── .husky/           # Git hooks
-└── tests/            # Test files
+└── .husky/           # Git hooks
 ```
 
 ## Questions?

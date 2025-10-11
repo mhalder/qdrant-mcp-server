@@ -2,18 +2,24 @@
 
 Practical examples demonstrating Qdrant MCP Server usage.
 
-## Quick Start
+## Prerequisites
+
+Before running examples:
 
 ```bash
+# Start services
 docker compose up -d
+
+# Pull embedding model
 docker exec ollama ollama pull nomic-embed-text
 ```
 
-See main [README](../README.md) for MCP server configuration.
+Configure MCP server as described in [main README](../README.md).
 
 ## Available Examples
 
 ### 🎯 [Basic Usage](./basic/)
+
 **Start here** - fundamental operations
 
 - Creating collections
@@ -26,6 +32,7 @@ See main [README](../README.md) for MCP server configuration.
 ---
 
 ### ⚡ [Rate Limiting](./rate-limiting/)
+
 Automatic rate limit handling for batch operations
 
 - Configuring provider rate limits
@@ -40,6 +47,7 @@ Automatic rate limit handling for batch operations
 ---
 
 ### 📚 [Knowledge Base](./knowledge-base/)
+
 Searchable documentation system with metadata
 
 - Structuring documents with rich metadata
@@ -54,6 +62,7 @@ Searchable documentation system with metadata
 ---
 
 ### 🔍 [Advanced Filtering](./filters/)
+
 Complex search filters with boolean logic
 
 - Multiple filter conditions (AND, OR, NOT)
@@ -73,12 +82,12 @@ Basic → Rate Limiting → Knowledge Base → Advanced Filtering
 
 ## Common Patterns
 
-| Pattern | Metadata Structure | Use Case |
-|---------|-------------------|----------|
-| Content Organization | `category`, `topic`, `author`, `date` | Blogs, docs, articles |
-| E-commerce | `category`, `price`, `rating`, `in_stock`, `brand` | Product catalogs |
-| Access Control | `visibility`, `department`, `sensitivity` | Enterprise knowledge |
-| Temporal Data | `created_at`, `updated_at`, `status`, `version` | Versioned content |
+| Pattern              | Metadata Structure                                 | Use Case              |
+| -------------------- | -------------------------------------------------- | --------------------- |
+| Content Organization | `category`, `topic`, `author`, `date`              | Blogs, docs, articles |
+| E-commerce           | `category`, `price`, `rating`, `in_stock`, `brand` | Product catalogs      |
+| Access Control       | `visibility`, `department`, `sensitivity`          | Enterprise knowledge  |
+| Temporal Data        | `created_at`, `updated_at`, `status`, `version`    | Versioned content     |
 
 ## Tips
 
@@ -90,21 +99,21 @@ Basic → Rate Limiting → Knowledge Base → Advanced Filtering
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Collection exists | `Delete collection "name"` then recreate |
-| No search results | Check collection has documents, try without filters |
-| Unexpected results | Validate metadata and filter syntax |
-| "Collection not found" | Create collection first |
-| "Bad Request" | Check filter JSON syntax |
-| API errors | Verify provider API key and credits |
+| Issue                  | Solution                                            |
+| ---------------------- | --------------------------------------------------- |
+| Collection exists      | `Delete collection "name"` then recreate            |
+| No search results      | Check collection has documents, try without filters |
+| Unexpected results     | Validate metadata and filter syntax                 |
+| "Collection not found" | Create collection first                             |
+| "Bad Request"          | Check filter JSON syntax                            |
+| API errors             | Verify provider API key and credits                 |
 
 ## Next Steps
 
-1. Read [main README](../README.md) - Full tool documentation
-2. Apply concepts to your data
-3. Explore advanced features
-4. [Contribute](../CONTRIBUTING.md) examples
+1. Review [main README](../README.md) for full tool documentation
+2. Apply patterns to your own use cases
+3. Explore advanced features and configurations
+4. Share your examples via [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 ## Additional Resources
 

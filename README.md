@@ -68,6 +68,8 @@ Add to `~/.claude/claude_code_config.json`:
 
 Restart after making changes.
 
+See [Advanced Configuration](#advanced-configuration) section below for all options.
+
 ## Tools
 
 ### Collection Management
@@ -87,83 +89,47 @@ Restart after making changes.
 | `semantic_search`  | Natural language search with optional metadata filtering                      |
 | `delete_documents` | Delete specific documents by ID                                               |
 
-### Usage Examples
-
-**Create and populate:**
-
-```
-Create a collection named "docs"
-Add to "docs": id: 1, text: "Vector databases enable semantic search"
-```
-
-**Search with filters:**
-
-```
-Search "docs" for "semantic search" with filter {"must": [{"key": "category", "match": {"value": "tech"}}]}
-```
-
-**Filter operators:**
-
-- `must` - AND conditions
-- `should` - OR conditions
-- `must_not` - NOT conditions
-
 ### Resources
 
 - `qdrant://collections` - List all collections
 - `qdrant://collection/{name}` - Collection details
 
-## Example Workflow
+## Examples
 
-```
-# 1. Create collection
-Create a collection called "docs"
+See [examples/](examples/) directory for detailed guides:
 
-# 2. Add documents with metadata
-Add to "docs":
-- id: 1, text: "MCP enables AI context", metadata: {"type": "definition"}
-- id: 2, text: "Vector databases enable semantic search", metadata: {"type": "tech"}
+- **[Basic Usage](examples/basic/)** - Create collections, add documents, search
+- **[Knowledge Base](examples/knowledge-base/)** - Structured documentation with metadata
+- **[Advanced Filtering](examples/filters/)** - Complex boolean filters
+- **[Rate Limiting](examples/rate-limiting/)** - Batch processing with cloud providers
 
-# 3. Search
-Search "docs" for "AI context protocols"
-
-# 4. Search with filters
-Search "docs" for "databases" with filter {"must": [{"key": "type", "match": {"value": "tech"}}]}
-```
-
-## Configuration
+## Advanced Configuration
 
 ### Environment Variables
 
-**Common:**
+| Variable                            | Description                            | Default               |
+| ----------------------------------- | -------------------------------------- | --------------------- |
+| `EMBEDDING_PROVIDER`                | "ollama", "openai", "cohere", "voyage" | ollama                |
+| `QDRANT_URL`                        | Qdrant server URL                      | http://localhost:6333 |
+| `EMBEDDING_MODEL`                   | Model name                             | Provider-specific     |
+| `EMBEDDING_BASE_URL`                | Custom API URL                         | Provider-specific     |
+| `EMBEDDING_MAX_REQUESTS_PER_MINUTE` | Rate limit                             | Provider-specific     |
+| `EMBEDDING_RETRY_ATTEMPTS`          | Retry count                            | 3                     |
+| `EMBEDDING_RETRY_DELAY`             | Initial retry delay (ms)               | 1000                  |
+| `OPENAI_API_KEY`                    | OpenAI API key                         | -                     |
+| `COHERE_API_KEY`                    | Cohere API key                         | -                     |
+| `VOYAGE_API_KEY`                    | Voyage AI API key                      | -                     |
 
-- `EMBEDDING_PROVIDER` - Provider: "ollama" (default), "openai", "cohere", "voyage"
-- `QDRANT_URL` - Qdrant URL (default: http://localhost:6333)
-- `EMBEDDING_MODEL` - Model name (provider-specific defaults)
-- `EMBEDDING_BASE_URL` - Custom API URL (Voyage AI, Ollama)
+### Provider Comparison
 
-**Rate Limiting:**
+| Provider   | Models                                                          | Dimensions     | Rate Limit | Notes                |
+| ---------- | --------------------------------------------------------------- | -------------- | ---------- | -------------------- |
+| **Ollama** | `nomic-embed-text` (default), `mxbai-embed-large`, `all-minilm` | 768, 1024, 384 | None       | Local, no API key    |
+| **OpenAI** | `text-embedding-3-small` (default), `text-embedding-3-large`    | 1536, 3072     | 3500/min   | Cloud API            |
+| **Cohere** | `embed-english-v3.0` (default), `embed-multilingual-v3.0`       | 1024           | 100/min    | Multilingual support |
+| **Voyage** | `voyage-2` (default), `voyage-large-2`, `voyage-code-2`         | 1024, 1536     | 300/min    | Code-specialized     |
 
-- `EMBEDDING_MAX_REQUESTS_PER_MINUTE` - Rate limit (provider defaults: OpenAI 3500, Cohere 100, Voyage 300, Ollama 1000)
-- `EMBEDDING_RETRY_ATTEMPTS` - Retry count (default: 3)
-- `EMBEDDING_RETRY_DELAY` - Initial retry delay in ms (default: 1000, exponential backoff)
-
-**API Keys:**
-
-- `OPENAI_API_KEY` - OpenAI API key
-- `COHERE_API_KEY` - Cohere API key
-- `VOYAGE_API_KEY` - Voyage AI API key
-
-### Embedding Models
-
-| Provider   | Models                                                          | Dimensions     | Notes                |
-| ---------- | --------------------------------------------------------------- | -------------- | -------------------- |
-| **Ollama** | `nomic-embed-text` (default), `mxbai-embed-large`, `all-minilm` | 768, 1024, 384 | Local, no API key    |
-| **OpenAI** | `text-embedding-3-small` (default), `text-embedding-3-large`    | 1536, 3072     | Cloud API            |
-| **Cohere** | `embed-english-v3.0` (default), `embed-multilingual-v3.0`       | 1024           | Multilingual support |
-| **Voyage** | `voyage-2` (default), `voyage-large-2`, `voyage-code-2`         | 1024, 1536     | Code-specialized     |
-
-**Note:** Ollama models require `ollama pull <model-name>` before use.
+**Note:** Ollama models require `docker exec ollama ollama pull <model-name>` before use.
 
 ## Troubleshooting
 

@@ -139,7 +139,7 @@ Search company-kb for "deployment" with filter {"must_not": [{"key": "status", "
 Delete collection "company-kb"
 ```
 
-## Next
+## Next Steps
 
-- [Filters](../filters/) - Complex filter patterns
-- [Main README](../../README.md) - Batch operations
+- Explore [Advanced Filtering](../filters/) for complex filter patterns
+- Review [main README](../../README.md) for batch operations and advanced features

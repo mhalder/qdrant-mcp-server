@@ -155,8 +155,8 @@ Use comparable string format:
 Delete collection "products"
 ```
 
-## Next
+## Next Steps
 
-- [Qdrant filtering docs](https://qdrant.tech/documentation/concepts/filtering/)
-- [Knowledge Base](../knowledge-base/) - Organizational patterns
-- [Main README](../../README.md) - Full filter syntax
+- Review [Qdrant filtering documentation](https://qdrant.tech/documentation/concepts/filtering/)
+- Explore [Knowledge Base](../knowledge-base/) example for organizational patterns
+- See [main README](../../README.md) for complete filter syntax reference

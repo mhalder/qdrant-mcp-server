@@ -160,8 +160,8 @@ Error: API rate limit exceeded after 3 retry attempts.
 | Slow performance       | Expected with rate limiting - better than failures |
 | Need faster processing | Upgrade provider tier or use Ollama                |
 
-## Next
+## Next Steps
 
-- [Knowledge Base](../knowledge-base/) - Real-world usage
-- [Filters](../filters/) - Complex queries
-- [Main README](../../README.md) - All configuration options
+- Explore [Knowledge Base](../knowledge-base/) for real-world usage patterns
+- Learn [Advanced Filtering](../filters/) for complex queries
+- Review [main README](../../README.md) for all configuration options
