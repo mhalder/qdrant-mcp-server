@@ -1,5 +1,5 @@
 {
-  "name": "qdrant-mcp-server",
+  "name": "@mhalder/qdrant-mcp-server",
   "version": "1.0.0",
   "description": "MCP server for semantic search using local Qdrant and Ollama (default) with support for OpenAI, Cohere, and Voyage AI",
   "type": "module",
@@ -23,8 +23,15 @@
     "semantic-search",
     "embeddings"
   ],
-  "author": "",
+  "author": "mhalder",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mhalder/qdrant-mcp-server.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@qdrant/js-client-rest": "^1.12.0",
