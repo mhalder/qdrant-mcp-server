@@ -5,12 +5,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import express from "express";
 import { z } from "zod";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { BM25SparseVectorGenerator } from "./embeddings/sparse.js";
@@ -23,6 +25,8 @@ const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf-8")
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerCase();
+const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
+const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
 
 // Check for required API keys based on provider
 if (EMBEDDING_PROVIDER !== "ollama") {
@@ -704,12 +708,71 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   };
 });
 
-// Start server
-async function main() {
+// Start server with stdio transport
+async function startStdioServer() {
   await checkOllamaAvailability();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Qdrant MCP server running on stdio");
+}
+
+// Start server with HTTP transport
+async function startHttpServer() {
+  await checkOllamaAvailability();
+
+  const app = express();
+  app.use(express.json());
+
+  app.post("/mcp", async (req, res) => {
+    try {
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined, // Stateless mode
+        enableJsonResponse: true,
+      });
+
+      res.on("close", () => {
+        transport.close();
+      });
+
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+      console.error("Error handling MCP request:", error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: "2.0",
+          error: {
+            code: -32603,
+            message: "Internal server error",
+          },
+          id: null,
+        });
+      }
+    }
+  });
+
+  app
+    .listen(HTTP_PORT, () => {
+      console.error(`Qdrant MCP server running on http://localhost:${HTTP_PORT}/mcp`);
+    })
+    .on("error", (error) => {
+      console.error("HTTP server error:", error);
+      process.exit(1);
+    });
+}
+
+// Main entry point
+async function main() {
+  if (TRANSPORT_MODE === "http") {
+    await startHttpServer();
+  } else if (TRANSPORT_MODE === "stdio") {
+    await startStdioServer();
+  } else {
+    console.error(
+      `Error: Invalid TRANSPORT_MODE "${TRANSPORT_MODE}". Supported modes: stdio, http.`
+    );
+    process.exit(1);
+  }
 }
 
 main().catch((error) => {

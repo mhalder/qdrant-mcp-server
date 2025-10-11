@@ -14,6 +14,7 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 - **Semantic Search**: Natural language search with metadata filtering
 - **Rate Limiting**: Intelligent throttling with exponential backoff
 - **Full CRUD**: Create, search, and manage collections and documents
+- **Flexible Deployment**: Run locally (stdio) or as a remote HTTP server
 
 ## Quick Start
 
@@ -40,6 +41,8 @@ npm run build
 
 ### Configuration
 
+#### Local Setup (stdio transport)
+
 Add to `~/.claude/claude_code_config.json`:
 
 ```json
@@ -52,6 +55,26 @@ Add to `~/.claude/claude_code_config.json`:
         "QDRANT_URL": "http://localhost:6333",
         "EMBEDDING_BASE_URL": "http://localhost:11434"
       }
+    }
+  }
+}
+```
+
+#### Remote Setup (HTTP transport)
+
+**Start the server:**
+
+```bash
+TRANSPORT_MODE=http HTTP_PORT=3000 node build/index.js
+```
+
+**Configure client:**
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "url": "http://your-server:3000/mcp"
     }
   }
 }
@@ -111,6 +134,8 @@ See [examples/](examples/) directory for detailed guides:
 
 | Variable                            | Description                            | Default               |
 | ----------------------------------- | -------------------------------------- | --------------------- |
+| `TRANSPORT_MODE`                    | "stdio" or "http"                      | stdio                 |
+| `HTTP_PORT`                         | Port for HTTP transport                | 3000                  |
 | `EMBEDDING_PROVIDER`                | "ollama", "openai", "cohere", "voyage" | ollama                |
 | `QDRANT_URL`                        | Qdrant server URL                      | http://localhost:6333 |
 | `EMBEDDING_MODEL`                   | Model name                             | Provider-specific     |
