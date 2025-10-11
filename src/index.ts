@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -8,24 +11,18 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { QdrantManager } from "./qdrant/client.js";
-import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { z } from "zod";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { EmbeddingProviderFactory } from "./embeddings/factory.js";
+import { BM25SparseVectorGenerator } from "./embeddings/sparse.js";
+import { QdrantManager } from "./qdrant/client.js";
 
 // Read package.json for version
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(
-  readFileSync(join(__dirname, "../package.json"), "utf-8"),
-);
+const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf-8"));
 
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
-const EMBEDDING_PROVIDER = (
-  process.env.EMBEDDING_PROVIDER || "ollama"
-).toLowerCase();
+const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerCase();
 
 // Check for required API keys based on provider
 if (EMBEDDING_PROVIDER !== "ollama") {
@@ -47,15 +44,13 @@ if (EMBEDDING_PROVIDER !== "ollama") {
       break;
     default:
       console.error(
-        `Error: Unknown embedding provider "${EMBEDDING_PROVIDER}". Supported providers: openai, cohere, voyage, ollama.`,
+        `Error: Unknown embedding provider "${EMBEDDING_PROVIDER}". Supported providers: openai, cohere, voyage, ollama.`
       );
       process.exit(1);
   }
 
   if (!apiKey) {
-    console.error(
-      `Error: ${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider.`,
-    );
+    console.error(`Error: ${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider.`);
     process.exit(1);
   }
 }
@@ -64,8 +59,7 @@ if (EMBEDDING_PROVIDER !== "ollama") {
 async function checkOllamaAvailability() {
   if (EMBEDDING_PROVIDER === "ollama") {
     const baseUrl = process.env.EMBEDDING_BASE_URL || "http://localhost:11434";
-    const isLocalhost =
-      baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
+    const isLocalhost = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
 
     try {
       const response = await fetch(`${baseUrl}/api/version`);
@@ -78,7 +72,7 @@ async function checkOllamaAvailability() {
       const { models } = await tagsResponse.json();
       const modelName = process.env.EMBEDDING_MODEL || "nomic-embed-text";
       const modelExists = models.some(
-        (m: any) => m.name === modelName || m.name.startsWith(`${modelName}:`),
+        (m: any) => m.name === modelName || m.name.startsWith(`${modelName}:`)
       );
 
       if (!modelExists) {
@@ -141,7 +135,7 @@ const server = new Server(
       tools: {},
       resources: {},
     },
-  },
+  }
 );
 
 // Tool schemas
@@ -151,6 +145,10 @@ const CreateCollectionSchema = z.object({
     .enum(["Cosine", "Euclid", "Dot"])
     .optional()
     .describe("Distance metric (default: Cosine)"),
+  enableHybrid: z
+    .boolean()
+    .optional()
+    .describe("Enable hybrid search with sparse vectors (default: false)"),
 });
 
 const AddDocumentsSchema = z.object({
@@ -158,15 +156,13 @@ const AddDocumentsSchema = z.object({
   documents: z
     .array(
       z.object({
-        id: z
-          .union([z.string(), z.number()])
-          .describe("Unique identifier for the document"),
+        id: z.union([z.string(), z.number()]).describe("Unique identifier for the document"),
         text: z.string().describe("Text content to embed and store"),
         metadata: z
           .record(z.any())
           .optional()
           .describe("Optional metadata to store with the document"),
-      }),
+      })
     )
     .describe("Array of documents to add"),
 });
@@ -174,10 +170,7 @@ const AddDocumentsSchema = z.object({
 const SemanticSearchSchema = z.object({
   collection: z.string().describe("Name of the collection to search"),
   query: z.string().describe("Search query text"),
-  limit: z
-    .number()
-    .optional()
-    .describe("Maximum number of results (default: 5)"),
+  limit: z.number().optional().describe("Maximum number of results (default: 5)"),
   filter: z.record(z.any()).optional().describe("Optional metadata filter"),
 });
 
@@ -191,9 +184,14 @@ const GetCollectionInfoSchema = z.object({
 
 const DeleteDocumentsSchema = z.object({
   collection: z.string().describe("Name of the collection"),
-  ids: z
-    .array(z.union([z.string(), z.number()]))
-    .describe("Array of document IDs to delete"),
+  ids: z.array(z.union([z.string(), z.number()])).describe("Array of document IDs to delete"),
+});
+
+const HybridSearchSchema = z.object({
+  collection: z.string().describe("Name of the collection to search"),
+  query: z.string().describe("Search query text"),
+  limit: z.number().optional().describe("Maximum number of results (default: 5)"),
+  filter: z.record(z.any()).optional().describe("Optional metadata filter"),
 });
 
 // List available tools
@@ -203,7 +201,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "create_collection",
         description:
-          "Create a new vector collection in Qdrant. The collection will be configured with the embedding provider's dimensions automatically.",
+          "Create a new vector collection in Qdrant. The collection will be configured with the embedding provider's dimensions automatically. Set enableHybrid to true to enable hybrid search combining semantic and keyword search.",
         inputSchema: {
           type: "object",
           properties: {
@@ -215,6 +213,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               enum: ["Cosine", "Euclid", "Dot"],
               description: "Distance metric (default: Cosine)",
+            },
+            enableHybrid: {
+              type: "boolean",
+              description: "Enable hybrid search with sparse vectors (default: false)",
             },
           },
           required: ["name"],
@@ -323,8 +325,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "delete_documents",
-        description:
-          "Delete specific documents from a collection by their IDs.",
+        description: "Delete specific documents from a collection by their IDs.",
         inputSchema: {
           type: "object",
           properties: {
@@ -343,6 +344,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["collection", "ids"],
         },
       },
+      {
+        name: "hybrid_search",
+        description:
+          "Perform hybrid search combining semantic vector search with keyword search using BM25. This provides better results by combining the strengths of both approaches. The collection must be created with enableHybrid set to true.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            collection: {
+              type: "string",
+              description: "Name of the collection to search",
+            },
+            query: {
+              type: "string",
+              description: "Search query text",
+            },
+            limit: {
+              type: "number",
+              description: "Maximum number of results (default: 5)",
+            },
+            filter: {
+              type: "object",
+              description: "Optional metadata filter",
+            },
+          },
+          required: ["collection", "query"],
+        },
+      },
     ],
   };
 });
@@ -354,14 +382,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "create_collection": {
-        const { name, distance } = CreateCollectionSchema.parse(args);
+        const { name, distance, enableHybrid } = CreateCollectionSchema.parse(args);
         const vectorSize = embeddings.getDimensions();
-        await qdrant.createCollection(name, vectorSize, distance);
+        await qdrant.createCollection(name, vectorSize, distance, enableHybrid || false);
+
+        let message = `Collection "${name}" created successfully with ${vectorSize} dimensions and ${distance || "Cosine"} distance metric.`;
+        if (enableHybrid) {
+          message += " Hybrid search is enabled for this collection.";
+        }
+
         return {
           content: [
             {
               type: "text",
-              text: `Collection "${name}" created successfully with ${vectorSize} dimensions and ${distance || "Cosine"} distance metric.`,
+              text: message,
             },
           ],
         };
@@ -370,7 +404,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "add_documents": {
         const { collection, documents } = AddDocumentsSchema.parse(args);
 
-        // Check if collection exists
+        // Check if collection exists and get info
         const exists = await qdrant.collectionExists(collection);
         if (!exists) {
           return {
@@ -384,21 +418,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
+        const collectionInfo = await qdrant.getCollectionInfo(collection);
+
         // Generate embeddings for all documents
         const texts = documents.map((doc) => doc.text);
         const embeddingResults = await embeddings.embedBatch(texts);
 
-        // Prepare points for insertion
-        const points = documents.map((doc, index) => ({
-          id: doc.id,
-          vector: embeddingResults[index].embedding,
-          payload: {
-            text: doc.text,
-            ...doc.metadata,
-          },
-        }));
+        // If hybrid search is enabled, generate sparse vectors and use appropriate method
+        if (collectionInfo.hybridEnabled) {
+          const sparseGenerator = new BM25SparseVectorGenerator();
 
-        await qdrant.addPoints(collection, points);
+          // Prepare points with both dense and sparse vectors
+          const points = documents.map((doc, index) => ({
+            id: doc.id,
+            vector: embeddingResults[index].embedding,
+            sparseVector: sparseGenerator.generate(doc.text),
+            payload: {
+              text: doc.text,
+              ...doc.metadata,
+            },
+          }));
+
+          await qdrant.addPointsWithSparse(collection, points);
+        } else {
+          // Standard dense-only vectors
+          const points = documents.map((doc, index) => ({
+            id: doc.id,
+            vector: embeddingResults[index].embedding,
+            payload: {
+              text: doc.text,
+              ...doc.metadata,
+            },
+          }));
+
+          await qdrant.addPoints(collection, points);
+        }
 
         return {
           content: [
@@ -411,8 +465,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "semantic_search": {
-        const { collection, query, limit, filter } =
-          SemanticSearchSchema.parse(args);
+        const { collection, query, limit, filter } = SemanticSearchSchema.parse(args);
 
         // Check if collection exists
         const exists = await qdrant.collectionExists(collection);
@@ -432,12 +485,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { embedding } = await embeddings.embed(query);
 
         // Search
-        const results = await qdrant.search(
-          collection,
-          embedding,
-          limit || 5,
-          filter,
-        );
+        const results = await qdrant.search(collection, embedding, limit || 5, filter);
 
         return {
           content: [
@@ -500,6 +548,63 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "hybrid_search": {
+        const { collection, query, limit, filter } = HybridSearchSchema.parse(args);
+
+        // Check if collection exists
+        const exists = await qdrant.collectionExists(collection);
+        if (!exists) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: Collection "${collection}" does not exist.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        // Check if collection has hybrid search enabled
+        const collectionInfo = await qdrant.getCollectionInfo(collection);
+        if (!collectionInfo.hybridEnabled) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: Collection "${collection}" does not have hybrid search enabled. Create a new collection with enableHybrid set to true.`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        // Generate dense embedding for query
+        const { embedding } = await embeddings.embed(query);
+
+        // Generate sparse vector for query
+        const sparseGenerator = new BM25SparseVectorGenerator();
+        const sparseVector = sparseGenerator.generate(query);
+
+        // Perform hybrid search
+        const results = await qdrant.hybridSearch(
+          collection,
+          embedding,
+          sparseVector,
+          limit || 5,
+          filter
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(results, null, 2),
+            },
+          ],
+        };
+      }
+
       default:
         return {
           content: [
@@ -513,8 +618,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
   } catch (error: any) {
     // Enhanced error details for debugging
-    const errorDetails =
-      error instanceof Error ? error.message : JSON.stringify(error, null, 2);
+    const errorDetails = error instanceof Error ? error.message : JSON.stringify(error, null, 2);
 
     console.error("Tool execution error:", {
       tool: name,

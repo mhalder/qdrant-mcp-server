@@ -31,6 +31,21 @@ Configure MCP server as described in [main README](../README.md).
 
 ---
 
+### 🔀 [Hybrid Search](./hybrid-search/)
+
+Combine semantic and keyword search for better results
+
+- Understanding hybrid search benefits
+- Creating hybrid-enabled collections
+- Comparing semantic vs hybrid search
+- Best practices for technical content
+
+**Use cases:** Technical docs, product search, legal documents, code search
+
+**Time:** 15-20 minutes | **Difficulty:** Intermediate
+
+---
+
 ### ⚡ [Rate Limiting](./rate-limiting/)
 
 Automatic rate limit handling for batch operations
@@ -77,7 +92,7 @@ Complex search filters with boolean logic
 ## Learning Path
 
 ```
-Basic → Rate Limiting → Knowledge Base → Advanced Filtering
+Basic → Hybrid Search → Rate Limiting → Knowledge Base → Advanced Filtering
 ```
 
 ## Common Patterns
