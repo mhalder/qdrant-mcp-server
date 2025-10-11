@@ -1,3 +1,8 @@
+## 1.2.0 (2025-10-11)
+
+* Merge pull request #23 from mhalder/feature/hybrid-search ([5925df7](https://github.com/mhalder/qdrant-mcp-server/commit/5925df7)), closes [#23](https://github.com/mhalder/qdrant-mcp-server/issues/23)
+* feat: enable semantic search on hybrid collections ([c99e177](https://github.com/mhalder/qdrant-mcp-server/commit/c99e177))
+
 ## <small>1.1.1 (2025-10-11)</small>
 
 * Merge pull request #22 from mhalder/docs/clean-and-condense ([991cb9d](https://github.com/mhalder/qdrant-mcp-server/commit/991cb9d)), closes [#22](https://github.com/mhalder/qdrant-mcp-server/issues/22)
