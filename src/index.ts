@@ -28,6 +28,16 @@ const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerC
 const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
 
+// Validate HTTP_PORT if in HTTP mode
+if (TRANSPORT_MODE === "http") {
+  if (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) {
+    console.error(
+      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`
+    );
+    process.exit(1);
+  }
+}
+
 // Check for required API keys based on provider
 if (EMBEDDING_PROVIDER !== "ollama") {
   let apiKey: string | undefined;
@@ -721,7 +731,7 @@ async function startHttpServer() {
   await checkOllamaAvailability();
 
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: "10mb" }));
 
   app.post("/mcp", async (req, res) => {
     try {
@@ -734,6 +744,8 @@ async function startHttpServer() {
         transport.close();
       });
 
+      // Note: Each request creates a new connection to the shared server instance.
+      // The MCP SDK handles connection lifecycle internally.
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
@@ -751,7 +763,7 @@ async function startHttpServer() {
     }
   });
 
-  app
+  const httpServer = app
     .listen(HTTP_PORT, () => {
       console.error(`Qdrant MCP server running on http://localhost:${HTTP_PORT}/mcp`);
     })
@@ -759,6 +771,24 @@ async function startHttpServer() {
       console.error("HTTP server error:", error);
       process.exit(1);
     });
+
+  // Graceful shutdown handling
+  const shutdown = () => {
+    console.error("Shutdown signal received, closing HTTP server gracefully...");
+    httpServer.close(() => {
+      console.error("HTTP server closed");
+      process.exit(0);
+    });
+
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+      console.error("Forcing shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }
 
 // Main entry point

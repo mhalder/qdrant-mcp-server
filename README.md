@@ -62,6 +62,15 @@ Add to `~/.claude/claude_code_config.json`:
 
 #### Remote Setup (HTTP transport)
 
+> **⚠️ Security Warning**: When deploying the HTTP transport in production:
+>
+> - **Always** run behind a reverse proxy (nginx, Caddy) with HTTPS
+> - Implement authentication/authorization at the proxy level
+> - Use firewalls to restrict access to trusted networks
+> - Never expose directly to the public internet without protection
+> - Consider implementing rate limiting at the proxy level
+> - Monitor server logs for suspicious activity
+
 **Start the server:**
 
 ```bash
