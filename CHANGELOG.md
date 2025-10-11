@@ -1,3 +1,8 @@
+## 1.1.0 (2025-10-11)
+
+* feat: enable scoped package publishing ([6b1b33f](https://github.com/mhalder/qdrant-mcp-server/commit/6b1b33f))
+* chore: scope package to @mhalder namespace for npm publishing ([9518827](https://github.com/mhalder/qdrant-mcp-server/commit/9518827))
+
 ## 1.0.0 (2025-10-11)
 
 * chore: add docker compose configuration for qdrant ([ad1773f](https://github.com/mhalder/qdrant-mcp-server/commit/ad1773f))
