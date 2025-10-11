@@ -50,6 +50,12 @@ export class OllamaEmbeddings implements EmbeddingProvider {
     });
   }
 
+  private isOllamaError(e: unknown): e is OllamaError {
+    return (
+      typeof e === "object" && e !== null && ("status" in e || "message" in e)
+    );
+  }
+
   private async retryWithBackoff<T>(
     fn: () => Promise<T>,
     attempt: number = 0,
@@ -57,10 +63,15 @@ export class OllamaEmbeddings implements EmbeddingProvider {
     try {
       return await fn();
     } catch (error: unknown) {
-      const apiError = error as OllamaError;
+      // Type guard for OllamaError
+      const apiError = this.isOllamaError(error)
+        ? error
+        : { status: 0, message: String(error) };
+
       const isRateLimitError =
-        apiError?.status === 429 ||
-        apiError?.message?.toLowerCase().includes("rate limit");
+        apiError.status === 429 ||
+        (typeof apiError.message === "string" &&
+          apiError.message.toLowerCase().includes("rate limit"));
 
       if (isRateLimitError && attempt < this.retryAttempts) {
         const delayMs = this.retryDelayMs * Math.pow(2, attempt);
@@ -84,26 +95,60 @@ export class OllamaEmbeddings implements EmbeddingProvider {
   }
 
   private async callApi(text: string): Promise<OllamaEmbedResponse> {
-    const response = await fetch(`${this.baseUrl}/api/embeddings`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        prompt: text,
-      }),
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}/api/embeddings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: this.model,
+          prompt: text,
+        }),
+      });
 
-    if (!response.ok) {
-      const error: OllamaError = {
-        status: response.status,
-        message: await response.text(),
-      };
-      throw error;
+      if (!response.ok) {
+        const errorBody = await response.text();
+        const textPreview =
+          text.length > 100 ? text.substring(0, 100) + "..." : text;
+        const error: OllamaError = {
+          status: response.status,
+          message: `Ollama API error (${response.status}) for model "${this.model}": ${errorBody}. Text preview: "${textPreview}"`,
+        };
+        throw error;
+      }
+
+      return response.json();
+    } catch (error) {
+      // Re-throw if it's already an OllamaError from the !response.ok block
+      if (error && typeof error === "object" && "status" in error) {
+        throw error;
+      }
+
+      // For Error instances (like network errors), enhance the message
+      if (error instanceof Error) {
+        const textPreview =
+          text.length > 100 ? text.substring(0, 100) + "..." : text;
+        throw new Error(
+          `Failed to call Ollama API at ${this.baseUrl} with model ${this.model}: ${error.message}. Text preview: "${textPreview}"`,
+        );
+      }
+
+      // Handle objects with 'message' property - preserve the original error structure
+      // This ensures objects with 'message' property work correctly in tests
+      if (this.isOllamaError(error)) {
+        throw error;
+      }
+
+      // For other types, create a descriptive error message
+      const textPreview =
+        text.length > 100 ? text.substring(0, 100) + "..." : text;
+      const errorMessage = JSON.stringify(error);
+
+      throw new Error(
+        `Failed to call Ollama API at ${this.baseUrl} with model ${this.model}: ${errorMessage}. Text preview: "${textPreview}"`,
+      );
     }
-
-    return response.json();
   }
 
   async embed(text: string): Promise<EmbeddingResult> {
@@ -125,8 +170,20 @@ export class OllamaEmbeddings implements EmbeddingProvider {
 
   async embedBatch(texts: string[]): Promise<EmbeddingResult[]> {
     // Ollama doesn't support batch embeddings natively, so we process in parallel
-    // The Bottleneck limiter will handle rate limiting and concurrency (maxConcurrent: 10)
-    return Promise.all(texts.map((text) => this.embed(text)));
+    // Process in chunks to avoid overwhelming Ollama and prevent memory issues
+    const CHUNK_SIZE = 50;
+    const results: EmbeddingResult[] = [];
+
+    for (let i = 0; i < texts.length; i += CHUNK_SIZE) {
+      const chunk = texts.slice(i, i + CHUNK_SIZE);
+      // The Bottleneck limiter will handle rate limiting and concurrency (maxConcurrent: 10)
+      const chunkResults = await Promise.all(
+        chunk.map((text) => this.embed(text)),
+      );
+      results.push(...chunkResults);
+    }
+
+    return results;
   }
 
   getDimensions(): number {

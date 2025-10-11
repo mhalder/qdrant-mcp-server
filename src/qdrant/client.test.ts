@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QdrantManager } from './client.js';
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QdrantManager } from "./client.js";
+import { QdrantClient } from "@qdrant/js-client-rest";
 
-vi.mock('@qdrant/js-client-rest', () => ({
+vi.mock("@qdrant/js-client-rest", () => ({
   QdrantClient: vi.fn(),
 }));
 
-describe('QdrantManager', () => {
+describe("QdrantManager", () => {
   let manager: QdrantManager;
   let mockClient: any;
 
@@ -24,68 +24,78 @@ describe('QdrantManager', () => {
 
     vi.mocked(QdrantClient).mockImplementation(() => mockClient as any);
 
-    manager = new QdrantManager('http://localhost:6333');
+    manager = new QdrantManager("http://localhost:6333");
   });
 
-  describe('createCollection', () => {
-    it('should create a collection with default distance metric', async () => {
-      await manager.createCollection('test-collection', 1536);
+  describe("createCollection", () => {
+    it("should create a collection with default distance metric", async () => {
+      await manager.createCollection("test-collection", 1536);
 
-      expect(mockClient.createCollection).toHaveBeenCalledWith('test-collection', {
-        vectors: {
-          size: 1536,
-          distance: 'Cosine',
+      expect(mockClient.createCollection).toHaveBeenCalledWith(
+        "test-collection",
+        {
+          vectors: {
+            size: 1536,
+            distance: "Cosine",
+          },
         },
-      });
+      );
     });
 
-    it('should create a collection with custom distance metric', async () => {
-      await manager.createCollection('test-collection', 1536, 'Euclid');
+    it("should create a collection with custom distance metric", async () => {
+      await manager.createCollection("test-collection", 1536, "Euclid");
 
-      expect(mockClient.createCollection).toHaveBeenCalledWith('test-collection', {
-        vectors: {
-          size: 1536,
-          distance: 'Euclid',
+      expect(mockClient.createCollection).toHaveBeenCalledWith(
+        "test-collection",
+        {
+          vectors: {
+            size: 1536,
+            distance: "Euclid",
+          },
         },
-      });
+      );
     });
   });
 
-  describe('collectionExists', () => {
-    it('should return true if collection exists', async () => {
-      mockClient.getCollection.mockResolvedValue({ collection_name: 'test' });
+  describe("collectionExists", () => {
+    it("should return true if collection exists", async () => {
+      mockClient.getCollection.mockResolvedValue({ collection_name: "test" });
 
-      const exists = await manager.collectionExists('test');
+      const exists = await manager.collectionExists("test");
 
       expect(exists).toBe(true);
-      expect(mockClient.getCollection).toHaveBeenCalledWith('test');
+      expect(mockClient.getCollection).toHaveBeenCalledWith("test");
     });
 
-    it('should return false if collection does not exist', async () => {
-      mockClient.getCollection.mockRejectedValue(new Error('Not found'));
+    it("should return false if collection does not exist", async () => {
+      mockClient.getCollection.mockRejectedValue(new Error("Not found"));
 
-      const exists = await manager.collectionExists('test');
+      const exists = await manager.collectionExists("test");
 
       expect(exists).toBe(false);
     });
   });
 
-  describe('listCollections', () => {
-    it('should return list of collection names', async () => {
+  describe("listCollections", () => {
+    it("should return list of collection names", async () => {
       mockClient.getCollections.mockResolvedValue({
         collections: [
-          { name: 'collection1' },
-          { name: 'collection2' },
-          { name: 'collection3' },
+          { name: "collection1" },
+          { name: "collection2" },
+          { name: "collection3" },
         ],
       });
 
       const collections = await manager.listCollections();
 
-      expect(collections).toEqual(['collection1', 'collection2', 'collection3']);
+      expect(collections).toEqual([
+        "collection1",
+        "collection2",
+        "collection3",
+      ]);
     });
 
-    it('should return empty array when no collections exist', async () => {
+    it("should return empty array when no collections exist", async () => {
       mockClient.getCollections.mockResolvedValue({
         collections: [],
       });
@@ -96,202 +106,350 @@ describe('QdrantManager', () => {
     });
   });
 
-  describe('getCollectionInfo', () => {
-    it('should return collection info with vector configuration', async () => {
+  describe("getCollectionInfo", () => {
+    it("should return collection info with vector configuration", async () => {
       mockClient.getCollection.mockResolvedValue({
-        collection_name: 'test-collection',
+        collection_name: "test-collection",
         points_count: 100,
         config: {
           params: {
             vectors: {
               size: 1536,
-              distance: 'Cosine',
+              distance: "Cosine",
             },
           },
         },
       });
 
-      const info = await manager.getCollectionInfo('test-collection');
+      const info = await manager.getCollectionInfo("test-collection");
 
       expect(info).toEqual({
-        name: 'test-collection',
+        name: "test-collection",
         vectorSize: 1536,
         pointsCount: 100,
-        distance: 'Cosine',
+        distance: "Cosine",
       });
     });
 
-    it('should handle missing points_count', async () => {
+    it("should handle missing points_count", async () => {
       mockClient.getCollection.mockResolvedValue({
-        collection_name: 'test-collection',
+        collection_name: "test-collection",
         config: {
           params: {
             vectors: {
               size: 1536,
-              distance: 'Dot',
+              distance: "Dot",
             },
           },
         },
       });
 
-      const info = await manager.getCollectionInfo('test-collection');
+      const info = await manager.getCollectionInfo("test-collection");
 
       expect(info.pointsCount).toBe(0);
     });
   });
 
-  describe('deleteCollection', () => {
-    it('should delete a collection', async () => {
-      await manager.deleteCollection('test-collection');
+  describe("deleteCollection", () => {
+    it("should delete a collection", async () => {
+      await manager.deleteCollection("test-collection");
 
-      expect(mockClient.deleteCollection).toHaveBeenCalledWith('test-collection');
+      expect(mockClient.deleteCollection).toHaveBeenCalledWith(
+        "test-collection",
+      );
     });
   });
 
-  describe('addPoints', () => {
-    it('should add points to a collection', async () => {
+  describe("addPoints", () => {
+    it("should add points to a collection", async () => {
       const points = [
-        { id: 1, vector: [0.1, 0.2, 0.3], payload: { text: 'test' } },
-        { id: 2, vector: [0.4, 0.5, 0.6], payload: { text: 'test2' } },
+        { id: 1, vector: [0.1, 0.2, 0.3], payload: { text: "test" } },
+        { id: 2, vector: [0.4, 0.5, 0.6], payload: { text: "test2" } },
       ];
 
-      await manager.addPoints('test-collection', points);
+      await manager.addPoints("test-collection", points);
 
-      expect(mockClient.upsert).toHaveBeenCalledWith('test-collection', {
+      expect(mockClient.upsert).toHaveBeenCalledWith("test-collection", {
         wait: true,
         points,
       });
     });
 
-    it('should add points without payload', async () => {
-      const points = [
-        { id: 1, vector: [0.1, 0.2, 0.3] },
-      ];
+    it("should add points without payload", async () => {
+      const points = [{ id: 1, vector: [0.1, 0.2, 0.3] }];
 
-      await manager.addPoints('test-collection', points);
+      await manager.addPoints("test-collection", points);
 
-      expect(mockClient.upsert).toHaveBeenCalledWith('test-collection', {
+      expect(mockClient.upsert).toHaveBeenCalledWith("test-collection", {
         wait: true,
         points,
       });
     });
+
+    it("should normalize string IDs to UUID format", async () => {
+      const points = [
+        {
+          id: "my-custom-id",
+          vector: [0.1, 0.2, 0.3],
+          payload: { text: "test" },
+        },
+      ];
+
+      await manager.addPoints("test-collection", points);
+
+      // Verify the ID was normalized to UUID format
+      const calls = mockClient.upsert.mock.calls;
+      expect(calls).toHaveLength(1);
+      expect(calls[0][0]).toBe("test-collection");
+
+      const normalizedId = calls[0][1].points[0].id;
+      // Check that it's a valid UUID format
+      expect(normalizedId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      );
+      // Ensure it's not the original ID
+      expect(normalizedId).not.toBe("my-custom-id");
+    });
+
+    it("should preserve UUID format IDs without modification", async () => {
+      const uuidId = "123e4567-e89b-12d3-a456-426614174000";
+      const points = [
+        { id: uuidId, vector: [0.1, 0.2, 0.3], payload: { text: "test" } },
+      ];
+
+      await manager.addPoints("test-collection", points);
+
+      // UUID should remain unchanged
+      expect(mockClient.upsert).toHaveBeenCalledWith("test-collection", {
+        wait: true,
+        points: [
+          {
+            id: uuidId,
+            vector: [0.1, 0.2, 0.3],
+            payload: { text: "test" },
+          },
+        ],
+      });
+    });
+
+    it("should throw error with error.data.status.error message", async () => {
+      const points = [{ id: 1, vector: [0.1, 0.2, 0.3] }];
+
+      mockClient.upsert.mockRejectedValue({
+        data: {
+          status: {
+            error: "Vector dimension mismatch",
+          },
+        },
+      });
+
+      await expect(
+        manager.addPoints("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points to collection "test-collection": Vector dimension mismatch',
+      );
+    });
+
+    it("should throw error with error.message fallback", async () => {
+      const points = [{ id: 1, vector: [0.1, 0.2, 0.3] }];
+
+      mockClient.upsert.mockRejectedValue(new Error("Network error"));
+
+      await expect(
+        manager.addPoints("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points to collection "test-collection": Network error',
+      );
+    });
+
+    it("should throw error with String(error) fallback", async () => {
+      const points = [{ id: 1, vector: [0.1, 0.2, 0.3] }];
+
+      mockClient.upsert.mockRejectedValue("Unknown error");
+
+      await expect(
+        manager.addPoints("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points to collection "test-collection": Unknown error',
+      );
+    });
   });
 
-  describe('search', () => {
-    it('should search for similar vectors', async () => {
+  describe("search", () => {
+    it("should search for similar vectors", async () => {
       mockClient.search.mockResolvedValue([
-        { id: 1, score: 0.95, payload: { text: 'result1' } },
-        { id: 2, score: 0.85, payload: { text: 'result2' } },
+        { id: 1, score: 0.95, payload: { text: "result1" } },
+        { id: 2, score: 0.85, payload: { text: "result2" } },
       ]);
 
-      const results = await manager.search('test-collection', [0.1, 0.2, 0.3], 5);
+      const results = await manager.search(
+        "test-collection",
+        [0.1, 0.2, 0.3],
+        5,
+      );
 
       expect(results).toEqual([
-        { id: 1, score: 0.95, payload: { text: 'result1' } },
-        { id: 2, score: 0.85, payload: { text: 'result2' } },
+        { id: 1, score: 0.95, payload: { text: "result1" } },
+        { id: 2, score: 0.85, payload: { text: "result2" } },
       ]);
-      expect(mockClient.search).toHaveBeenCalledWith('test-collection', {
+      expect(mockClient.search).toHaveBeenCalledWith("test-collection", {
         vector: [0.1, 0.2, 0.3],
         limit: 5,
         filter: undefined,
       });
     });
 
-    it('should search with custom limit', async () => {
+    it("should search with custom limit", async () => {
       mockClient.search.mockResolvedValue([]);
 
-      await manager.search('test-collection', [0.1, 0.2, 0.3], 10);
+      await manager.search("test-collection", [0.1, 0.2, 0.3], 10);
 
-      expect(mockClient.search).toHaveBeenCalledWith('test-collection', {
+      expect(mockClient.search).toHaveBeenCalledWith("test-collection", {
         vector: [0.1, 0.2, 0.3],
         limit: 10,
         filter: undefined,
       });
     });
 
-    it('should search with metadata filter', async () => {
+    it("should search with Qdrant format filter (must)", async () => {
       mockClient.search.mockResolvedValue([]);
 
-      const filter = { must: [{ key: 'category', match: { value: 'test' } }] };
-      await manager.search('test-collection', [0.1, 0.2, 0.3], 5, filter);
+      const filter = { must: [{ key: "category", match: { value: "test" } }] };
+      await manager.search("test-collection", [0.1, 0.2, 0.3], 5, filter);
 
-      expect(mockClient.search).toHaveBeenCalledWith('test-collection', {
+      expect(mockClient.search).toHaveBeenCalledWith("test-collection", {
         vector: [0.1, 0.2, 0.3],
         limit: 5,
         filter,
       });
     });
 
-    it('should handle null payload in results', async () => {
+    it("should convert simple key-value filter to Qdrant format", async () => {
+      mockClient.search.mockResolvedValue([]);
+
+      const simpleFilter = { category: "database", type: "document" };
+      await manager.search("test-collection", [0.1, 0.2, 0.3], 5, simpleFilter);
+
+      expect(mockClient.search).toHaveBeenCalledWith("test-collection", {
+        vector: [0.1, 0.2, 0.3],
+        limit: 5,
+        filter: {
+          must: [
+            { key: "category", match: { value: "database" } },
+            { key: "type", match: { value: "document" } },
+          ],
+        },
+      });
+    });
+
+    it("should handle empty filter object", async () => {
+      mockClient.search.mockResolvedValue([]);
+
+      await manager.search("test-collection", [0.1, 0.2, 0.3], 5, {});
+
+      expect(mockClient.search).toHaveBeenCalledWith("test-collection", {
+        vector: [0.1, 0.2, 0.3],
+        limit: 5,
+        filter: undefined,
+      });
+    });
+
+    it("should search with Qdrant format filter (should)", async () => {
+      mockClient.search.mockResolvedValue([]);
+
+      const filter = {
+        should: [{ key: "tag", match: { value: "important" } }],
+      };
+      await manager.search("test-collection", [0.1, 0.2, 0.3], 5, filter);
+
+      expect(mockClient.search).toHaveBeenCalledWith("test-collection", {
+        vector: [0.1, 0.2, 0.3],
+        limit: 5,
+        filter,
+      });
+    });
+
+    it("should search with Qdrant format filter (must_not)", async () => {
+      mockClient.search.mockResolvedValue([]);
+
+      const filter = {
+        must_not: [{ key: "status", match: { value: "deleted" } }],
+      };
+      await manager.search("test-collection", [0.1, 0.2, 0.3], 5, filter);
+
+      expect(mockClient.search).toHaveBeenCalledWith("test-collection", {
+        vector: [0.1, 0.2, 0.3],
+        limit: 5,
+        filter,
+      });
+    });
+
+    it("should handle null payload in results", async () => {
       mockClient.search.mockResolvedValue([
         { id: 1, score: 0.95, payload: null },
       ]);
 
-      const results = await manager.search('test-collection', [0.1, 0.2, 0.3]);
+      const results = await manager.search("test-collection", [0.1, 0.2, 0.3]);
 
-      expect(results).toEqual([
-        { id: 1, score: 0.95, payload: undefined },
-      ]);
+      expect(results).toEqual([{ id: 1, score: 0.95, payload: undefined }]);
     });
   });
 
-  describe('getPoint', () => {
-    it('should retrieve a point by id', async () => {
+  describe("getPoint", () => {
+    it("should retrieve a point by id", async () => {
       mockClient.retrieve.mockResolvedValue([
-        { id: 1, payload: { text: 'test' } },
+        { id: 1, payload: { text: "test" } },
       ]);
 
-      const point = await manager.getPoint('test-collection', 1);
+      const point = await manager.getPoint("test-collection", 1);
 
-      expect(point).toEqual({ id: 1, payload: { text: 'test' } });
-      expect(mockClient.retrieve).toHaveBeenCalledWith('test-collection', {
+      expect(point).toEqual({ id: 1, payload: { text: "test" } });
+      expect(mockClient.retrieve).toHaveBeenCalledWith("test-collection", {
         ids: [1],
       });
     });
 
-    it('should return null if point not found', async () => {
+    it("should return null if point not found", async () => {
       mockClient.retrieve.mockResolvedValue([]);
 
-      const point = await manager.getPoint('test-collection', 1);
+      const point = await manager.getPoint("test-collection", 1);
 
       expect(point).toBeNull();
     });
 
-    it('should handle errors gracefully', async () => {
-      mockClient.retrieve.mockRejectedValue(new Error('Not found'));
+    it("should handle errors gracefully", async () => {
+      mockClient.retrieve.mockRejectedValue(new Error("Not found"));
 
-      const point = await manager.getPoint('test-collection', 1);
+      const point = await manager.getPoint("test-collection", 1);
 
       expect(point).toBeNull();
     });
 
-    it('should handle null payload', async () => {
-      mockClient.retrieve.mockResolvedValue([
-        { id: 1, payload: null },
-      ]);
+    it("should handle null payload", async () => {
+      mockClient.retrieve.mockResolvedValue([{ id: 1, payload: null }]);
 
-      const point = await manager.getPoint('test-collection', 1);
+      const point = await manager.getPoint("test-collection", 1);
 
       expect(point).toEqual({ id: 1, payload: undefined });
     });
   });
 
-  describe('deletePoints', () => {
-    it('should delete points by ids', async () => {
-      await manager.deletePoints('test-collection', [1, 2, 3]);
+  describe("deletePoints", () => {
+    it("should delete points by ids", async () => {
+      await manager.deletePoints("test-collection", [1, 2, 3]);
 
-      expect(mockClient.delete).toHaveBeenCalledWith('test-collection', {
+      expect(mockClient.delete).toHaveBeenCalledWith("test-collection", {
         wait: true,
         points: [1, 2, 3],
       });
     });
 
-    it('should delete single point', async () => {
-      await manager.deletePoints('test-collection', ['doc-1']);
+    it("should delete single point", async () => {
+      await manager.deletePoints("test-collection", ["doc-1"]);
 
-      expect(mockClient.delete).toHaveBeenCalledWith('test-collection', {
+      expect(mockClient.delete).toHaveBeenCalledWith("test-collection", {
         wait: true,
-        points: ['bb0e4f49-4437-94d9-01e8-969ff11bd112'], // Normalized UUID from 'doc-1'
+        points: ["bb0e4f49-4437-94d9-01e8-969ff11bd112"], // Normalized UUID from 'doc-1'
       });
     });
   });

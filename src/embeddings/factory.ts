@@ -67,7 +67,7 @@ export class EmbeddingProviderFactory {
 
   static createFromEnv(): EmbeddingProvider {
     const provider = (
-      process.env.EMBEDDING_PROVIDER || "openai"
+      process.env.EMBEDDING_PROVIDER || "ollama"
     ).toLowerCase() as EmbeddingProviderType;
 
     // Select API key based on provider
@@ -90,21 +90,60 @@ export class EmbeddingProviderFactory {
     // Common configuration
     const model = process.env.EMBEDDING_MODEL;
     const dimensions = process.env.EMBEDDING_DIMENSIONS
-      ? parseInt(process.env.EMBEDDING_DIMENSIONS)
+      ? parseInt(process.env.EMBEDDING_DIMENSIONS, 10)
       : undefined;
+
+    // Validate dimensions
+    if (dimensions !== undefined && (isNaN(dimensions) || dimensions <= 0)) {
+      throw new Error(
+        `Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "${process.env.EMBEDDING_DIMENSIONS}"`,
+      );
+    }
 
     const baseUrl = process.env.EMBEDDING_BASE_URL;
 
     // Rate limiting configuration
     const maxRequestsPerMinute = process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE
-      ? parseInt(process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE)
+      ? parseInt(process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE, 10)
       : undefined;
+
+    // Validate maxRequestsPerMinute
+    if (
+      maxRequestsPerMinute !== undefined &&
+      (isNaN(maxRequestsPerMinute) || maxRequestsPerMinute <= 0)
+    ) {
+      throw new Error(
+        `Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "${process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE}"`,
+      );
+    }
+
     const retryAttempts = process.env.EMBEDDING_RETRY_ATTEMPTS
-      ? parseInt(process.env.EMBEDDING_RETRY_ATTEMPTS)
+      ? parseInt(process.env.EMBEDDING_RETRY_ATTEMPTS, 10)
       : undefined;
+
+    // Validate retryAttempts
+    if (
+      retryAttempts !== undefined &&
+      (isNaN(retryAttempts) || retryAttempts < 0)
+    ) {
+      throw new Error(
+        `Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "${process.env.EMBEDDING_RETRY_ATTEMPTS}"`,
+      );
+    }
+
     const retryDelayMs = process.env.EMBEDDING_RETRY_DELAY
-      ? parseInt(process.env.EMBEDDING_RETRY_DELAY)
+      ? parseInt(process.env.EMBEDDING_RETRY_DELAY, 10)
       : undefined;
+
+    // Validate retryDelayMs
+    if (
+      retryDelayMs !== undefined &&
+      (isNaN(retryDelayMs) || retryDelayMs < 0)
+    ) {
+      throw new Error(
+        `Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "${process.env.EMBEDDING_RETRY_DELAY}"`,
+      );
+    }
 
     const rateLimitConfig = {
       maxRequestsPerMinute,

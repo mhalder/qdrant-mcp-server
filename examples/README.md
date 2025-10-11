@@ -6,9 +6,10 @@ Practical examples demonstrating how to use the Qdrant MCP Server for various us
 
 Before running these examples, ensure you have:
 
-1. **Qdrant running**: `docker compose up -d`
-2. **MCP Server configured**: See main [README](../README.md) for setup
-3. **Embedding provider configured**: API key for OpenAI, Cohere, Voyage AI, or Ollama running locally
+1. **Qdrant and Ollama running**: `docker compose up -d`
+2. **Ollama model pulled**: `docker exec ollama ollama pull nomic-embed-text`
+3. **MCP Server configured**: See main [README](../README.md) for setup
+4. **Optional - Alternative providers**: Configure API key for OpenAI, Cohere, or Voyage AI if not using Ollama
 
 ## Available Examples
 

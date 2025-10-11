@@ -157,6 +157,47 @@ describe("OllamaEmbeddings", () => {
 
       await expect(embeddings.embed("test")).rejects.toThrow("Network Error");
     });
+
+    it("should include text preview in API error for long text", async () => {
+      const longText = "a".repeat(150);
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: async () => "Server error",
+      });
+
+      await expect(embeddings.embed(longText)).rejects.toThrow(
+        expect.objectContaining({
+          message: expect.stringContaining("Text preview:"),
+        }),
+      );
+    });
+
+    it("should include model and URL in network error messages for non-Error objects", async () => {
+      mockFetch.mockRejectedValue("Connection refused");
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text",
+      );
+    });
+
+    it("should handle errors with message property", async () => {
+      mockFetch.mockRejectedValue({
+        message: "Custom error message",
+      });
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Custom error message",
+      );
+    });
+
+    it("should handle non-Error objects in catch block", async () => {
+      mockFetch.mockRejectedValue({ code: "ERR_UNKNOWN", details: "info" });
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text",
+      );
+    });
   });
 
   describe("embedBatch", () => {
@@ -437,6 +478,66 @@ describe("OllamaEmbeddings", () => {
       // Ollama defaults to 1000 requests/minute (more lenient than cloud providers)
       const defaultEmbeddings = new OllamaEmbeddings();
       expect(defaultEmbeddings).toBeDefined();
+    });
+
+    it("should handle primitive error values in retry logic", async () => {
+      // This tests line 69: when error is not an OllamaError, convert to { status: 0, message: String(error) }
+      mockFetch.mockRejectedValue(null);
+
+      await expect(embeddings.embed("test")).rejects.toThrow();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle string primitive errors", async () => {
+      mockFetch.mockRejectedValue("Network unreachable");
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Network unreachable",
+      );
+    });
+
+    it("should handle error objects with non-string message property", async () => {
+      mockFetch.mockRejectedValue({
+        message: 404, // Non-string message
+        code: "NOT_FOUND",
+      });
+
+      // Should not treat this as a rate limit error even though it has a message property
+      await expect(embeddings.embed("test")).rejects.toThrow();
+      expect(mockFetch).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it("should handle Error instance in retry logic", async () => {
+      const testError = new Error("Connection timeout");
+      mockFetch.mockRejectedValue(testError);
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Connection timeout",
+      );
+    });
+
+    it("should handle Error instance from network error with enhanced message", async () => {
+      // This tests error instanceof Error path for network errors
+      const networkError = new Error("ECONNREFUSED");
+      mockFetch.mockRejectedValue(networkError);
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text: ECONNREFUSED. Text preview:",
+      );
+    });
+
+    it("should handle object with string message property", async () => {
+      // This tests lines 143-144: object with message property that is a string
+      const customError = {
+        code: "API_ERROR",
+        message: "Custom API failure",
+        details: "Something went wrong",
+      };
+      mockFetch.mockRejectedValue(customError);
+
+      await expect(embeddings.embed("test")).rejects.toThrow(
+        "Custom API failure",
+      );
     });
   });
 });

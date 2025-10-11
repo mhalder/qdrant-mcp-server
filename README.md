@@ -3,12 +3,14 @@
 [![CI](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mhalder/qdrant-mcp-server/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mhalder/qdrant-mcp-server/branch/main/graph/badge.svg)](https://codecov.io/gh/mhalder/qdrant-mcp-server)
 
-A Model Context Protocol (MCP) server that provides semantic search capabilities using a local Qdrant vector database with support for multiple embedding providers (OpenAI, Cohere, Voyage AI, and Ollama).
+A Model Context Protocol (MCP) server that provides semantic search capabilities using a local Qdrant vector database with support for multiple embedding providers (Ollama, OpenAI, Cohere, and Voyage AI).
 
 ## Features
 
+- **Zero Setup Required**: Works out of the box with Ollama (no API keys needed)
 - **Semantic Search**: Natural language search across your document collections
-- **Multiple Embedding Providers**: Support for OpenAI, Cohere, Voyage AI, and Ollama (local)
+- **Multiple Embedding Providers**: Support for Ollama (local, default), OpenAI, Cohere, and Voyage AI
+- **Privacy-First**: Default local embeddings with Ollama - your data never leaves your machine
 - **Metadata Filtering**: Filter search results by metadata fields using Qdrant's powerful filter syntax
 - **Local Vector Database**: Runs Qdrant locally via Docker for complete data privacy
 - **Automatic Embeddings**: Converts text to vectors using your choice of embedding provider
@@ -20,13 +22,14 @@ A Model Context Protocol (MCP) server that provides semantic search capabilities
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20+ (tested on Node.js 20 and 22)
 - Docker and Docker Compose
-- API key for your chosen embedding provider:
-  - OpenAI API key (default)
-  - Cohere API key
-  - Voyage AI API key
-  - Ollama (no API key required, runs locally)
+
+**Optional** (for alternative embedding providers):
+
+- OpenAI API key
+- Cohere API key
+- Voyage AI API key
 
 ## Installation
 
@@ -43,52 +46,16 @@ cd qdrant-mcp-server
 npm install
 ```
 
-3. Set up environment variables:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and configure your embedding provider:
-
-**Option 1: OpenAI (default)**
-
-```bash
-EMBEDDING_PROVIDER=openai
-OPENAI_API_KEY=sk-your-api-key-here
-QDRANT_URL=http://localhost:6333
-```
-
-**Option 2: Cohere**
-
-```bash
-EMBEDDING_PROVIDER=cohere
-COHERE_API_KEY=your-cohere-api-key-here
-QDRANT_URL=http://localhost:6333
-```
-
-**Option 3: Voyage AI**
-
-```bash
-EMBEDDING_PROVIDER=voyage
-VOYAGE_API_KEY=your-voyage-api-key-here
-QDRANT_URL=http://localhost:6333
-```
-
-**Option 4: Ollama (Local)**
-
-```bash
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_BASE_URL=http://localhost:11434
-QDRANT_URL=http://localhost:6333
-```
-
-See the [Configuration Options](#configuration-options) section for advanced settings.
-
-4. Start Qdrant:
+3. Start Qdrant and Ollama:
 
 ```bash
 docker compose up -d
+```
+
+4. Pull the Ollama embedding model:
+
+```bash
+docker exec ollama ollama pull nomic-embed-text
 ```
 
 5. Build the project:
@@ -117,7 +84,26 @@ node build/index.js
 
 Add this to your Claude Code configuration file at `~/.claude/claude_code_config.json`:
 
-**With OpenAI:**
+**Default (Ollama - No API Key Required):**
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": [
+        "/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"
+      ],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "EMBEDDING_BASE_URL": "http://localhost:11434"
+      }
+    }
+  }
+}
+```
+
+**With OpenAI (Alternative):**
 
 ```json
 {
@@ -137,7 +123,7 @@ Add this to your Claude Code configuration file at `~/.claude/claude_code_config
 }
 ```
 
-**With Cohere:**
+**With Cohere (Alternative):**
 
 ```json
 {
@@ -157,7 +143,7 @@ Add this to your Claude Code configuration file at `~/.claude/claude_code_config
 }
 ```
 
-**With Voyage AI:**
+**With Voyage AI (Alternative):**
 
 ```json
 {
@@ -170,26 +156,6 @@ Add this to your Claude Code configuration file at `~/.claude/claude_code_config
       "env": {
         "EMBEDDING_PROVIDER": "voyage",
         "VOYAGE_API_KEY": "your-voyage-api-key-here",
-        "QDRANT_URL": "http://localhost:6333"
-      }
-    }
-  }
-}
-```
-
-**With Ollama (Local):**
-
-```json
-{
-  "mcpServers": {
-    "qdrant": {
-      "command": "node",
-      "args": [
-        "/home/YOUR_USERNAME/projects/active/qdrant-mcp-server/build/index.js"
-      ],
-      "env": {
-        "EMBEDDING_PROVIDER": "ollama",
-        "EMBEDDING_BASE_URL": "http://localhost:11434",
         "QDRANT_URL": "http://localhost:6333"
       }
     }
@@ -402,7 +368,7 @@ qdrant-mcp-server/
 
 #### Common Configuration
 
-- `EMBEDDING_PROVIDER` (optional): Embedding provider to use - "openai", "cohere", "voyage", or "ollama" (default: "openai")
+- `EMBEDDING_PROVIDER` (optional): Embedding provider to use - "openai", "cohere", "voyage", or "ollama" (default: "ollama")
 - `QDRANT_URL` (optional): Qdrant server URL (default: http://localhost:6333)
 - `EMBEDDING_MODEL` (optional): Model name for the selected provider (provider-specific defaults apply)
 - `EMBEDDING_DIMENSIONS` (optional): Custom embedding dimensions (overrides model defaults)
@@ -610,8 +576,8 @@ The project uses GitHub Actions for CI/CD:
 
 - **Build**: Compiles TypeScript to JavaScript
 - **Type Check**: Validates TypeScript types with strict mode
-- **Test**: Runs all 140 unit and functional tests (129 unit + 11 functional)
-- **Multi-version**: Tests on Node.js 18, 20, and 22
+- **Test**: Runs all 376 unit tests with 98.27% coverage
+- **Multi-version**: Tests on Node.js 20 and 22
 
 The CI workflow runs on every push and pull request to the main branch.
 
@@ -640,17 +606,21 @@ npm run test:providers
 
 ### Test Coverage
 
-The test suite includes **140 tests** (129 unit + 11 functional) covering:
+The test suite includes **422 tests** (376 unit + 46 functional/interactive) covering:
 
 **Unit Tests:**
 
 - **QdrantManager** (21 tests): Collection management, point operations, and search functionality
-- **OpenAIEmbeddings** (25 tests): Embedding generation, batch processing, rate limiting with exponential backoff, Retry-After header validation, and typed error handling
+- **OllamaEmbeddings** (31 tests): Local embedding generation, batch processing, rate limiting - DEFAULT PROVIDER
+- **OpenAIEmbeddings** (25 tests): Cloud embedding generation, batch processing, rate limiting with Retry-After header
+- **CohereEmbeddings** (29 tests): Cohere API integration, batch processing, rate limiting
+- **VoyageEmbeddings** (31 tests): Voyage AI integration, batch processing, rate limiting
+- **Factory Pattern** (32 tests): Provider instantiation, configuration, error handling
 - **MCP Server** (19 tests): Tool schemas, resource URI patterns, and MCP protocol compliance
 
-**Functional Tests:**
+**Functional/Interactive Tests:**
 
-- **Live API Integration** (11 tests): Real OpenAI embeddings, production MCP server validation, rate limiting behavior, and end-to-end workflows with 30+ real documents
+- **Live API Integration** (46 tests): Real embedding APIs, production MCP server validation, rate limiting behavior, and end-to-end workflows with real documents
 
 **Coverage Highlights:**
 
@@ -708,8 +678,8 @@ All pull requests will automatically run through CI checks that validate:
 
 - TypeScript compilation
 - Type checking
-- Test suite (114 tests)
-- Compatibility with Node.js 18, 20, and 22
+- Test suite (376 tests, 98.27% coverage)
+- Compatibility with Node.js 20 and 22
 
 ### Note for Repository Owners
 

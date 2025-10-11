@@ -11,9 +11,12 @@ This example demonstrates the fundamental operations of the Qdrant MCP Server.
 
 ## Prerequisites
 
-- Qdrant MCP Server running
-- Embedding provider configured (OpenAI, Cohere, Voyage AI, or Ollama)
+- Qdrant and Ollama running via Docker Compose
+- Ollama model pulled (nomic-embed-text)
+- Qdrant MCP Server configured
 - Claude Code or another MCP client
+
+**Optional**: Configure OpenAI, Cohere, or Voyage AI if not using Ollama (default)
 
 ## Example Workflow
 
@@ -23,7 +26,7 @@ This example demonstrates the fundamental operations of the Qdrant MCP Server.
 Create a collection named "basic-example"
 ```
 
-This creates a new vector collection with default settings (Cosine distance, dimensions based on your embedding provider).
+This creates a new vector collection with default settings (Cosine distance, 768 dimensions for Ollama's nomic-embed-text model).
 
 ### 2. Add Documents
 
@@ -34,7 +37,7 @@ Add these documents to basic-example:
 - id: 3, text: "Python is a popular programming language"
 ```
 
-Documents are automatically embedded using your configured embedding provider.
+Documents are automatically embedded using Ollama (or your configured alternative provider).
 
 ### 3. Search for Similar Documents
 

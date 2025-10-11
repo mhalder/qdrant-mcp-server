@@ -1,5 +1,4 @@
-version: '3.8'
-
+# No version field needed for Docker Compose v1.27.0+
 services:
   qdrant:
     image: qdrant/qdrant:latest
@@ -11,4 +10,13 @@ services:
       - ./qdrant_storage:/qdrant/storage
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_storage:/root/.ollama
     restart: unless-stopped

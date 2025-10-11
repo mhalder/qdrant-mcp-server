@@ -6,18 +6,21 @@ Learn how the Qdrant MCP Server handles embedding provider API rate limits autom
 
 This example demonstrates:
 
-- How rate limiting prevents API failures
-- Configuring rate limits for your OpenAI tier
+- How rate limiting prevents API failures (for cloud providers)
+- Configuring rate limits for your embedding provider
 - Batch operations with automatic throttling
 - Exponential backoff retry behavior
 - Monitoring rate limit events
+- Why Ollama doesn't need rate limiting (local processing)
 
 **Time:** 10-15 minutes
 **Difficulty:** Beginner to Intermediate
 
 ## Why Rate Limiting Matters
 
-Embedding providers enforce rate limits based on your account tier:
+**Ollama (Default):** Since Ollama runs locally, there are no API rate limits! You can process as many embeddings as your system can handle.
+
+**Cloud Embedding Providers** (OpenAI, Cohere, Voyage AI) enforce rate limits based on your account tier:
 
 **OpenAI:**
 | Tier | Requests/Minute |
@@ -27,13 +30,12 @@ Embedding providers enforce rate limits based on your account tier:
 | Tier 2 | 5,000 |
 | Tier 3+ | 10,000+ |
 
-**Other Providers:**
+**Other Cloud Providers:**
 
 - **Cohere**: ~100 requests/minute (varies by plan)
 - **Voyage AI**: ~300 requests/minute (varies by plan)
-- **Ollama**: No API limits (local), limited by system resources
 
-Without rate limiting, batch operations can exceed these limits and fail.
+Without rate limiting, batch operations with cloud providers can exceed these limits and fail. This is one reason why **Ollama is the default** - no rate limits to worry about!
 
 ## How It Works
 
@@ -45,6 +47,15 @@ The server automatically:
 4. **Provides Feedback**: Shows retry progress in console
 
 ## Configuration
+
+### Ollama Settings (Default - No Rate Limiting Needed)
+
+```bash
+EMBEDDING_PROVIDER=ollama  # or omit (ollama is default)
+EMBEDDING_BASE_URL=http://localhost:11434
+EMBEDDING_MODEL=nomic-embed-text
+# No rate limit configuration needed - runs locally!
+```
 
 ### OpenAI Settings
 
@@ -285,7 +296,26 @@ Please try again later or reduce request frequency.
 
 ## Integration with Claude Code
 
-The rate limiting works seamlessly with Claude Code. Example with OpenAI:
+The rate limiting works seamlessly with Claude Code.
+
+**Example with Ollama (Default - No Rate Limits):**
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "EMBEDDING_BASE_URL": "http://localhost:11434"
+      }
+    }
+  }
+}
+```
+
+**Example with OpenAI (Alternative):**
 
 ```json
 {
@@ -314,11 +344,12 @@ Delete collection "rate-limit-test"
 
 ## Key Takeaways
 
-1. ✅ **Automatic**: Rate limiting works out-of-the-box
-2. ✅ **Configurable**: Adjust for your OpenAI tier
-3. ✅ **Resilient**: Exponential backoff handles temporary issues
-4. ✅ **Transparent**: Console feedback shows what's happening
-5. ✅ **Efficient**: Batch operations optimize API usage
+1. ✅ **Ollama Default**: No rate limits with local processing
+2. ✅ **Automatic**: Rate limiting works out-of-the-box for cloud providers
+3. ✅ **Configurable**: Adjust for your cloud provider tier
+4. ✅ **Resilient**: Exponential backoff handles temporary issues
+5. ✅ **Transparent**: Console feedback shows what's happening
+6. ✅ **Efficient**: Batch operations optimize API usage
 
 ## Next Steps
 

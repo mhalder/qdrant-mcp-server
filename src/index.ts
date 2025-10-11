@@ -11,25 +11,118 @@ import {
 import { QdrantManager } from "./qdrant/client.js";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { z } from "zod";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+// Read package.json for version
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(
+  readFileSync(join(__dirname, "../package.json"), "utf-8"),
+);
 
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const EMBEDDING_PROVIDER = (
-  process.env.EMBEDDING_PROVIDER || "openai"
+  process.env.EMBEDDING_PROVIDER || "ollama"
 ).toLowerCase();
 
 // Check for required API keys based on provider
 if (EMBEDDING_PROVIDER !== "ollama") {
-  const apiKey =
-    process.env.OPENAI_API_KEY ||
-    process.env.COHERE_API_KEY ||
-    process.env.VOYAGE_API_KEY;
+  let apiKey: string | undefined;
+  let requiredKeyName: string;
+
+  switch (EMBEDDING_PROVIDER) {
+    case "openai":
+      apiKey = process.env.OPENAI_API_KEY;
+      requiredKeyName = "OPENAI_API_KEY";
+      break;
+    case "cohere":
+      apiKey = process.env.COHERE_API_KEY;
+      requiredKeyName = "COHERE_API_KEY";
+      break;
+    case "voyage":
+      apiKey = process.env.VOYAGE_API_KEY;
+      requiredKeyName = "VOYAGE_API_KEY";
+      break;
+    default:
+      console.error(
+        `Error: Unknown embedding provider "${EMBEDDING_PROVIDER}". Supported providers: openai, cohere, voyage, ollama.`,
+      );
+      process.exit(1);
+  }
 
   if (!apiKey) {
     console.error(
-      `Error: API key is required for ${EMBEDDING_PROVIDER} provider. Set OPENAI_API_KEY, COHERE_API_KEY, or VOYAGE_API_KEY.`,
+      `Error: ${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider.`,
     );
     process.exit(1);
+  }
+}
+
+// Check if Ollama is running when using Ollama provider
+async function checkOllamaAvailability() {
+  if (EMBEDDING_PROVIDER === "ollama") {
+    const baseUrl = process.env.EMBEDDING_BASE_URL || "http://localhost:11434";
+    const isLocalhost =
+      baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
+
+    try {
+      const response = await fetch(`${baseUrl}/api/version`);
+      if (!response.ok) {
+        throw new Error(`Ollama returned status ${response.status}`);
+      }
+
+      // Check if the required embedding model exists
+      const tagsResponse = await fetch(`${baseUrl}/api/tags`);
+      const { models } = await tagsResponse.json();
+      const modelName = process.env.EMBEDDING_MODEL || "nomic-embed-text";
+      const modelExists = models.some(
+        (m: any) => m.name === modelName || m.name.startsWith(`${modelName}:`),
+      );
+
+      if (!modelExists) {
+        let errorMessage = `Error: Model '${modelName}' not found in Ollama.\n`;
+
+        if (isLocalhost) {
+          errorMessage +=
+            `Pull it with:\n` +
+            `  - Using Docker: docker exec ollama ollama pull ${modelName}\n` +
+            `  - Or locally: ollama pull ${modelName}`;
+        } else {
+          errorMessage +=
+            `Please ensure the model is available on your Ollama instance:\n` +
+            `  ollama pull ${modelName}`;
+        }
+
+        console.error(errorMessage);
+        process.exit(1);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? `Error: ${error.message}`
+          : `Error: Ollama is not running at ${baseUrl}.\n`;
+
+      let helpText = "";
+      if (isLocalhost) {
+        helpText =
+          `Please start Ollama:\n` +
+          `  - Using Docker: docker compose up -d\n` +
+          `  - Or install locally: curl -fsSL https://ollama.ai/install.sh | sh\n` +
+          `\nThen pull the embedding model:\n` +
+          `  ollama pull nomic-embed-text`;
+      } else {
+        helpText =
+          `Please ensure:\n` +
+          `  - Ollama is running at the specified URL\n` +
+          `  - The URL is accessible from this machine\n` +
+          `  - The embedding model is available (e.g., nomic-embed-text)`;
+      }
+
+      console.error(`${errorMessage}\n${helpText}`);
+      process.exit(1);
+    }
   }
 }
 
@@ -40,8 +133,8 @@ const embeddings = EmbeddingProviderFactory.createFromEnv();
 // Create MCP server
 const server = new Server(
   {
-    name: "qdrant-mcp-server",
-    version: "1.0.0",
+    name: pkg.name,
+    version: pkg.version,
   },
   {
     capabilities: {
@@ -509,6 +602,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
 // Start server
 async function main() {
+  await checkOllamaAvailability();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Qdrant MCP server running on stdio");
