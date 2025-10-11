@@ -1,94 +1,39 @@
-# Basic Usage Example
+# Basic Usage
 
-This example demonstrates the fundamental operations of the Qdrant MCP Server.
+Learn fundamental operations: create collections, add documents, search, and manage resources.
 
-## What You'll Learn
+**Time:** 5-10 minutes | **Difficulty:** Beginner
 
-- Creating a collection
-- Adding documents with metadata
-- Performing semantic search
-- Cleaning up resources
-
-## Prerequisites
-
-- Qdrant and Ollama running via Docker Compose
-- Ollama model pulled (nomic-embed-text)
-- Qdrant MCP Server configured
-- Claude Code or another MCP client
-
-**Optional**: Configure OpenAI, Cohere, or Voyage AI if not using Ollama (default)
-
-## Example Workflow
-
-### 1. Create a Collection
+## Workflow
 
 ```
+# 1. Create collection
 Create a collection named "basic-example"
-```
 
-This creates a new vector collection with default settings (Cosine distance, 768 dimensions for Ollama's nomic-embed-text model).
-
-### 2. Add Documents
-
-```
+# 2. Add documents (auto-embedded with Ollama)
 Add these documents to basic-example:
 - id: 1, text: "The quick brown fox jumps over the lazy dog"
 - id: 2, text: "Machine learning is a subset of artificial intelligence"
 - id: 3, text: "Python is a popular programming language"
-```
 
-Documents are automatically embedded using Ollama (or your configured alternative provider).
-
-### 3. Search for Similar Documents
-
-```
+# 3. Search
 Search basic-example for "AI and computer programs"
-```
+# Expected: Doc 2 ranks highest (ML/AI), Doc 3 lower (programming)
 
-Expected results:
-
-- Document 2 (ML/AI) should rank highest
-- Document 3 (Python/programming) may appear with lower score
-
-### 4. Get Collection Information
-
-```
+# 4. Get info
 Get info about "basic-example" collection
-```
 
-Returns:
-
-- Vector dimensions
-- Number of documents
-- Distance metric used
-
-### 5. View All Collections
-
-```
+# 5. List all
 List all collections
-```
 
-Shows all available collections in your Qdrant instance.
-
-### 6. Delete Documents (Optional)
-
-```
+# 6. Delete documents (optional)
 Delete documents [1, 3] from basic-example
-```
 
-Removes specific documents by ID.
-
-### 7. Clean Up
-
-```
+# 7. Clean up
 Delete collection "basic-example"
 ```
 
-Removes the collection and all its data.
-
-## Try It Yourself
-
-Copy these commands into Claude Code:
+## Try It
 
 ```
 Create a collection named "my-first-collection"
@@ -100,12 +45,13 @@ Add these documents to my-first-collection:
 
 Search my-first-collection for "healthy drinks"
 
-Get info about "my-first-collection" collection
-
 Delete collection "my-first-collection"
 ```
 
 ## Next Steps
 
-- [Knowledge Base Example](../knowledge-base/) - Learn about metadata and organization
-- [Advanced Filtering](../filters/) - Discover powerful search filtering
+Continue learning with these examples:
+
+- **[Knowledge Base](../knowledge-base/)** - Metadata and content organization
+- **[Advanced Filtering](../filters/)** - Complex search queries
+- **[Rate Limiting](../rate-limiting/)** - Batch processing patterns

@@ -1,33 +1,24 @@
-# Knowledge Base Example
+# Knowledge Base
 
-This example shows how to build a searchable documentation system with rich metadata for organization and filtering.
+Build a searchable documentation system with rich metadata for filtering and organization.
+
+**Time:** 15-20 minutes | **Difficulty:** Intermediate
 
 ## Use Case
 
-You're building a company knowledge base with:
+Company knowledge base with:
 
 - Documentation from multiple teams
-- Articles with different topics and difficulty levels
-- Content that needs to be searchable and filterable
-
-## What You'll Learn
-
-- Organizing documents with metadata
-- Using metadata for categorization
-- Filtering searches by metadata fields
-- Building a scalable knowledge base structure
+- Content with varying topics and difficulty levels
+- Searchable and filterable articles
 
 ## Setup
 
-### 1. Create the Collection
-
 ```
+# Create collection
 Create a collection named "company-kb"
-```
 
-### 2. Add Structured Documents
-
-```
+# Add structured documents
 Add these documents to company-kb:
 - id: "eng-001", text: "Our API uses REST principles with JSON payloads. Authentication is handled via JWT tokens in the Authorization header.", metadata: {"team": "engineering", "topic": "api", "difficulty": "intermediate", "category": "technical"}
 - id: "eng-002", text: "To deploy to production, merge your PR to main. The CI/CD pipeline automatically runs tests and deploys if all checks pass.", metadata: {"team": "engineering", "topic": "deployment", "difficulty": "beginner", "category": "process"}
@@ -39,51 +30,26 @@ Add these documents to company-kb:
 
 ## Search Examples
 
-### Basic Search (No Filters)
-
 ```
+# Basic search
 Search company-kb for "how do I deploy code"
-```
 
-Expected: Returns deployment-related docs (eng-002 likely ranks highest)
-
-### Filter by Team
-
-```
+# Filter by team
 Search company-kb for "process documentation" with filter {"must": [{"key": "team", "match": {"value": "engineering"}}]}
-```
 
-Returns only engineering team documents.
-
-### Filter by Difficulty
-
-```
+# Filter by difficulty
 Search company-kb for "getting started" with filter {"must": [{"key": "difficulty", "match": {"value": "beginner"}}]}
-```
 
-Returns beginner-friendly documentation.
-
-### Multiple Filters (AND)
-
-```
+# Multiple filters (AND)
 Search company-kb for "company procedures" with filter {"must": [{"key": "category", "match": {"value": "process"}}, {"key": "difficulty", "match": {"value": "beginner"}}]}
-```
 
-Returns beginner process documents only.
-
-### Filter by Topic
-
-```
+# Filter by topic
 Search company-kb for "pricing information" with filter {"must": [{"key": "team", "match": {"value": "sales"}}]}
 ```
 
-Restricts search to sales team content.
+## Metadata Design
 
-## Metadata Design Best Practices
-
-### 1. Consistent Schema
-
-Use the same metadata fields across all documents:
+### Schema Pattern
 
 ```json
 {
@@ -94,9 +60,9 @@ Use the same metadata fields across all documents:
 }
 ```
 
-### 2. Hierarchical Organization
+### Advanced Patterns
 
-Consider nesting metadata for complex taxonomies:
+**Hierarchical:**
 
 ```json
 {
@@ -107,9 +73,7 @@ Consider nesting metadata for complex taxonomies:
 }
 ```
 
-### 3. Multiple Tags
-
-Use arrays for multi-category documents:
+**Multi-category:**
 
 ```json
 {
@@ -118,9 +82,7 @@ Use arrays for multi-category documents:
 }
 ```
 
-### 4. Timestamps and Versioning
-
-Track freshness and versions:
+**Versioned:**
 
 ```json
 {
@@ -131,18 +93,7 @@ Track freshness and versions:
 }
 ```
 
-## Scaling Your Knowledge Base
-
-### Add More Content Types
-
-- Code examples with language tags
-- Video transcripts with duration metadata
-- Meeting notes with attendees and dates
-- Product specs with version numbers
-
-### Implement Access Control
-
-Use metadata for permissions:
+**Access Control:**
 
 ```json
 {
@@ -151,51 +102,38 @@ Use metadata for permissions:
 }
 ```
 
-Then filter searches based on user permissions.
+## Scaling
 
-### Track Usage
+### Content Types
 
-Add metadata for analytics:
+- Code examples with language tags
+- Video transcripts with duration
+- Meeting notes with attendees/dates
+- Product specs with versions
 
-```json
-{
-  "views": 0,
-  "last_accessed": null,
-  "author": "user@company.com"
-}
-```
+### Maintenance
 
-## Maintenance
-
-### Update Documents
-
-To update content, delete and re-add:
+**Update documents:**
 
 ```
 Delete documents ["eng-001"] from company-kb
-
 Add these documents to company-kb:
-- id: "eng-001", text: "Updated API documentation...", metadata: {...}
+- id: "eng-001", text: "Updated content...", metadata: {...}
 ```
 
-### Archive Old Content
-
-Use status metadata to hide outdated docs:
+**Archive old content:**
 
 ```json
-{
-  "status": "archived",
-  "archived_date": "2024-12-01"
-}
+{ "status": "archived", "archived_date": "2024-12-01" }
 ```
 
-Then filter searches to exclude archived content:
+Then filter searches:
 
 ```
 Search company-kb for "deployment" with filter {"must_not": [{"key": "status", "match": {"value": "archived"}}]}
 ```
 
-## Clean Up
+## Cleanup
 
 ```
 Delete collection "company-kb"
@@ -203,5 +141,5 @@ Delete collection "company-kb"
 
 ## Next Steps
 
-- [Advanced Filtering Examples](../filters/) - Learn complex filter patterns
-- See the main README for information on batch document operations
+- Explore [Advanced Filtering](../filters/) for complex filter patterns
+- Review [main README](../../README.md) for batch operations and advanced features

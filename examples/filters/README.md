@@ -1,17 +1,10 @@
-# Advanced Filtering Examples
+# Advanced Filtering
 
-This example demonstrates powerful metadata filtering capabilities using Qdrant's filter syntax.
+Master complex metadata filtering with boolean logic for powerful search refinement.
 
-## What You'll Learn
-
-- Complex boolean logic (AND, OR, NOT)
-- Range filters for numeric values
-- Combining multiple filter conditions
-- Real-world filtering scenarios
+**Time:** 20-30 minutes | **Difficulty:** Intermediate to Advanced
 
 ## Setup
-
-Create a collection with sample e-commerce data:
 
 ```
 Create a collection named "products"
@@ -29,117 +22,46 @@ Add these documents to products:
 
 ## Filter Examples
 
-### 1. Simple Match Filter (AND)
-
-Find electronics products:
+### Basic Filters
 
 ```
+# Match single category
 Search products for "device for music" with filter {"must": [{"key": "category", "match": {"value": "electronics"}}]}
-```
+# Returns: p1, p4, p6
 
-Expected: Returns p1, p4, p6 (all electronics)
-
-### 2. Multiple Conditions (AND)
-
-Find in-stock electronics:
-
-```
+# Multiple conditions (AND)
 Search products for "gadgets" with filter {"must": [{"key": "category", "match": {"value": "electronics"}}, {"key": "in_stock", "match": {"value": true}}]}
-```
+# Returns: p1, p4, p6 (in-stock electronics)
 
-Expected: Returns p1, p4, p6 (in-stock electronics only)
-
-### 3. OR Logic with Should
-
-Find either sports or accessories:
-
-```
+# OR logic
 Search products for "gear" with filter {"should": [{"key": "category", "match": {"value": "sports"}}, {"key": "category", "match": {"value": "accessories"}}]}
-```
+# Returns: p3, p5, p7, p8
 
-Expected: Returns p3, p5, p7, p8 (sports OR accessories)
-
-### 4. Negation with Must Not
-
-Find everything except clothing:
-
-```
+# NOT logic
 Search products for "shopping" with filter {"must_not": [{"key": "category", "match": {"value": "clothing"}}]}
+# Returns: All except p2
 ```
 
-Expected: Returns all products except p2
-
-### 5. Range Filter - Greater Than
-
-**Note:** Range filters require Qdrant's range condition syntax. The current implementation supports match filters. For range queries, you would need to use Qdrant's native range syntax:
-
-Conceptual example (not yet implemented in MCP server):
-
-```json
-{
-  "must": [
-    {
-      "key": "price",
-      "range": {
-        "gt": 100.0
-      }
-    }
-  ]
-}
-```
-
-### 6. Complex Boolean Logic
-
-Find in-stock products that are either:
-
-- Electronics with rating > 4.5, OR
-- Sports items under $50
+### Complex Combinations
 
 ```
+# In-stock products (electronics OR sports)
 Search products for "quality products" with filter {"must": [{"key": "in_stock", "match": {"value": true}}], "should": [{"key": "category", "match": {"value": "electronics"}}, {"key": "category", "match": {"value": "sports"}}]}
-```
 
-### 7. Combining Multiple Must Conditions
-
-Find highly-rated in-stock electronics:
-
-```
-Search products for "best gadgets" with filter {"must": [{"key": "category", "match": {"value": "electronics"}}, {"key": "in_stock", "match": {"value": true}}, {"key": "rating", "match": {"value": 4.5}}]}
-```
-
-Note: Exact match on rating. For range queries, use Qdrant's range filter syntax.
-
-### 8. Brand Filtering
-
-Find AudioTech products:
-
-```
-Search products for "audio equipment" with filter {"must": [{"key": "brand", "match": {"value": "AudioTech"}}]}
-```
-
-Expected: Returns p1 only
-
-### 9. Out of Stock Products
-
-Find what needs restocking:
-
-```
-Search products for "items" with filter {"must": [{"key": "in_stock", "match": {"value": false}}]}
-```
-
-Expected: Returns p3, p7 (out of stock items)
-
-### 10. Category Exclusion with Multiple Conditions
-
-Find non-electronic in-stock items:
-
-```
+# Non-electronic in-stock items
 Search products for "shopping" with filter {"must": [{"key": "in_stock", "match": {"value": true}}], "must_not": [{"key": "category", "match": {"value": "electronics"}}]}
+# Returns: p2, p5, p8
+
+# Out of stock items
+Search products for "items" with filter {"must": [{"key": "in_stock", "match": {"value": false}}]}
+# Returns: p3, p7
+
+# Brand filtering
+Search products for "audio equipment" with filter {"must": [{"key": "brand", "match": {"value": "AudioTech"}}]}
+# Returns: p1 only
 ```
 
-Expected: Returns p2, p5, p8 (in-stock, non-electronics)
-
-## Filter Syntax Reference
+## Filter Syntax
 
 ### Structure
 
@@ -153,24 +75,16 @@ Expected: Returns p2, p5, p8 (in-stock, non-electronics)
 
 ### Match Filter
 
-Exact value matching:
-
 ```json
 {
   "key": "field_name",
   "match": {
-    "value": "exact_value"
+    "value": "exact_value" // Works with strings, numbers, booleans
   }
 }
 ```
 
-Works with:
-
-- Strings: `"value": "electronics"`
-- Numbers: `"value": 4.5`
-- Booleans: `"value": true`
-
-### Range Filter (Qdrant Native)
+### Range Filters (Native Qdrant)
 
 For numeric comparisons (future enhancement):
 
@@ -188,68 +102,54 @@ For numeric comparisons (future enhancement):
 
 ## Real-World Scenarios
 
-### E-commerce Product Search
-
-"Show me affordable fitness equipment"
-
 ```
+# E-commerce: affordable fitness equipment
 Search products for "fitness equipment" with filter {"must": [{"key": "category", "match": {"value": "sports"}}, {"key": "in_stock", "match": {"value": true}}]}
-```
 
-### Inventory Management
-
-"Which electronics need restocking?"
-
-```
+# Inventory: electronics needing restock
 Search products for "electronics" with filter {"must": [{"key": "category", "match": {"value": "electronics"}}, {"key": "in_stock", "match": {"value": false}}]}
-```
 
-### Quality Control
-
-"Show me all highly-rated available products"
-
-```
+# Quality control: highly-rated available products
 Search products for "top rated products" with filter {"must": [{"key": "in_stock", "match": {"value": true}}]}
 ```
 
-## Limitations and Workarounds
+## Workarounds
 
-### Current Limitations
+### Price Ranges
 
-1. **No native range filters**: Can't directly filter by price ranges like "between $50-$100"
-2. **No text search on metadata**: Metadata matching is exact, not fuzzy
-3. **No nested object queries**: Flat metadata structure only
+Add `price_tier` to metadata:
 
-### Workarounds
+```json
+{"price_tier": "budget", "price": 29.99}    // <$50
+{"price_tier": "mid", "price": 149.99}      // $50-$200
+{"price_tier": "premium", "price": 299.99}  // >$200
+```
 
-1. **Price ranges**: Add price_tier to metadata:
+### Multiple Categories
 
-   ```json
-   {"price_tier": "budget", "price": 29.99}  // budget: <$50
-   {"price_tier": "mid", "price": 149.99}    // mid: $50-$200
-   {"price_tier": "premium", "price": 299.99} // premium: >$200
-   ```
+Use array-based tags:
 
-2. **Multiple categories**: Use array-based tags:
+```json
+{ "tags": ["electronics", "wearable", "fitness"] }
+```
 
-   ```json
-   { "tags": ["electronics", "wearable", "fitness"] }
-   ```
+### Date Filtering
 
-3. **Date filtering**: Store dates as strings in comparable format:
-   ```json
-   { "created_date": "2024-03-15" } // YYYY-MM-DD for lexicographic comparison
-   ```
+Use comparable string format:
+
+```json
+{ "created_date": "2024-03-15" } // YYYY-MM-DD
+```
 
 ## Best Practices
 
-1. **Keep metadata flat**: Avoid deep nesting for better filter performance
-2. **Use consistent types**: Don't mix strings and numbers for the same field
-3. **Index commonly filtered fields**: Design metadata around common queries
-4. **Test filters first**: Validate filter syntax before complex queries
-5. **Combine with semantic search**: Use filters to narrow, then semantic search to rank
+1. **Flat metadata** - Avoid deep nesting
+2. **Consistent types** - Don't mix strings/numbers for same field
+3. **Index common fields** - Design around frequent queries
+4. **Test filters first** - Validate syntax before complex queries
+5. **Combine with search** - Use filters to narrow, semantic search to rank
 
-## Clean Up
+## Cleanup
 
 ```
 Delete collection "products"
@@ -258,5 +158,5 @@ Delete collection "products"
 ## Next Steps
 
 - Review [Qdrant filtering documentation](https://qdrant.tech/documentation/concepts/filtering/)
-- Explore the [Knowledge Base Example](../knowledge-base/) for organizational patterns
-- Check the main README for full filter syntax support
+- Explore [Knowledge Base](../knowledge-base/) example for organizational patterns
+- See [main README](../../README.md) for complete filter syntax reference

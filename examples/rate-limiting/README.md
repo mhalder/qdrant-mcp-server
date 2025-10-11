@@ -1,124 +1,81 @@
-# Rate Limiting Example
+# Rate Limiting
 
-Learn how the Qdrant MCP Server handles embedding provider API rate limits automatically with intelligent throttling and retry mechanisms.
+Learn how the server handles embedding provider API rate limits automatically with intelligent throttling and retry mechanisms.
 
-## Overview
+**Time:** 10-15 minutes | **Difficulty:** Beginner to Intermediate
 
-This example demonstrates:
+## Why It Matters
 
-- How rate limiting prevents API failures (for cloud providers)
-- Configuring rate limits for your embedding provider
-- Batch operations with automatic throttling
-- Exponential backoff retry behavior
-- Monitoring rate limit events
-- Why Ollama doesn't need rate limiting (local processing)
+| Provider             | Rate Limits     | Notes                           |
+| -------------------- | --------------- | ------------------------------- |
+| **Ollama** (default) | None            | Local processing, no limits!    |
+| **OpenAI**           | 500-10,000+/min | Based on tier (Free/Tier 1/2/3) |
+| **Cohere**           | ~100/min        | Varies by plan                  |
+| **Voyage AI**        | ~300/min        | Varies by plan                  |
 
-**Time:** 10-15 minutes
-**Difficulty:** Beginner to Intermediate
-
-## Why Rate Limiting Matters
-
-**Ollama (Default):** Since Ollama runs locally, there are no API rate limits! You can process as many embeddings as your system can handle.
-
-**Cloud Embedding Providers** (OpenAI, Cohere, Voyage AI) enforce rate limits based on your account tier:
-
-**OpenAI:**
-| Tier | Requests/Minute |
-| ------- | --------------- |
-| Free | 500 |
-| Tier 1 | 3,500 |
-| Tier 2 | 5,000 |
-| Tier 3+ | 10,000+ |
-
-**Other Cloud Providers:**
-
-- **Cohere**: ~100 requests/minute (varies by plan)
-- **Voyage AI**: ~300 requests/minute (varies by plan)
-
-Without rate limiting, batch operations with cloud providers can exceed these limits and fail. This is one reason why **Ollama is the default** - no rate limits to worry about!
+Without rate limiting, batch operations with cloud providers can fail. **This is why Ollama is the default** - no rate limits to worry about!
 
 ## How It Works
 
 The server automatically:
 
-1. **Throttles Requests**: Queues API calls to stay within limits
-2. **Retries on Failure**: Uses exponential backoff (1s, 2s, 4s, 8s...)
-3. **Respects Retry-After**: Follows provider retry guidance (when available)
-4. **Provides Feedback**: Shows retry progress in console
+1. **Throttles** - Queues API calls within limits
+2. **Retries** - Exponential backoff (1s, 2s, 4s, 8s...)
+3. **Respects Headers** - Follows provider retry guidance
+4. **Provides Feedback** - Console shows retry progress
 
 ## Configuration
 
-### Ollama Settings (Default - No Rate Limiting Needed)
+### Provider Defaults
+
+| Provider  | Default Limit     | Retry Attempts | Retry Delay |
+| --------- | ----------------- | -------------- | ----------- |
+| Ollama    | 1000/min          | 3              | 500ms       |
+| OpenAI    | 3500/min (Tier 1) | 3              | 1000ms      |
+| Cohere    | 100/min           | 3              | 1000ms      |
+| Voyage AI | 300/min           | 3              | 1000ms      |
+
+### Custom Settings
 
 ```bash
-EMBEDDING_PROVIDER=ollama  # or omit (ollama is default)
+# Adjust for your provider tier
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=500    # Free tier
+EMBEDDING_RETRY_ATTEMPTS=5                # More resilient
+EMBEDDING_RETRY_DELAY=2000                # Longer initial delay
+```
+
+### Provider Examples
+
+**Ollama (Default):**
+
+```bash
+EMBEDDING_PROVIDER=ollama
 EMBEDDING_BASE_URL=http://localhost:11434
-EMBEDDING_MODEL=nomic-embed-text
-# No rate limit configuration needed - runs locally!
+# No rate limit config needed!
 ```
 
-### OpenAI Settings
-
-**Default (Tier 1 Paid):**
-
-```bash
-EMBEDDING_PROVIDER=openai
-EMBEDDING_MAX_REQUESTS_PER_MINUTE=3500
-EMBEDDING_RETRY_ATTEMPTS=3
-EMBEDDING_RETRY_DELAY=1000
-```
-
-**Free Tier:**
+**OpenAI Free Tier:**
 
 ```bash
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MAX_REQUESTS_PER_MINUTE=500
 EMBEDDING_RETRY_ATTEMPTS=5
-EMBEDDING_RETRY_DELAY=2000
 ```
 
-### Cohere Settings
+**OpenAI Paid Tier:**
 
 ```bash
-EMBEDDING_PROVIDER=cohere
-EMBEDDING_MAX_REQUESTS_PER_MINUTE=100
-EMBEDDING_RETRY_ATTEMPTS=3
-EMBEDDING_RETRY_DELAY=1000
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MAX_REQUESTS_PER_MINUTE=3500  # Tier 1
 ```
 
-### Voyage AI Settings
-
-```bash
-EMBEDDING_PROVIDER=voyage
-EMBEDDING_MAX_REQUESTS_PER_MINUTE=300
-EMBEDDING_RETRY_ATTEMPTS=3
-EMBEDDING_RETRY_DELAY=1000
-```
-
-### Ollama Settings (Local)
-
-```bash
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_MAX_REQUESTS_PER_MINUTE=1000
-EMBEDDING_RETRY_ATTEMPTS=3
-EMBEDDING_RETRY_DELAY=500
-```
-
-## Example: Batch Document Processing
-
-Let's test rate limiting by adding many documents at once.
-
-### Step 1: Create Collection
+## Example: Batch Processing
 
 ```
+# Create collection
 Create a collection named "rate-limit-test"
-```
 
-### Step 2: Add Batch of Documents
-
-Try adding multiple documents in a single operation:
-
-```
+# Add batch of documents (tests rate limiting)
 Add these documents to "rate-limit-test":
 - id: 1, text: "Introduction to machine learning algorithms", metadata: {"topic": "ml"}
 - id: 2, text: "Deep learning neural networks explained", metadata: {"topic": "dl"}
@@ -130,125 +87,23 @@ Add these documents to "rate-limit-test":
 - id: 8, text: "Hyperparameter optimization methods", metadata: {"topic": "tuning"}
 - id: 9, text: "Transfer learning and fine-tuning", metadata: {"topic": "transfer"}
 - id: 10, text: "Ensemble methods and boosting", metadata: {"topic": "ensemble"}
-```
 
-**What happens:**
-
-- The server generates embeddings for all 10 documents
-- Requests are automatically queued and throttled
-- If rate limits are hit, automatic retry with backoff occurs
-- Console shows retry messages with wait times
-
-### Step 3: Test Search
-
-```
+# Search
 Search "rate-limit-test" for "neural networks and deep learning"
+
+# Watch console for rate limit messages:
+# "Rate limit reached. Retrying in 1.0s (attempt 1/3)..."
+# "Rate limit reached. Retrying in 2.0s (attempt 2/3)..."
+
+# Cleanup
+Delete collection "rate-limit-test"
 ```
 
-### Step 4: Monitor Console Output
+## Retry Behavior
 
-Watch for rate limiting messages:
+### Exponential Backoff
 
-```
-Rate limit reached. Retrying in 1.0s (attempt 1/3)...
-Rate limit reached. Retrying in 2.0s (attempt 2/3)...
-```
-
-These messages indicate:
-
-- Rate limit was detected (429 error)
-- Automatic retry is in progress
-- Current attempt number and delay
-
-## Simulating Rate Limit Scenarios
-
-### Scenario 1: Free Tier User
-
-**Configuration:**
-
-```bash
-OPENAI_MAX_REQUESTS_PER_MINUTE=500
-```
-
-**Test:** Add 50 documents in batches of 10
-
-- Server automatically spaces requests
-- No manual rate limit handling needed
-- Operations complete successfully
-
-### Scenario 2: High-Volume Batch
-
-**Test:** Add 100+ documents
-
-- Create collection: `batch-test-collection`
-- Add documents in chunks
-- Server queues requests automatically
-- Monitor console for throttling behavior
-
-### Scenario 3: Concurrent Operations
-
-**Test:** Multiple searches simultaneously
-
-- Perform several searches in quick succession
-- Rate limiter queues them appropriately
-- All complete without errors
-
-## Best Practices
-
-### 1. Configure for Your Provider
-
-Always set `EMBEDDING_MAX_REQUESTS_PER_MINUTE` to match your provider's limits:
-
-**OpenAI:**
-
-```bash
-# Check your tier at: https://platform.openai.com/account/limits
-EMBEDDING_MAX_REQUESTS_PER_MINUTE=<your-limit>
-```
-
-**Other Providers:**
-
-- Check your provider's dashboard for rate limits
-- Start conservative and increase if needed
-
-### 2. Adjust Retry Settings for Reliability
-
-For critical operations, increase retry attempts:
-
-```bash
-EMBEDDING_RETRY_ATTEMPTS=5  # More resilient
-```
-
-For development/testing, reduce retries:
-
-```bash
-EMBEDDING_RETRY_ATTEMPTS=1  # Fail faster
-```
-
-### 3. Batch Operations Wisely
-
-Most embedding providers support batch operations:
-
-- **OpenAI**: Up to 2048 texts per request
-- **Cohere**: Batch support available
-- **Voyage AI**: Batch support available
-- **Ollama**: Sequential processing (one at a time)
-
-The server automatically uses batch APIs when available for efficiency.
-
-### 4. Monitor Your Usage
-
-Watch console output during operations:
-
-- No messages = smooth operation
-- Retry messages = hitting limits (consider reducing rate)
-- Error after max retries = need to reduce request volume
-
-## Understanding Retry Behavior
-
-### Exponential Backoff Example
-
-With `OPENAI_RETRY_DELAY=1000`:
+With `EMBEDDING_RETRY_DELAY=1000`:
 
 | Attempt | Delay | Total Wait |
 | ------- | ----- | ---------- |
@@ -259,118 +114,54 @@ With `OPENAI_RETRY_DELAY=1000`:
 
 ### Retry-After Header
 
-If the provider provides a `Retry-After` header (OpenAI, some others):
+If provider sends `Retry-After` header (OpenAI):
 
-- Server uses that exact delay
+- Server uses exact delay
 - Ignores exponential backoff
 - Ensures optimal recovery
 
+## Best Practices
+
+1. **Match Your Tier** - Set `EMBEDDING_MAX_REQUESTS_PER_MINUTE` to your provider's limit
+2. **Check Dashboards** - Verify limits at provider's dashboard
+3. **Start Conservative** - Lower limits, increase if needed
+4. **Monitor Console** - Watch for retry messages
+5. **Use Ollama** - For unlimited local processing
+
+### Batch Operation Tips
+
+- **OpenAI**: Up to 2048 texts per request
+- **Cohere**: Batch support available
+- **Voyage AI**: Batch support available
+- **Ollama**: Sequential processing (one at a time)
+
+Server automatically uses batch APIs when available.
+
 ## Error Messages
 
-### Success Messages
-
 ```
+# Success
 Successfully added 10 document(s) to collection "rate-limit-test".
-```
 
-### Retry Messages (Normal)
-
-```
+# Retry (Normal)
 Rate limit reached. Retrying in 2.0s (attempt 1/3)...
+# Action: None needed, automatic retry
+
+# Max Retries Exceeded (Rare)
+Error: API rate limit exceeded after 3 retry attempts.
+# Action: Wait, reduce EMBEDDING_MAX_REQUESTS_PER_MINUTE, check dashboard
 ```
-
-**Action:** None needed, automatic retry in progress
-
-### Max Retries Exceeded (Rare)
-
-```
-Error: [Provider] API rate limit exceeded after 3 retry attempts.
-Please try again later or reduce request frequency.
-```
-
-**Action:**
-
-- Wait a few minutes
-- Reduce `EMBEDDING_MAX_REQUESTS_PER_MINUTE`
-- Check your provider's dashboard for current usage
-
-## Integration with Claude Code
-
-The rate limiting works seamlessly with Claude Code.
-
-**Example with Ollama (Default - No Rate Limits):**
-
-```json
-{
-  "mcpServers": {
-    "qdrant": {
-      "command": "node",
-      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
-      "env": {
-        "QDRANT_URL": "http://localhost:6333",
-        "EMBEDDING_BASE_URL": "http://localhost:11434"
-      }
-    }
-  }
-}
-```
-
-**Example with OpenAI (Alternative):**
-
-```json
-{
-  "mcpServers": {
-    "qdrant": {
-      "command": "node",
-      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
-      "env": {
-        "EMBEDDING_PROVIDER": "openai",
-        "OPENAI_API_KEY": "sk-your-key",
-        "QDRANT_URL": "http://localhost:6333",
-        "EMBEDDING_MAX_REQUESTS_PER_MINUTE": "3500",
-        "EMBEDDING_RETRY_ATTEMPTS": "3",
-        "EMBEDDING_RETRY_DELAY": "1000"
-      }
-    }
-  }
-}
-```
-
-## Cleanup
-
-```
-Delete collection "rate-limit-test"
-```
-
-## Key Takeaways
-
-1. ✅ **Ollama Default**: No rate limits with local processing
-2. ✅ **Automatic**: Rate limiting works out-of-the-box for cloud providers
-3. ✅ **Configurable**: Adjust for your cloud provider tier
-4. ✅ **Resilient**: Exponential backoff handles temporary issues
-5. ✅ **Transparent**: Console feedback shows what's happening
-6. ✅ **Efficient**: Batch operations optimize API usage
-
-## Next Steps
-
-- Explore [Knowledge Base example](../knowledge-base/) for real-world usage
-- Learn [Advanced Filtering](../filters/) for complex queries
-- Read [main README](../../README.md) for all configuration options
 
 ## Troubleshooting
 
-### Still Getting Rate Limit Errors?
+| Issue                  | Solution                                           |
+| ---------------------- | -------------------------------------------------- |
+| Persistent rate limits | Reduce `EMBEDDING_MAX_REQUESTS_PER_MINUTE` by 20%  |
+| Slow performance       | Expected with rate limiting - better than failures |
+| Need faster processing | Upgrade provider tier or use Ollama                |
 
-1. **Check your provider's limits**: Visit your provider's dashboard
-2. **Reduce request rate**: Lower `EMBEDDING_MAX_REQUESTS_PER_MINUTE` by 20%
-3. **Increase retry attempts**: Set `EMBEDDING_RETRY_ATTEMPTS=5`
-4. **Wait between batches**: For very large operations, split into multiple sessions
+## Next Steps
 
-### Slow Performance?
-
-If operations seem slow:
-
-- This is expected with rate limiting
-- It's better than failed operations
-- Upgrade your provider's tier for higher limits
-- Consider using Ollama for unlimited local processing
+- Explore [Knowledge Base](../knowledge-base/) for real-world usage patterns
+- Learn [Advanced Filtering](../filters/) for complex queries
+- Review [main README](../../README.md) for all configuration options

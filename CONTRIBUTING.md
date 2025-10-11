@@ -1,59 +1,46 @@
-# Contributing to qdrant-mcp-server
+# Contributing
 
-Thank you for your interest in contributing to qdrant-mcp-server! This document provides guidelines and instructions for contributing to the project.
-
-## Code of Conduct
-
-Please be respectful and constructive in your interactions with other contributors.
+Thank you for your interest in contributing!
 
 ## Getting Started
 
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/qdrant-mcp-server.git`
-3. Install dependencies: `npm install`
-4. Create a branch for your changes: `git checkout -b feat/your-feature-name`
-
-## Development Workflow
-
-### Running the Project
-
 ```bash
-# Build the project
+# 1. Fork and clone
+git clone https://github.com/YOUR_USERNAME/qdrant-mcp-server.git
+cd qdrant-mcp-server
+npm install
+
+# 2. Create feature branch
+git checkout -b feat/your-feature-name
+
+# 3. Make changes, add tests
+
+# 4. Verify
+npm test -- --run
+npm run type-check
 npm run build
 
-# Run in development mode
-npm run dev
-
-# Run tests
-npm test
-
-# Run tests with UI
-npm run test:ui
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run provider verification tests
-npm run test:providers
-
-# Type check
-npm run type-check
+# 5. Commit with conventional format
+git commit -m "feat: add new feature"
 ```
 
-### Making Changes
+## Development Commands
 
-1. Make your changes in your feature branch
-2. Add tests for your changes
-3. Ensure all tests pass: `npm test -- --run`
-4. Ensure type checking passes: `npm run type-check`
-5. Build the project: `npm run build`
-6. Commit your changes using conventional commits (see below)
+| Command                  | Purpose                      |
+| ------------------------ | ---------------------------- |
+| `npm run build`          | Build for production         |
+| `npm run dev`            | Development with auto-reload |
+| `npm test`               | Run test suite               |
+| `npm run test:ui`        | Tests with UI                |
+| `npm run test:coverage`  | Coverage report              |
+| `npm run test:providers` | Provider verification        |
+| `npm run type-check`     | TypeScript validation        |
 
-## Commit Message Convention
+## Commit Convention
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/) for commit messages. This enables automated versioning and changelog generation.
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning and releases.
 
-### Commit Message Format
+### Format
 
 ```
 <type>(<scope>): <subject>
@@ -63,34 +50,37 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/) f
 <footer>
 ```
 
-### Commit Types
+### Types
 
-- **feat**: A new feature (triggers minor version bump)
-- **fix**: A bug fix (triggers patch version bump)
-- **docs**: Documentation changes (triggers patch version bump)
-- **style**: Code style changes (formatting, missing semicolons, etc.)
-- **refactor**: Code refactoring without changing functionality (triggers patch version bump)
-- **perf**: Performance improvements (triggers patch version bump)
-- **test**: Adding or updating tests
-- **chore**: Changes to build process, dependencies, etc.
-- **ci**: Changes to CI/CD configuration
-- **build**: Changes to build system
+| Type       | Description             | Version Bump  |
+| ---------- | ----------------------- | ------------- |
+| `feat`     | New feature             | Minor (1.x.0) |
+| `fix`      | Bug fix                 | Patch (1.0.x) |
+| `docs`     | Documentation           | Patch         |
+| `refactor` | Code refactoring        | Patch         |
+| `perf`     | Performance improvement | Patch         |
+| `test`     | Adding/updating tests   | None          |
+| `chore`    | Build/dependencies      | None          |
+| `ci`       | CI/CD changes           | None          |
+| `style`    | Code style/formatting   | None          |
 
 ### Breaking Changes
 
-For breaking changes, add `BREAKING CHANGE:` in the commit body or footer, or append `!` after the type:
+Add `BREAKING CHANGE:` in body/footer or append `!` after type:
 
-```
-feat!: remove support for Node 16
+```bash
+feat!: remove Node 16 support
 
 BREAKING CHANGE: Node 16 is no longer supported
 ```
+
+This triggers a major version bump (x.0.0).
 
 ### Examples
 
 ```bash
 # Feature
-feat(embeddings): add support for new embedding provider
+feat(embeddings): add support for new provider
 
 # Bug fix
 fix(search): correct similarity score calculation
@@ -100,77 +90,76 @@ docs: update installation instructions
 
 # Breaking change
 feat!: change collection schema format
-
-BREAKING CHANGE: collection schema now requires version field
 ```
 
-### Commit Message Validation
+### Validation
 
-Commit messages are validated using commitlint. Invalid commit messages will be rejected. The validation enforces:
+Commitlint enforces:
 
-- Commit message must follow conventional commits format
-- Type must be one of: feat, fix, docs, style, refactor, perf, test, chore, ci, build
-- Subject must not be empty
-- Subject must not end with a period
-- Header must not exceed 100 characters
+- Conventional commits format required
+- Valid type required
+- Subject must not be empty or end with period
+- Header max 100 characters
 - Subject must not start with uppercase
 
 ## Pull Request Process
 
-1. Update the README.md with details of changes if needed
-2. Update tests to cover your changes
-3. Ensure all CI checks pass
-4. Request review from maintainers
-5. Once approved, your PR will be merged
+1. **Update docs** if needed
+2. **Add tests** for changes
+3. **Pass CI checks** (build, type-check, tests)
+4. **Request review**
+5. **Merge** after approval
 
 ### PR Title
 
-PR titles should also follow conventional commit format:
+Use conventional commit format:
 
 ```
 feat: add new search feature
-fix: resolve connection timeout issue
+fix: resolve connection timeout
 docs: improve setup documentation
 ```
 
 ## Release Process
 
-This project uses [semantic-release](https://semantic-release.gitbook.io/) for automated releases.
+Automated via [semantic-release](https://semantic-release.gitbook.io/):
 
-- Releases are automatically created when changes are merged to the `main` branch
-- Version numbers follow [Semantic Versioning](https://semver.org/)
-- Changelog is automatically generated from commit messages
-- Packages are automatically published to npm
+- Releases on merge to `main`
+- Version follows [Semantic Versioning](https://semver.org/)
+- Changelog auto-generated from commits
+- Packages published to npm
 
-### Version Bumping
+### Version Bumps
 
-- `feat` commits → minor version bump (1.x.0)
-- `fix`, `perf`, `docs`, `refactor` commits → patch version bump (1.0.x)
-- Commits with `BREAKING CHANGE` → major version bump (x.0.0)
+- `feat` → minor (1.x.0)
+- `fix`, `perf`, `docs`, `refactor` → patch (1.0.x)
+- `BREAKING CHANGE` → major (x.0.0)
+
+## Testing
+
+- Write tests for all new features and bug fixes
+- Maintain or improve code coverage
+- Run full test suite before submitting PRs
+- Include both unit and integration tests
 
 ## Project Structure
 
 ```
 qdrant-mcp-server/
 ├── src/              # Source code
+│   ├── embeddings/   # Embedding providers
+│   └── qdrant/       # Qdrant client
 ├── build/            # Compiled output
+├── examples/         # Usage examples
 ├── scripts/          # Utility scripts
 ├── .github/          # GitHub Actions workflows
-├── .husky/           # Git hooks
-└── tests/            # Test files
+└── .husky/           # Git hooks
 ```
-
-## Testing
-
-- Write tests for all new features and bug fixes
-- Maintain or improve code coverage
-- Run the full test suite before submitting PRs
-- Include both unit tests and integration tests where appropriate
 
 ## Questions?
 
-If you have questions about contributing, please open an issue for discussion.
+Open an issue for discussion.
 
 ## License
 
-By contributing to qdrant-mcp-server, you agree that your contributions will be licensed under the project's MIT License.
+By contributing, you agree your contributions will be licensed under the MIT License.
