@@ -745,6 +745,31 @@ async function startHttpServer() {
     maxConcurrent: 10, // max concurrent requests per IP
   });
 
+  // Periodic cleanup of inactive rate limiters to prevent memory leaks
+  // Track last access time for each IP
+  const ipLastAccess = new Map<string, number>();
+  const INACTIVE_TIMEOUT = 60 * 60 * 1000; // 1 hour
+
+  setInterval(() => {
+    const now = Date.now();
+    const keysToDelete: string[] = [];
+
+    ipLastAccess.forEach((lastAccess, ip) => {
+      if (now - lastAccess > INACTIVE_TIMEOUT) {
+        keysToDelete.push(ip);
+      }
+    });
+
+    keysToDelete.forEach((ip) => {
+      rateLimiterGroup.deleteKey(ip);
+      ipLastAccess.delete(ip);
+    });
+
+    if (keysToDelete.length > 0) {
+      console.error(`Cleaned up ${keysToDelete.length} inactive rate limiters`);
+    }
+  }, INACTIVE_TIMEOUT);
+
   // Rate limiting middleware
   const rateLimitMiddleware = async (
     req: express.Request,
@@ -754,6 +779,9 @@ async function startHttpServer() {
     const clientIp = req.ip || req.socket.remoteAddress || "unknown";
 
     try {
+      // Update last access time for this IP
+      ipLastAccess.set(clientIp, Date.now());
+
       // Get or create a limiter for this specific IP
       const limiter = rateLimiterGroup.key(clientIp);
       await limiter.schedule(() => Promise.resolve());
@@ -785,6 +813,7 @@ async function startHttpServer() {
     const REQUEST_TIMEOUT = 60000; // 60 seconds
     let timeoutId: NodeJS.Timeout | undefined;
     let isTimedOut = false;
+    let transportClosed = false;
 
     // Create a new transport for each request in stateless mode.
     // This prevents request ID collisions when different clients use the same JSON-RPC request IDs.
@@ -793,12 +822,20 @@ async function startHttpServer() {
       enableJsonResponse: true,
     });
 
+    // Helper to safely close transport only once
+    const closeTransport = async () => {
+      if (!transportClosed) {
+        transportClosed = true;
+        await transport.close().catch((e) => console.error("Error closing transport:", e));
+      }
+    };
+
     try {
       // Set request timeout
-      timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(async () => {
         isTimedOut = true;
         // Close transport on timeout to prevent resource leaks
-        transport.close().catch((e) => console.error("Error closing transport on timeout:", e));
+        await closeTransport();
         if (!res.headersSent) {
           res.status(408).json({
             jsonrpc: "2.0",
@@ -812,8 +849,8 @@ async function startHttpServer() {
       }, REQUEST_TIMEOUT);
 
       // Clean up transport when response closes
-      res.on("close", () => {
-        transport.close();
+      res.on("close", async () => {
+        await closeTransport();
         if (timeoutId) clearTimeout(timeoutId);
       });
 
@@ -842,7 +879,7 @@ async function startHttpServer() {
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
       // Ensure transport is closed even if an error occurs
-      await transport.close();
+      await closeTransport();
     }
   });
 
