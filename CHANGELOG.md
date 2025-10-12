@@ -1,3 +1,8 @@
+## <small>1.3.1 (2025-10-12)</small>
+
+* Merge pull request #27 from mhalder/fix/empty-responses ([30d33a7](https://github.com/mhalder/qdrant-mcp-server/commit/30d33a7)), closes [#27](https://github.com/mhalder/qdrant-mcp-server/issues/27)
+* fix: improve HTTP transport robustness and prevent resource leaks ([cff1248](https://github.com/mhalder/qdrant-mcp-server/commit/cff1248)), closes [#26](https://github.com/mhalder/qdrant-mcp-server/issues/26)
+
 ## 1.3.0 (2025-10-11)
 
 * Merge pull request #25 from mhalder/feature/http-transport ([efc90c3](https://github.com/mhalder/qdrant-mcp-server/commit/efc90c3)), closes [#25](https://github.com/mhalder/qdrant-mcp-server/issues/25)
