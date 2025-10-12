@@ -139,19 +139,541 @@ async function checkOllamaAvailability() {
 const qdrant = new QdrantManager(QDRANT_URL);
 const embeddings = EmbeddingProviderFactory.createFromEnv();
 
-// Create MCP server
-const server = new Server(
-  {
-    name: pkg.name,
-    version: pkg.version,
-  },
-  {
-    capabilities: {
-      tools: {},
-      resources: {},
+// Function to create a new MCP server instance
+// This is needed for HTTP transport in stateless mode where each request gets its own server
+function createServer() {
+  return new Server(
+    {
+      name: pkg.name,
+      version: pkg.version,
     },
-  }
-);
+    {
+      capabilities: {
+        tools: {},
+        resources: {},
+      },
+    }
+  );
+}
+
+// Create a shared MCP server for stdio mode
+const server = createServer();
+
+// Function to register all handlers on a server instance
+function registerHandlers(server: Server) {
+  // List available tools
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return {
+      tools: [
+        {
+          name: "create_collection",
+          description:
+            "Create a new vector collection in Qdrant. The collection will be configured with the embedding provider's dimensions automatically. Set enableHybrid to true to enable hybrid search combining semantic and keyword search.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              name: {
+                type: "string",
+                description: "Name of the collection",
+              },
+              distance: {
+                type: "string",
+                enum: ["Cosine", "Euclid", "Dot"],
+                description: "Distance metric (default: Cosine)",
+              },
+              enableHybrid: {
+                type: "boolean",
+                description: "Enable hybrid search with sparse vectors (default: false)",
+              },
+            },
+            required: ["name"],
+          },
+        },
+        {
+          name: "add_documents",
+          description:
+            "Add documents to a collection. Documents will be automatically embedded using the configured embedding provider.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              collection: {
+                type: "string",
+                description: "Name of the collection",
+              },
+              documents: {
+                type: "array",
+                description: "Array of documents to add",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: {
+                      type: ["string", "number"],
+                      description: "Unique identifier for the document",
+                    },
+                    text: {
+                      type: "string",
+                      description: "Text content to embed and store",
+                    },
+                    metadata: {
+                      type: "object",
+                      description: "Optional metadata to store with the document",
+                    },
+                  },
+                  required: ["id", "text"],
+                },
+              },
+            },
+            required: ["collection", "documents"],
+          },
+        },
+        {
+          name: "semantic_search",
+          description:
+            "Search for documents using natural language queries. Returns the most semantically similar documents.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              collection: {
+                type: "string",
+                description: "Name of the collection to search",
+              },
+              query: {
+                type: "string",
+                description: "Search query text",
+              },
+              limit: {
+                type: "number",
+                description: "Maximum number of results (default: 5)",
+              },
+              filter: {
+                type: "object",
+                description: "Optional metadata filter",
+              },
+            },
+            required: ["collection", "query"],
+          },
+        },
+        {
+          name: "list_collections",
+          description: "List all available collections in Qdrant.",
+          inputSchema: {
+            type: "object",
+            properties: {},
+          },
+        },
+        {
+          name: "delete_collection",
+          description: "Delete a collection and all its documents.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              name: {
+                type: "string",
+                description: "Name of the collection to delete",
+              },
+            },
+            required: ["name"],
+          },
+        },
+        {
+          name: "get_collection_info",
+          description:
+            "Get detailed information about a collection including vector size, point count, and distance metric.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              name: {
+                type: "string",
+                description: "Name of the collection",
+              },
+            },
+            required: ["name"],
+          },
+        },
+        {
+          name: "delete_documents",
+          description: "Delete specific documents from a collection by their IDs.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              collection: {
+                type: "string",
+                description: "Name of the collection",
+              },
+              ids: {
+                type: "array",
+                description: "Array of document IDs to delete",
+                items: {
+                  type: ["string", "number"],
+                },
+              },
+            },
+            required: ["collection", "ids"],
+          },
+        },
+        {
+          name: "hybrid_search",
+          description:
+            "Perform hybrid search combining semantic vector search with keyword search using BM25. This provides better results by combining the strengths of both approaches. The collection must be created with enableHybrid set to true.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              collection: {
+                type: "string",
+                description: "Name of the collection to search",
+              },
+              query: {
+                type: "string",
+                description: "Search query text",
+              },
+              limit: {
+                type: "number",
+                description: "Maximum number of results (default: 5)",
+              },
+              filter: {
+                type: "object",
+                description: "Optional metadata filter",
+              },
+            },
+            required: ["collection", "query"],
+          },
+        },
+      ],
+    };
+  });
+
+  // Handle tool calls
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+
+    try {
+      switch (name) {
+        case "create_collection": {
+          const { name, distance, enableHybrid } = CreateCollectionSchema.parse(args);
+          const vectorSize = embeddings.getDimensions();
+          await qdrant.createCollection(name, vectorSize, distance, enableHybrid || false);
+
+          let message = `Collection "${name}" created successfully with ${vectorSize} dimensions and ${distance || "Cosine"} distance metric.`;
+          if (enableHybrid) {
+            message += " Hybrid search is enabled for this collection.";
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: message,
+              },
+            ],
+          };
+        }
+
+        case "add_documents": {
+          const { collection, documents } = AddDocumentsSchema.parse(args);
+
+          // Check if collection exists and get info
+          const exists = await qdrant.collectionExists(collection);
+          if (!exists) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Error: Collection "${collection}" does not exist. Create it first using create_collection.`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const collectionInfo = await qdrant.getCollectionInfo(collection);
+
+          // Generate embeddings for all documents
+          const texts = documents.map((doc) => doc.text);
+          const embeddingResults = await embeddings.embedBatch(texts);
+
+          // If hybrid search is enabled, generate sparse vectors and use appropriate method
+          if (collectionInfo.hybridEnabled) {
+            const sparseGenerator = new BM25SparseVectorGenerator();
+
+            // Prepare points with both dense and sparse vectors
+            const points = documents.map((doc, index) => ({
+              id: doc.id,
+              vector: embeddingResults[index].embedding,
+              sparseVector: sparseGenerator.generate(doc.text),
+              payload: {
+                text: doc.text,
+                ...doc.metadata,
+              },
+            }));
+
+            await qdrant.addPointsWithSparse(collection, points);
+          } else {
+            // Standard dense-only vectors
+            const points = documents.map((doc, index) => ({
+              id: doc.id,
+              vector: embeddingResults[index].embedding,
+              payload: {
+                text: doc.text,
+                ...doc.metadata,
+              },
+            }));
+
+            await qdrant.addPoints(collection, points);
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Successfully added ${documents.length} document(s) to collection "${collection}".`,
+              },
+            ],
+          };
+        }
+
+        case "semantic_search": {
+          const { collection, query, limit, filter } = SemanticSearchSchema.parse(args);
+
+          // Check if collection exists
+          const exists = await qdrant.collectionExists(collection);
+          if (!exists) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Error: Collection "${collection}" does not exist.`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          // Generate embedding for query
+          const { embedding } = await embeddings.embed(query);
+
+          // Search
+          const results = await qdrant.search(collection, embedding, limit || 5, filter);
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(results, null, 2),
+              },
+            ],
+          };
+        }
+
+        case "list_collections": {
+          const collections = await qdrant.listCollections();
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(collections, null, 2),
+              },
+            ],
+          };
+        }
+
+        case "delete_collection": {
+          const { name } = DeleteCollectionSchema.parse(args);
+          await qdrant.deleteCollection(name);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Collection "${name}" deleted successfully.`,
+              },
+            ],
+          };
+        }
+
+        case "get_collection_info": {
+          const { name } = GetCollectionInfoSchema.parse(args);
+          const info = await qdrant.getCollectionInfo(name);
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(info, null, 2),
+              },
+            ],
+          };
+        }
+
+        case "delete_documents": {
+          const { collection, ids } = DeleteDocumentsSchema.parse(args);
+          await qdrant.deletePoints(collection, ids);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Successfully deleted ${ids.length} document(s) from collection "${collection}".`,
+              },
+            ],
+          };
+        }
+
+        case "hybrid_search": {
+          const { collection, query, limit, filter } = HybridSearchSchema.parse(args);
+
+          // Check if collection exists
+          const exists = await qdrant.collectionExists(collection);
+          if (!exists) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Error: Collection "${collection}" does not exist.`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          // Check if collection has hybrid search enabled
+          const collectionInfo = await qdrant.getCollectionInfo(collection);
+          if (!collectionInfo.hybridEnabled) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Error: Collection "${collection}" does not have hybrid search enabled. Create a new collection with enableHybrid set to true.`,
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          // Generate dense embedding for query
+          const { embedding } = await embeddings.embed(query);
+
+          // Generate sparse vector for query
+          const sparseGenerator = new BM25SparseVectorGenerator();
+          const sparseVector = sparseGenerator.generate(query);
+
+          // Perform hybrid search
+          const results = await qdrant.hybridSearch(
+            collection,
+            embedding,
+            sparseVector,
+            limit || 5,
+            filter
+          );
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(results, null, 2),
+              },
+            ],
+          };
+        }
+
+        default:
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Unknown tool: ${name}`,
+              },
+            ],
+            isError: true,
+          };
+      }
+    } catch (error: any) {
+      // Enhanced error details for debugging
+      const errorDetails = error instanceof Error ? error.message : JSON.stringify(error, null, 2);
+
+      console.error("Tool execution error:", {
+        tool: name,
+        error: errorDetails,
+        stack: error?.stack,
+        data: error?.data,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${errorDetails}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  });
+
+  // List available resources
+  server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    const collections = await qdrant.listCollections();
+
+    return {
+      resources: [
+        {
+          uri: "qdrant://collections",
+          name: "All Collections",
+          description: "List of all vector collections in Qdrant",
+          mimeType: "application/json",
+        },
+        ...collections.map((name) => ({
+          uri: `qdrant://collection/${name}`,
+          name: `Collection: ${name}`,
+          description: `Details and statistics for collection "${name}"`,
+          mimeType: "application/json",
+        })),
+      ],
+    };
+  });
+
+  // Read resource content
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const { uri } = request.params;
+
+    if (uri === "qdrant://collections") {
+      const collections = await qdrant.listCollections();
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: "application/json",
+            text: JSON.stringify(collections, null, 2),
+          },
+        ],
+      };
+    }
+
+    const collectionMatch = uri.match(/^qdrant:\/\/collection\/(.+)$/);
+    if (collectionMatch) {
+      const name = collectionMatch[1];
+      const info = await qdrant.getCollectionInfo(name);
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: "application/json",
+            text: JSON.stringify(info, null, 2),
+          },
+        ],
+      };
+    }
+
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: "text/plain",
+          text: `Unknown resource: ${uri}`,
+        },
+      ],
+    };
+  });
+}
+
+// Register handlers on the shared server for stdio mode
+registerHandlers(server);
 
 // Tool schemas
 const CreateCollectionSchema = z.object({
@@ -209,516 +731,6 @@ const HybridSearchSchema = z.object({
   filter: z.record(z.any()).optional().describe("Optional metadata filter"),
 });
 
-// List available tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "create_collection",
-        description:
-          "Create a new vector collection in Qdrant. The collection will be configured with the embedding provider's dimensions automatically. Set enableHybrid to true to enable hybrid search combining semantic and keyword search.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            name: {
-              type: "string",
-              description: "Name of the collection",
-            },
-            distance: {
-              type: "string",
-              enum: ["Cosine", "Euclid", "Dot"],
-              description: "Distance metric (default: Cosine)",
-            },
-            enableHybrid: {
-              type: "boolean",
-              description: "Enable hybrid search with sparse vectors (default: false)",
-            },
-          },
-          required: ["name"],
-        },
-      },
-      {
-        name: "add_documents",
-        description:
-          "Add documents to a collection. Documents will be automatically embedded using the configured embedding provider.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            collection: {
-              type: "string",
-              description: "Name of the collection",
-            },
-            documents: {
-              type: "array",
-              description: "Array of documents to add",
-              items: {
-                type: "object",
-                properties: {
-                  id: {
-                    type: ["string", "number"],
-                    description: "Unique identifier for the document",
-                  },
-                  text: {
-                    type: "string",
-                    description: "Text content to embed and store",
-                  },
-                  metadata: {
-                    type: "object",
-                    description: "Optional metadata to store with the document",
-                  },
-                },
-                required: ["id", "text"],
-              },
-            },
-          },
-          required: ["collection", "documents"],
-        },
-      },
-      {
-        name: "semantic_search",
-        description:
-          "Search for documents using natural language queries. Returns the most semantically similar documents.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            collection: {
-              type: "string",
-              description: "Name of the collection to search",
-            },
-            query: {
-              type: "string",
-              description: "Search query text",
-            },
-            limit: {
-              type: "number",
-              description: "Maximum number of results (default: 5)",
-            },
-            filter: {
-              type: "object",
-              description: "Optional metadata filter",
-            },
-          },
-          required: ["collection", "query"],
-        },
-      },
-      {
-        name: "list_collections",
-        description: "List all available collections in Qdrant.",
-        inputSchema: {
-          type: "object",
-          properties: {},
-        },
-      },
-      {
-        name: "delete_collection",
-        description: "Delete a collection and all its documents.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            name: {
-              type: "string",
-              description: "Name of the collection to delete",
-            },
-          },
-          required: ["name"],
-        },
-      },
-      {
-        name: "get_collection_info",
-        description:
-          "Get detailed information about a collection including vector size, point count, and distance metric.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            name: {
-              type: "string",
-              description: "Name of the collection",
-            },
-          },
-          required: ["name"],
-        },
-      },
-      {
-        name: "delete_documents",
-        description: "Delete specific documents from a collection by their IDs.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            collection: {
-              type: "string",
-              description: "Name of the collection",
-            },
-            ids: {
-              type: "array",
-              description: "Array of document IDs to delete",
-              items: {
-                type: ["string", "number"],
-              },
-            },
-          },
-          required: ["collection", "ids"],
-        },
-      },
-      {
-        name: "hybrid_search",
-        description:
-          "Perform hybrid search combining semantic vector search with keyword search using BM25. This provides better results by combining the strengths of both approaches. The collection must be created with enableHybrid set to true.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            collection: {
-              type: "string",
-              description: "Name of the collection to search",
-            },
-            query: {
-              type: "string",
-              description: "Search query text",
-            },
-            limit: {
-              type: "number",
-              description: "Maximum number of results (default: 5)",
-            },
-            filter: {
-              type: "object",
-              description: "Optional metadata filter",
-            },
-          },
-          required: ["collection", "query"],
-        },
-      },
-    ],
-  };
-});
-
-// Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  try {
-    switch (name) {
-      case "create_collection": {
-        const { name, distance, enableHybrid } = CreateCollectionSchema.parse(args);
-        const vectorSize = embeddings.getDimensions();
-        await qdrant.createCollection(name, vectorSize, distance, enableHybrid || false);
-
-        let message = `Collection "${name}" created successfully with ${vectorSize} dimensions and ${distance || "Cosine"} distance metric.`;
-        if (enableHybrid) {
-          message += " Hybrid search is enabled for this collection.";
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: message,
-            },
-          ],
-        };
-      }
-
-      case "add_documents": {
-        const { collection, documents } = AddDocumentsSchema.parse(args);
-
-        // Check if collection exists and get info
-        const exists = await qdrant.collectionExists(collection);
-        if (!exists) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: Collection "${collection}" does not exist. Create it first using create_collection.`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const collectionInfo = await qdrant.getCollectionInfo(collection);
-
-        // Generate embeddings for all documents
-        const texts = documents.map((doc) => doc.text);
-        const embeddingResults = await embeddings.embedBatch(texts);
-
-        // If hybrid search is enabled, generate sparse vectors and use appropriate method
-        if (collectionInfo.hybridEnabled) {
-          const sparseGenerator = new BM25SparseVectorGenerator();
-
-          // Prepare points with both dense and sparse vectors
-          const points = documents.map((doc, index) => ({
-            id: doc.id,
-            vector: embeddingResults[index].embedding,
-            sparseVector: sparseGenerator.generate(doc.text),
-            payload: {
-              text: doc.text,
-              ...doc.metadata,
-            },
-          }));
-
-          await qdrant.addPointsWithSparse(collection, points);
-        } else {
-          // Standard dense-only vectors
-          const points = documents.map((doc, index) => ({
-            id: doc.id,
-            vector: embeddingResults[index].embedding,
-            payload: {
-              text: doc.text,
-              ...doc.metadata,
-            },
-          }));
-
-          await qdrant.addPoints(collection, points);
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Successfully added ${documents.length} document(s) to collection "${collection}".`,
-            },
-          ],
-        };
-      }
-
-      case "semantic_search": {
-        const { collection, query, limit, filter } = SemanticSearchSchema.parse(args);
-
-        // Check if collection exists
-        const exists = await qdrant.collectionExists(collection);
-        if (!exists) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: Collection "${collection}" does not exist.`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Generate embedding for query
-        const { embedding } = await embeddings.embed(query);
-
-        // Search
-        const results = await qdrant.search(collection, embedding, limit || 5, filter);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(results, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "list_collections": {
-        const collections = await qdrant.listCollections();
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(collections, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "delete_collection": {
-        const { name } = DeleteCollectionSchema.parse(args);
-        await qdrant.deleteCollection(name);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Collection "${name}" deleted successfully.`,
-            },
-          ],
-        };
-      }
-
-      case "get_collection_info": {
-        const { name } = GetCollectionInfoSchema.parse(args);
-        const info = await qdrant.getCollectionInfo(name);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(info, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "delete_documents": {
-        const { collection, ids } = DeleteDocumentsSchema.parse(args);
-        await qdrant.deletePoints(collection, ids);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Successfully deleted ${ids.length} document(s) from collection "${collection}".`,
-            },
-          ],
-        };
-      }
-
-      case "hybrid_search": {
-        const { collection, query, limit, filter } = HybridSearchSchema.parse(args);
-
-        // Check if collection exists
-        const exists = await qdrant.collectionExists(collection);
-        if (!exists) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: Collection "${collection}" does not exist.`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Check if collection has hybrid search enabled
-        const collectionInfo = await qdrant.getCollectionInfo(collection);
-        if (!collectionInfo.hybridEnabled) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Error: Collection "${collection}" does not have hybrid search enabled. Create a new collection with enableHybrid set to true.`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Generate dense embedding for query
-        const { embedding } = await embeddings.embed(query);
-
-        // Generate sparse vector for query
-        const sparseGenerator = new BM25SparseVectorGenerator();
-        const sparseVector = sparseGenerator.generate(query);
-
-        // Perform hybrid search
-        const results = await qdrant.hybridSearch(
-          collection,
-          embedding,
-          sparseVector,
-          limit || 5,
-          filter
-        );
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(results, null, 2),
-            },
-          ],
-        };
-      }
-
-      default:
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Unknown tool: ${name}`,
-            },
-          ],
-          isError: true,
-        };
-    }
-  } catch (error: any) {
-    // Enhanced error details for debugging
-    const errorDetails = error instanceof Error ? error.message : JSON.stringify(error, null, 2);
-
-    console.error("Tool execution error:", {
-      tool: name,
-      error: errorDetails,
-      stack: error?.stack,
-      data: error?.data,
-    });
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error: ${errorDetails}`,
-        },
-      ],
-      isError: true,
-    };
-  }
-});
-
-// List available resources
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  const collections = await qdrant.listCollections();
-
-  return {
-    resources: [
-      {
-        uri: "qdrant://collections",
-        name: "All Collections",
-        description: "List of all vector collections in Qdrant",
-        mimeType: "application/json",
-      },
-      ...collections.map((name) => ({
-        uri: `qdrant://collection/${name}`,
-        name: `Collection: ${name}`,
-        description: `Details and statistics for collection "${name}"`,
-        mimeType: "application/json",
-      })),
-    ],
-  };
-});
-
-// Read resource content
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const { uri } = request.params;
-
-  if (uri === "qdrant://collections") {
-    const collections = await qdrant.listCollections();
-    return {
-      contents: [
-        {
-          uri,
-          mimeType: "application/json",
-          text: JSON.stringify(collections, null, 2),
-        },
-      ],
-    };
-  }
-
-  const collectionMatch = uri.match(/^qdrant:\/\/collection\/(.+)$/);
-  if (collectionMatch) {
-    const name = collectionMatch[1];
-    const info = await qdrant.getCollectionInfo(name);
-    return {
-      contents: [
-        {
-          uri,
-          mimeType: "application/json",
-          text: JSON.stringify(info, null, 2),
-        },
-      ],
-    };
-  }
-
-  return {
-    contents: [
-      {
-        uri,
-        mimeType: "text/plain",
-        text: `Unknown resource: ${uri}`,
-      },
-    ],
-  };
-});
-
 // Start server with stdio transport
 async function startStdioServer() {
   await checkOllamaAvailability();
@@ -726,6 +738,14 @@ async function startStdioServer() {
   await server.connect(transport);
   console.error("Qdrant MCP server running on stdio");
 }
+
+// Constants for HTTP server configuration
+const RATE_LIMIT_MAX_REQUESTS = 100; // Max requests per window
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX_CONCURRENT = 10; // Max concurrent requests per IP
+const RATE_LIMITER_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const REQUEST_TIMEOUT_MS = 30 * 1000; // 30 seconds per request
+const SHUTDOWN_GRACE_PERIOD_MS = 10 * 1000; // 10 seconds
 
 // Start server with HTTP transport
 async function startHttpServer() {
@@ -739,23 +759,38 @@ async function startHttpServer() {
 
   // Rate limiter group: max 100 requests per 15 minutes per IP, max 10 concurrent per IP
   const rateLimiterGroup = new Bottleneck.Group({
-    reservoir: 100, // initial capacity per IP
-    reservoirRefreshAmount: 100, // refresh back to 100
-    reservoirRefreshInterval: 15 * 60 * 1000, // every 15 minutes
-    maxConcurrent: 10, // max concurrent requests per IP
+    reservoir: RATE_LIMIT_MAX_REQUESTS,
+    reservoirRefreshAmount: RATE_LIMIT_MAX_REQUESTS,
+    reservoirRefreshInterval: RATE_LIMIT_WINDOW_MS,
+    maxConcurrent: RATE_LIMIT_MAX_CONCURRENT,
   });
+
+  // Helper function to send JSON-RPC error responses
+  const sendErrorResponse = (
+    res: express.Response,
+    code: number,
+    message: string,
+    httpStatus: number = 500
+  ) => {
+    if (!res.headersSent) {
+      res.status(httpStatus).json({
+        jsonrpc: "2.0",
+        error: { code, message },
+        id: null,
+      });
+    }
+  };
 
   // Periodic cleanup of inactive rate limiters to prevent memory leaks
   // Track last access time for each IP
   const ipLastAccess = new Map<string, number>();
-  const INACTIVE_TIMEOUT = 60 * 60 * 1000; // 1 hour
 
   const cleanupIntervalId = setInterval(() => {
     const now = Date.now();
     const keysToDelete: string[] = [];
 
     ipLastAccess.forEach((lastAccess, ip) => {
-      if (now - lastAccess > INACTIVE_TIMEOUT) {
+      if (now - lastAccess > RATE_LIMITER_CLEANUP_INTERVAL_MS) {
         keysToDelete.push(ip);
       }
     });
@@ -768,7 +803,7 @@ async function startHttpServer() {
     if (keysToDelete.length > 0) {
       console.error(`Cleaned up ${keysToDelete.length} inactive rate limiters`);
     }
-  }, INACTIVE_TIMEOUT);
+  }, RATE_LIMITER_CLEANUP_INTERVAL_MS);
 
   // Rate limiting middleware
   const rateLimitMiddleware = async (
@@ -789,20 +824,11 @@ async function startHttpServer() {
     } catch (error) {
       // Differentiate between rate limit errors and unexpected errors
       if (error instanceof Bottleneck.BottleneckError) {
-        // Rate limit exceeded or Bottleneck operational error
         console.error(`Rate limit exceeded for IP ${clientIp}:`, error.message);
       } else {
-        // Unexpected error in rate limiting logic
         console.error("Unexpected rate limiting error:", error);
       }
-      res.status(429).json({
-        jsonrpc: "2.0",
-        error: {
-          code: -32000,
-          message: "Too many requests",
-        },
-        id: null,
-      });
+      sendErrorResponse(res, -32000, "Too many requests", 429);
     }
   };
 
@@ -817,76 +843,61 @@ async function startHttpServer() {
   });
 
   app.post("/mcp", rateLimitMiddleware, async (req, res) => {
-    const REQUEST_TIMEOUT = 60000; // 60 seconds
-    let timeoutId: NodeJS.Timeout | undefined;
-    let isTimedOut = false;
-    let transportClosed = false;
+    // Create a new server for each request
+    const requestServer = createServer();
+    registerHandlers(requestServer);
 
-    // Create a new transport for each request in stateless mode.
-    // This prevents request ID collisions when different clients use the same JSON-RPC request IDs.
+    // Create transport with enableJsonResponse
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined, // Stateless mode
+      sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
 
-    // Helper to safely close transport only once
-    const closeTransport = async () => {
-      if (!transportClosed) {
-        transportClosed = true;
-        await transport.close().catch((e) => console.error("Error closing transport:", e));
-      }
+    // Track cleanup state to prevent double cleanup
+    let cleanedUp = false;
+    const cleanup = async () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      await transport.close().catch(() => {});
+      await requestServer.close().catch(() => {});
     };
 
-    try {
-      // Set request timeout
-      timeoutId = setTimeout(async () => {
-        isTimedOut = true;
-        // Close transport on timeout to prevent resource leaks
-        await closeTransport();
-        if (!res.headersSent) {
-          res.status(408).json({
-            jsonrpc: "2.0",
-            error: {
-              code: -32000,
-              message: "Request timeout",
-            },
-            id: null,
-          });
-        }
-      }, REQUEST_TIMEOUT);
-
-      // Clean up transport when response closes
-      res.on("close", async () => {
-        await closeTransport();
-        if (timeoutId) clearTimeout(timeoutId);
+    // Set a timeout for the request to prevent hanging
+    const timeoutId = setTimeout(() => {
+      sendErrorResponse(res, -32000, "Request timeout", 504);
+      cleanup().catch((err) => {
+        console.error("Error during timeout cleanup:", err);
       });
+    }, REQUEST_TIMEOUT_MS);
 
-      // Connect the transport to the shared server instance.
-      // In stateless mode, each request gets a new transport connection.
-      await server.connect(transport);
+    try {
+      // Connect server to transport
+      await requestServer.connect(transport);
+
+      // Handle the request - this triggers message processing
+      // The response will be sent asynchronously when the server calls transport.send()
       await transport.handleRequest(req, res, req.body);
 
-      // Clear timeout immediately on success to prevent race condition
-      if (timeoutId) {
+      // Clean up AFTER the response finishes
+      // Listen to multiple events to ensure cleanup happens in all scenarios
+      const cleanupHandler = () => {
         clearTimeout(timeoutId);
-        timeoutId = undefined;
-      }
-    } catch (error) {
-      console.error("Error handling MCP request:", error);
-      if (!res.headersSent && !isTimedOut) {
-        res.status(500).json({
-          jsonrpc: "2.0",
-          error: {
-            code: -32603,
-            message: "Internal server error",
-          },
-          id: null,
+        cleanup().catch((err) => {
+          console.error("Error during response cleanup:", err);
         });
-      }
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
-      // Ensure transport is closed even if an error occurs
-      await closeTransport();
+      };
+
+      res.on("finish", cleanupHandler);
+      res.on("close", cleanupHandler);
+      res.on("error", (err) => {
+        console.error("Response stream error:", err);
+        cleanupHandler();
+      });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error("Error handling MCP request:", error);
+      sendErrorResponse(res, -32603, "Internal server error");
+      await cleanup();
     }
   });
 
@@ -911,11 +922,11 @@ async function startHttpServer() {
     // Clear the cleanup interval to allow graceful shutdown
     clearInterval(cleanupIntervalId);
 
-    // Force shutdown after 10 seconds
+    // Force shutdown after grace period
     const forceTimeout = setTimeout(() => {
       console.error("Forcing shutdown after timeout");
       process.exit(1);
-    }, 10000);
+    }, SHUTDOWN_GRACE_PERIOD_MS);
 
     httpServer.close(() => {
       clearTimeout(forceTimeout);
