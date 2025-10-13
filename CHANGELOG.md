@@ -1,3 +1,10 @@
+## 1.4.0 (2025-10-13)
+
+* Merge pull request #29 from mhalder/feature/configurable-prompts ([f9652b1](https://github.com/mhalder/qdrant-mcp-server/commit/f9652b1)), closes [#29](https://github.com/mhalder/qdrant-mcp-server/issues/29)
+* feat: add support for configurable MCP prompts ([e3cc6c2](https://github.com/mhalder/qdrant-mcp-server/commit/e3cc6c2)), closes [#28](https://github.com/mhalder/qdrant-mcp-server/issues/28)
+* feat: set default prompts.json path with auto-loading ([203694a](https://github.com/mhalder/qdrant-mcp-server/commit/203694a))
+* test: add comprehensive tests for prompts feature ([bb9ca66](https://github.com/mhalder/qdrant-mcp-server/commit/bb9ca66))
+
 ## <small>1.3.1 (2025-10-12)</small>
 
 * Merge pull request #27 from mhalder/fix/empty-responses ([30d33a7](https://github.com/mhalder/qdrant-mcp-server/commit/30d33a7)), closes [#27](https://github.com/mhalder/qdrant-mcp-server/issues/27)
