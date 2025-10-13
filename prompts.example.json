@@ -1,0 +1,96 @@
+{
+  "prompts": [
+    {
+      "name": "setup_rag_collection",
+      "description": "Create a new collection optimized for RAG workflows with hybrid search",
+      "arguments": [
+        {
+          "name": "name",
+          "description": "Name for the new collection",
+          "required": true
+        }
+      ],
+      "template": "Create a new Qdrant collection named '{{name}}' optimized for RAG (Retrieval-Augmented Generation) workflows:\n\n1. Create the collection with hybrid search enabled (enableHybrid: true) to combine semantic and keyword search for better retrieval accuracy\n2. Use Cosine distance metric (optimal for most embedding models)\n3. After creation, show the collection info and explain the configuration\n4. Provide guidance on adding documents with proper metadata structure for RAG use cases"
+    },
+    {
+      "name": "analyze_and_optimize",
+      "description": "Analyze a collection and provide optimization recommendations",
+      "arguments": [
+        {
+          "name": "collection",
+          "description": "Name of the collection to analyze",
+          "required": true
+        }
+      ],
+      "template": "Perform a comprehensive analysis of the '{{collection}}' collection:\n\n1. Get the collection info (dimensions, document count, distance metric, hybrid search status)\n2. Analyze the configuration and provide insights:\n   - Is the distance metric appropriate for the use case?\n   - Should hybrid search be enabled for better results?\n   - Is the document count sufficient for meaningful similarity search?\n3. Provide specific, actionable optimization recommendations\n4. If the collection seems suboptimal, suggest a migration strategy"
+    },
+    {
+      "name": "compare_search_strategies",
+      "description": "Compare semantic vs hybrid search to determine best approach",
+      "arguments": [
+        {
+          "name": "collection",
+          "description": "Collection name (must have hybrid search enabled)",
+          "required": true
+        },
+        {
+          "name": "query",
+          "description": "Test query",
+          "required": true
+        }
+      ],
+      "template": "Compare search strategies for '{{query}}' in the '{{collection}}' collection:\n\n1. Perform semantic_search and show top 5 results with scores\n2. Perform hybrid_search and show top 5 results with scores\n3. Analyze the differences:\n   - Which results appear in both? Which are unique to each method?\n   - How do the relevance scores compare?\n   - Which method seems more accurate for this query type?\n4. Recommend which search strategy to use based on:\n   - Query characteristics (keyword-heavy vs conceptual)\n   - Result quality and relevance\n   - Use case requirements"
+    },
+    {
+      "name": "migrate_to_hybrid",
+      "description": "Migrate an existing collection to use hybrid search",
+      "arguments": [
+        {
+          "name": "source",
+          "description": "Name of the existing collection to migrate",
+          "required": true
+        },
+        {
+          "name": "target",
+          "description": "Name for the new hybrid-enabled collection",
+          "required": true
+        }
+      ],
+      "template": "Migrate the '{{source}}' collection to a new hybrid search-enabled collection '{{target}}':\n\n1. First, analyze the source collection to understand its current configuration\n2. Create the target collection with hybrid search enabled, matching the source's distance metric\n3. Guide the user through retrieving documents from the source (note: you'll need to implement a retrieval mechanism or have the user provide the documents)\n4. Explain how to add the documents to the new hybrid collection\n5. Provide verification steps to ensure the migration was successful\n6. Ask if the user wants to delete the old collection after verification"
+    },
+    {
+      "name": "debug_search_quality",
+      "description": "Debug poor search results and suggest improvements",
+      "arguments": [
+        {
+          "name": "collection",
+          "description": "Collection with poor search quality",
+          "required": true
+        },
+        {
+          "name": "problematic_query",
+          "description": "A query that returns poor results",
+          "required": true
+        }
+      ],
+      "template": "Debug search quality issues in '{{collection}}' for query '{{problematic_query}}':\n\n1. Get collection info to understand the configuration\n2. Perform a search with the problematic query and analyze the results:\n   - Are the scores too low (< 0.5)? This suggests poor embedding quality or mismatched query/document domains\n   - Are irrelevant results ranking highly? This suggests metadata or hybrid search could help\n3. Test if hybrid search is available and compare results\n4. Provide specific recommendations:\n   - Should documents be re-embedded with a different model?\n   - Would metadata filtering help narrow results?\n   - Is the collection too small or missing relevant documents?\n   - Should the distance metric be changed?\n5. Suggest concrete next steps to improve search quality"
+    },
+    {
+      "name": "build_knowledge_base",
+      "description": "Guide for building a structured knowledge base with metadata",
+      "arguments": [
+        {
+          "name": "collection",
+          "description": "Collection name for the knowledge base",
+          "required": true
+        },
+        {
+          "name": "domain",
+          "description": "Domain or topic of the knowledge base",
+          "required": true
+        }
+      ],
+      "template": "Build a structured knowledge base in '{{collection}}' for the {{domain}} domain:\n\n1. Create (or verify) the collection with hybrid search enabled for optimal retrieval\n2. Design a metadata schema appropriate for {{domain}}, such as:\n   - category/topic fields for filtering\n   - timestamps for temporal filtering\n   - source/author for provenance\n   - confidence/quality scores\n3. Provide guidance on document structure:\n   - Optimal chunk sizes (typically 200-500 tokens)\n   - How to maintain context across chunks\n   - Metadata to include with each document\n4. Show example documents with proper formatting\n5. Explain search strategies for this knowledge base:\n   - When to use metadata filters\n   - When hybrid search adds value\n   - How to handle multi-step queries"
+    }
+  ]
+}
