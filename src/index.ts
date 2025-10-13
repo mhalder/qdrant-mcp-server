@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -8,6 +8,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
@@ -17,6 +19,8 @@ import express from "express";
 import { z } from "zod";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { BM25SparseVectorGenerator } from "./embeddings/sparse.js";
+import { getPrompt, listPrompts, loadPromptsConfig, type PromptsConfig } from "./prompts/index.js";
+import { renderTemplate, validateArguments } from "./prompts/template.js";
 import { QdrantManager } from "./qdrant/client.js";
 
 // Read package.json for version
@@ -28,6 +32,7 @@ const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerCase();
 const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
+const PROMPTS_CONFIG_FILE = process.env.PROMPTS_CONFIG_FILE || join(__dirname, "../prompts.json");
 
 // Validate HTTP_PORT when HTTP mode is selected
 if (TRANSPORT_MODE === "http") {
@@ -139,19 +144,42 @@ async function checkOllamaAvailability() {
 const qdrant = new QdrantManager(QDRANT_URL);
 const embeddings = EmbeddingProviderFactory.createFromEnv();
 
+// Load prompts configuration if file exists
+let promptsConfig: PromptsConfig | null = null;
+if (existsSync(PROMPTS_CONFIG_FILE)) {
+  try {
+    promptsConfig = loadPromptsConfig(PROMPTS_CONFIG_FILE);
+    console.error(`Loaded ${promptsConfig.prompts.length} prompts from ${PROMPTS_CONFIG_FILE}`);
+  } catch (error) {
+    console.error(`Failed to load prompts configuration from ${PROMPTS_CONFIG_FILE}:`, error);
+    process.exit(1);
+  }
+}
+
 // Function to create a new MCP server instance
 // This is needed for HTTP transport in stateless mode where each request gets its own server
 function createServer() {
+  const capabilities: {
+    tools: Record<string, never>;
+    resources: Record<string, never>;
+    prompts?: Record<string, never>;
+  } = {
+    tools: {},
+    resources: {},
+  };
+
+  // Only add prompts capability if prompts are configured
+  if (promptsConfig) {
+    capabilities.prompts = {};
+  }
+
   return new Server(
     {
       name: pkg.name,
       version: pkg.version,
     },
     {
-      capabilities: {
-        tools: {},
-        resources: {},
-      },
+      capabilities,
     }
   );
 }
@@ -670,6 +698,59 @@ function registerHandlers(server: Server) {
       ],
     };
   });
+
+  // List available prompts
+  if (promptsConfig) {
+    server.setRequestHandler(ListPromptsRequestSchema, async () => {
+      const prompts = listPrompts(promptsConfig!);
+
+      return {
+        prompts: prompts.map((prompt) => ({
+          name: prompt.name,
+          description: prompt.description,
+          arguments: prompt.arguments.map((arg) => ({
+            name: arg.name,
+            description: arg.description,
+            required: arg.required,
+          })),
+        })),
+      };
+    });
+
+    // Get prompt content
+    server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+
+      const prompt = getPrompt(promptsConfig!, name);
+      if (!prompt) {
+        throw new Error(`Unknown prompt: ${name}`);
+      }
+
+      try {
+        // Validate arguments
+        validateArguments(args || {}, prompt.arguments);
+
+        // Render template
+        const rendered = renderTemplate(prompt.template, args || {}, prompt.arguments);
+
+        return {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: rendered.text,
+              },
+            },
+          ],
+        };
+      } catch (error) {
+        throw new Error(
+          `Failed to render prompt "${name}": ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    });
+  }
 }
 
 // Register handlers on the shared server for stdio mode

@@ -12,6 +12,7 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 - **Multiple Providers**: Ollama (default), OpenAI, Cohere, and Voyage AI
 - **Hybrid Search**: Combine semantic and keyword search for better results
 - **Semantic Search**: Natural language search with metadata filtering
+- **Configurable Prompts**: Create custom prompts for guided workflows without code changes
 - **Rate Limiting**: Intelligent throttling with exponential backoff
 - **Full CRUD**: Create, search, and manage collections and documents
 - **Flexible Deployment**: Run locally (stdio) or as a remote HTTP server
@@ -128,6 +129,72 @@ See [Advanced Configuration](#advanced-configuration) section below for all opti
 - `qdrant://collections` - List all collections
 - `qdrant://collection/{name}` - Collection details
 
+## Configurable Prompts
+
+Create custom prompts tailored to your specific use cases without modifying code. Prompts provide guided workflows for common tasks.
+
+**Note**: By default, the server looks for `prompts.json` in the project root directory. If the file exists, prompts are automatically loaded. You can specify a custom path using the `PROMPTS_CONFIG_FILE` environment variable.
+
+### Setup
+
+1. **Create a prompts configuration file** (e.g., `prompts.json` in the project root):
+
+   See [`prompts.example.json`](prompts.example.json) for example configurations you can copy and customize.
+
+2. **Configure the server** (optional - only needed for custom path):
+
+If you place `prompts.json` in the project root, no additional configuration is needed. To use a custom path:
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "PROMPTS_CONFIG_FILE": "/custom/path/to/prompts.json"
+      }
+    }
+  }
+}
+```
+
+3. **Use prompts** in your AI assistant:
+
+**Claude Code:**
+
+```bash
+/mcp__qdrant__find_similar_docs papers "neural networks" 10
+```
+
+**VSCode:**
+
+```bash
+/mcp.qdrant.find_similar_docs papers "neural networks" 10
+```
+
+### Example Prompts
+
+See [`prompts.example.json`](prompts.example.json) for ready-to-use prompts including:
+
+- `find_similar_docs` - Semantic search with result explanation
+- `setup_rag_collection` - Create RAG-optimized collections
+- `analyze_collection` - Collection insights and recommendations
+- `bulk_add_documents` - Guided bulk document insertion
+- `search_with_filter` - Metadata filtering assistance
+- `compare_search_methods` - Semantic vs hybrid search comparison
+- `collection_maintenance` - Maintenance and cleanup workflows
+- `migrate_to_hybrid` - Collection migration guide
+
+### Template Syntax
+
+Templates use `{{variable}}` placeholders:
+
+- Required arguments must be provided
+- Optional arguments use defaults if not specified
+- Unknown variables are left as-is in the output
+
 ## Examples
 
 See [examples/](examples/) directory for detailed guides:
@@ -147,6 +214,7 @@ See [examples/](examples/) directory for detailed guides:
 | `HTTP_PORT`                         | Port for HTTP transport                | 3000                  |
 | `EMBEDDING_PROVIDER`                | "ollama", "openai", "cohere", "voyage" | ollama                |
 | `QDRANT_URL`                        | Qdrant server URL                      | http://localhost:6333 |
+| `PROMPTS_CONFIG_FILE`               | Path to prompts configuration JSON     | prompts.json          |
 | `EMBEDDING_MODEL`                   | Model name                             | Provider-specific     |
 | `EMBEDDING_BASE_URL`                | Custom API URL                         | Provider-specific     |
 | `EMBEDDING_MAX_REQUESTS_PER_MINUTE` | Rate limit                             | Provider-specific     |
