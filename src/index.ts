@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -32,7 +32,7 @@ const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerCase();
 const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
-const PROMPTS_CONFIG_FILE = process.env.PROMPTS_CONFIG_FILE;
+const PROMPTS_CONFIG_FILE = process.env.PROMPTS_CONFIG_FILE || join(__dirname, "../prompts.json");
 
 // Validate HTTP_PORT when HTTP mode is selected
 if (TRANSPORT_MODE === "http") {
@@ -144,9 +144,9 @@ async function checkOllamaAvailability() {
 const qdrant = new QdrantManager(QDRANT_URL);
 const embeddings = EmbeddingProviderFactory.createFromEnv();
 
-// Load prompts configuration if provided
+// Load prompts configuration if file exists
 let promptsConfig: PromptsConfig | null = null;
-if (PROMPTS_CONFIG_FILE) {
+if (existsSync(PROMPTS_CONFIG_FILE)) {
   try {
     promptsConfig = loadPromptsConfig(PROMPTS_CONFIG_FILE);
     console.error(`Loaded ${promptsConfig.prompts.length} prompts from ${PROMPTS_CONFIG_FILE}`);

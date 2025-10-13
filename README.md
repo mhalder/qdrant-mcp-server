@@ -133,13 +133,17 @@ See [Advanced Configuration](#advanced-configuration) section below for all opti
 
 Create custom prompts tailored to your specific use cases without modifying code. Prompts provide guided workflows for common tasks.
 
+**Note**: By default, the server looks for `prompts.json` in the project root directory. If the file exists, prompts are automatically loaded. You can specify a custom path using the `PROMPTS_CONFIG_FILE` environment variable.
+
 ### Setup
 
-1. **Create a prompts configuration file** (e.g., `prompts.json`):
+1. **Create a prompts configuration file** (e.g., `prompts.json` in the project root):
 
    See [`prompts.example.json`](prompts.example.json) for example configurations you can copy and customize.
 
-2. **Configure the server** to use your prompts file:
+2. **Configure the server** (optional - only needed for custom path):
+
+If you place `prompts.json` in the project root, no additional configuration is needed. To use a custom path:
 
 ```json
 {
@@ -149,7 +153,7 @@ Create custom prompts tailored to your specific use cases without modifying code
       "args": ["/path/to/qdrant-mcp-server/build/index.js"],
       "env": {
         "QDRANT_URL": "http://localhost:6333",
-        "PROMPTS_CONFIG_FILE": "/path/to/prompts.json"
+        "PROMPTS_CONFIG_FILE": "/custom/path/to/prompts.json"
       }
     }
   }
@@ -210,7 +214,7 @@ See [examples/](examples/) directory for detailed guides:
 | `HTTP_PORT`                         | Port for HTTP transport                | 3000                  |
 | `EMBEDDING_PROVIDER`                | "ollama", "openai", "cohere", "voyage" | ollama                |
 | `QDRANT_URL`                        | Qdrant server URL                      | http://localhost:6333 |
-| `PROMPTS_CONFIG_FILE`               | Path to prompts configuration JSON     | -                     |
+| `PROMPTS_CONFIG_FILE`               | Path to prompts configuration JSON     | prompts.json          |
 | `EMBEDDING_MODEL`                   | Model name                             | Provider-specific     |
 | `EMBEDDING_BASE_URL`                | Custom API URL                         | Provider-specific     |
 | `EMBEDDING_MAX_REQUESTS_PER_MINUTE` | Rate limit                             | Provider-specific     |
