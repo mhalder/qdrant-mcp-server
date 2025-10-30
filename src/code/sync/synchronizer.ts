@@ -6,7 +6,7 @@
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import type { FileChanges } from "../types.js";
 import { MerkleTree } from "./merkle.js";
 import { SnapshotManager } from "./snapshot.js";
@@ -34,7 +34,7 @@ export class FileSynchronizer {
 
     if (snapshot) {
       this.previousHashes = snapshot.fileHashes;
-      this.previousTree = snapshot.tree;
+      this.previousTree = snapshot.merkleTree;
       return true;
     }
 
@@ -46,7 +46,11 @@ export class FileSynchronizer {
    */
   private async hashFile(filePath: string): Promise<string> {
     try {
-      const content = await fs.readFile(filePath, "utf-8");
+      // Resolve path relative to codebase if not absolute
+      const absolutePath = filePath.startsWith(this.codebasePath)
+        ? filePath
+        : join(this.codebasePath, filePath);
+      const content = await fs.readFile(absolutePath, "utf-8");
       return createHash("sha256").update(content).digest("hex");
     } catch (_error) {
       // If file can't be read, return empty hash
@@ -63,7 +67,11 @@ export class FileSynchronizer {
     for (const filePath of filePaths) {
       const hash = await this.hashFile(filePath);
       if (hash) {
-        fileHashes.set(filePath, hash);
+        // Normalize to relative path
+        const relativePath = filePath.startsWith(this.codebasePath)
+          ? relative(this.codebasePath, filePath)
+          : filePath;
+        fileHashes.set(relativePath, hash);
       }
     }
 

@@ -45,8 +45,9 @@ export class SnapshotManager {
    * Load snapshot from disk
    */
   async load(): Promise<{
+    codebasePath: string;
     fileHashes: Map<string, string>;
-    tree: MerkleTree;
+    merkleTree: MerkleTree;
     timestamp: number;
   } | null> {
     try {
@@ -57,8 +58,9 @@ export class SnapshotManager {
       const tree = MerkleTree.deserialize(snapshot.merkleTree);
 
       return {
+        codebasePath: snapshot.codebasePath,
         fileHashes,
-        tree,
+        merkleTree: tree,
         timestamp: snapshot.timestamp,
       };
     } catch (_error) {
@@ -99,7 +101,7 @@ export class SnapshotManager {
       if (!snapshot) return false;
 
       // Basic validation: check if tree can be deserialized
-      return snapshot.tree.getRootHash() !== null || snapshot.fileHashes.size === 0;
+      return snapshot.merkleTree.getRootHash() !== undefined || snapshot.fileHashes.size === 0;
     } catch {
       return false;
     }

@@ -33,3 +33,7 @@ qdrant_storage/
 
 # Ollama data (local)
 ollama_storage/
+
+# Test artifacts and planning docs
+test-collection*
+collection-with-*
