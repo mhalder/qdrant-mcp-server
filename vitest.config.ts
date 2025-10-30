@@ -17,6 +17,7 @@ export default defineConfig({
         "commitlint.config.js",
         "src/index.ts",
         "scripts/**",
+        "tests/**/fixtures/**",
       ],
       thresholds: {
         "src/qdrant/client.ts": {
