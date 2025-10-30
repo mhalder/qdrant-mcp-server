@@ -22,6 +22,16 @@ import { BM25SparseVectorGenerator } from "./embeddings/sparse.js";
 import { getPrompt, listPrompts, loadPromptsConfig, type PromptsConfig } from "./prompts/index.js";
 import { renderTemplate, validateArguments } from "./prompts/template.js";
 import { QdrantManager } from "./qdrant/client.js";
+import { CodeIndexer } from "./code/indexer.js";
+import {
+  DEFAULT_CODE_EXTENSIONS,
+  DEFAULT_IGNORE_PATTERNS,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_BATCH_SIZE,
+  DEFAULT_SEARCH_LIMIT,
+} from "./code/config.js";
+import type { CodeConfig } from "./code/types.js";
 
 // Read package.json for version
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -143,6 +153,20 @@ async function checkOllamaAvailability() {
 // Initialize clients
 const qdrant = new QdrantManager(QDRANT_URL);
 const embeddings = EmbeddingProviderFactory.createFromEnv();
+
+// Initialize code indexer
+const codeConfig: CodeConfig = {
+  chunkSize: parseInt(process.env.CODE_CHUNK_SIZE || String(DEFAULT_CHUNK_SIZE), 10),
+  chunkOverlap: parseInt(process.env.CODE_CHUNK_OVERLAP || String(DEFAULT_CHUNK_OVERLAP), 10),
+  enableASTChunking: process.env.CODE_ENABLE_AST !== "false",
+  supportedExtensions: DEFAULT_CODE_EXTENSIONS,
+  ignorePatterns: DEFAULT_IGNORE_PATTERNS,
+  batchSize: parseInt(process.env.CODE_BATCH_SIZE || String(DEFAULT_BATCH_SIZE), 10),
+  defaultSearchLimit: parseInt(process.env.CODE_SEARCH_LIMIT || String(DEFAULT_SEARCH_LIMIT), 10),
+  enableHybridSearch: process.env.CODE_ENABLE_HYBRID === "true",
+};
+
+const codeIndexer = new CodeIndexer(qdrant, embeddings, codeConfig);
 
 // Load prompts configuration if file exists
 let promptsConfig: PromptsConfig | null = null;
@@ -364,6 +388,96 @@ function registerHandlers(server: Server) {
               },
             },
             required: ["collection", "query"],
+          },
+        },
+        {
+          name: "index_codebase",
+          description:
+            "Index a codebase for semantic code search. Automatically discovers files, chunks code intelligently using AST-aware parsing, and stores in vector database. Respects .gitignore and other ignore files.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: {
+                type: "string",
+                description: "Absolute or relative path to codebase root directory",
+              },
+              forceReindex: {
+                type: "boolean",
+                description: "Force full re-index even if already indexed (default: false)",
+              },
+              extensions: {
+                type: "array",
+                items: { type: "string" },
+                description: "Custom file extensions to index (e.g., ['.proto', '.graphql'])",
+              },
+              ignorePatterns: {
+                type: "array",
+                items: { type: "string" },
+                description: "Additional patterns to ignore (e.g., ['**/test/**', '**/*.test.ts'])",
+              },
+            },
+            required: ["path"],
+          },
+        },
+        {
+          name: "search_code",
+          description:
+            "Search indexed codebase using natural language queries. Returns semantically relevant code chunks with file paths and line numbers.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: {
+                type: "string",
+                description: "Path to codebase (must be indexed first)",
+              },
+              query: {
+                type: "string",
+                description: "Natural language search query (e.g., 'authentication logic')",
+              },
+              limit: {
+                type: "number",
+                description: "Maximum number of results (default: 5, max: 100)",
+              },
+              fileTypes: {
+                type: "array",
+                items: { type: "string" },
+                description: "Filter by file extensions (e.g., ['.ts', '.py'])",
+              },
+              pathPattern: {
+                type: "string",
+                description: "Filter by path glob pattern (e.g., 'src/services/**')",
+              },
+            },
+            required: ["path", "query"],
+          },
+        },
+        {
+          name: "get_index_status",
+          description: "Get indexing status and statistics for a codebase.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: {
+                type: "string",
+                description: "Path to codebase",
+              },
+            },
+            required: ["path"],
+          },
+        },
+        {
+          name: "clear_index",
+          description:
+            "Delete all indexed data for a codebase. This is irreversible and will remove the entire collection.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: {
+                type: "string",
+                description: "Path to codebase",
+              },
+            },
+            required: ["path"],
           },
         },
       ],
@@ -595,6 +709,143 @@ function registerHandlers(server: Server) {
               {
                 type: "text",
                 text: JSON.stringify(results, null, 2),
+              },
+            ],
+          };
+        }
+
+        case "index_codebase": {
+          const IndexCodebaseSchema = z.object({
+            path: z.string(),
+            forceReindex: z.boolean().optional(),
+            extensions: z.array(z.string()).optional(),
+            ignorePatterns: z.array(z.string()).optional(),
+          });
+
+          const { path, forceReindex, extensions, ignorePatterns } =
+            IndexCodebaseSchema.parse(args);
+
+          const stats = await codeIndexer.indexCodebase(
+            path,
+            { forceReindex, extensions, ignorePatterns },
+            (progress) => {
+              // Progress callback - could send progress updates via SSE in future
+              console.error(
+                `[${progress.phase}] ${progress.percentage}% - ${progress.message}`
+              );
+            }
+          );
+
+          let statusMessage = `Indexed ${stats.filesIndexed}/${stats.filesScanned} files (${stats.chunksCreated} chunks) in ${(stats.durationMs / 1000).toFixed(1)}s`;
+
+          if (stats.status === "partial") {
+            statusMessage += `\n\nWarnings:\n${stats.errors?.join("\n")}`;
+          } else if (stats.status === "failed") {
+            statusMessage = `Indexing failed:\n${stats.errors?.join("\n")}`;
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: statusMessage,
+              },
+            ],
+            isError: stats.status === "failed",
+          };
+        }
+
+        case "search_code": {
+          const SearchCodeSchema = z.object({
+            path: z.string(),
+            query: z.string(),
+            limit: z.number().optional(),
+            fileTypes: z.array(z.string()).optional(),
+            pathPattern: z.string().optional(),
+          });
+
+          const { path, query, limit, fileTypes, pathPattern } = SearchCodeSchema.parse(args);
+
+          const results = await codeIndexer.searchCode(path, query, {
+            limit,
+            fileTypes,
+            pathPattern,
+          });
+
+          if (results.length === 0) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `No results found for query: "${query}"`,
+                },
+              ],
+            };
+          }
+
+          // Format results with file references
+          const formattedResults = results
+            .map(
+              (r, idx) =>
+                `\n--- Result ${idx + 1} (score: ${r.score.toFixed(3)}) ---\n` +
+                `File: ${r.filePath}:${r.startLine}-${r.endLine}\n` +
+                `Language: ${r.language}\n\n` +
+                `${r.content}\n`
+            )
+            .join("\n");
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Found ${results.length} result(s):\n${formattedResults}`,
+              },
+            ],
+          };
+        }
+
+        case "get_index_status": {
+          const GetIndexStatusSchema = z.object({
+            path: z.string(),
+          });
+
+          const { path } = GetIndexStatusSchema.parse(args);
+          const status = await codeIndexer.getIndexStatus(path);
+
+          if (!status.isIndexed) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Codebase at "${path}" is not indexed. Use index_codebase to index it first.`,
+                },
+              ],
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(status, null, 2),
+              },
+            ],
+          };
+        }
+
+        case "clear_index": {
+          const ClearIndexSchema = z.object({
+            path: z.string(),
+          });
+
+          const { path } = ClearIndexSchema.parse(args);
+          await codeIndexer.clearIndex(path);
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Index cleared for codebase at "${path}".`,
               },
             ],
           };
