@@ -47,7 +47,7 @@ export interface IndexStats {
   filesIndexed: number;
   chunksCreated: number;
   durationMs: number;
-  status: 'completed' | 'partial' | 'failed';
+  status: "completed" | "partial" | "failed";
   errors?: string[];
 }
 
@@ -90,7 +90,7 @@ export interface IndexStatus {
 export type ProgressCallback = (progress: ProgressUpdate) => void;
 
 export interface ProgressUpdate {
-  phase: 'scanning' | 'chunking' | 'embedding' | 'storing';
+  phase: "scanning" | "chunking" | "embedding" | "storing";
   current: number;
   total: number;
   percentage: number;
@@ -105,7 +105,7 @@ export interface CodeChunk {
     filePath: string;
     language: string;
     chunkIndex: number;
-    chunkType?: 'function' | 'class' | 'interface' | 'block';
+    chunkType?: "function" | "class" | "interface" | "block";
     name?: string; // Function/class name if applicable
   };
 }

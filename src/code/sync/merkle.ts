@@ -3,7 +3,7 @@
  * Enables incremental updates by comparing file hashes
  */
 
-import { createHash } from 'crypto';
+import { createHash } from "node:crypto";
 
 export class MerkleNode {
   constructor(
@@ -31,7 +31,7 @@ export class MerkleTree {
       .sort(([pathA], [pathB]) => pathA.localeCompare(pathB))
       .map(([path, hash]) => {
         const combined = `${path}:${hash}`;
-        const leafHash = createHash('sha256').update(combined).digest('hex');
+        const leafHash = createHash("sha256").update(combined).digest("hex");
         return new MerkleNode(leafHash);
       });
 
@@ -52,7 +52,7 @@ export class MerkleTree {
       const right = nodes[i + 1] || left; // Duplicate if odd number
 
       const combined = left.hash + right.hash;
-      const parentHash = createHash('sha256').update(combined).digest('hex');
+      const parentHash = createHash("sha256").update(combined).digest("hex");
 
       parents.push(new MerkleNode(parentHash, left, right));
     }

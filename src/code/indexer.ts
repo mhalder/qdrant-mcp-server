@@ -2,27 +2,27 @@
  * CodeIndexer - Main orchestrator for code vectorization
  */
 
-import { promises as fs } from 'fs';
-import { relative, extname, resolve } from 'path';
-import { createHash } from 'crypto';
-import { QdrantManager } from '../qdrant/client.js';
-import { EmbeddingProvider } from '../embeddings/base.js';
-import { BM25SparseVectorGenerator } from '../embeddings/sparse.js';
-import { FileScanner } from './scanner.js';
-import { TreeSitterChunker } from './chunker/tree-sitter-chunker.js';
-import { MetadataExtractor } from './metadata.js';
-import {
+import { createHash } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { extname, relative, resolve } from "node:path";
+import type { EmbeddingProvider } from "../embeddings/base.js";
+import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
+import type { QdrantManager } from "../qdrant/client.js";
+import { TreeSitterChunker } from "./chunker/tree-sitter-chunker.js";
+import { MetadataExtractor } from "./metadata.js";
+import { FileScanner } from "./scanner.js";
+import { FileSynchronizer } from "./sync/synchronizer.js";
+import type {
+  ChangeStats,
+  CodeChunk,
   CodeConfig,
+  CodeSearchResult,
   IndexOptions,
   IndexStats,
   IndexStatus,
-  SearchOptions,
-  CodeSearchResult,
   ProgressCallback,
-  CodeChunk,
-  ChangeStats,
-} from './types.js';
-import { FileSynchronizer } from './sync/synchronizer.js';
+  SearchOptions,
+} from "./types.js";
 
 export class CodeIndexer {
   constructor(
@@ -45,7 +45,7 @@ export class CodeIndexer {
       filesIndexed: 0,
       chunksCreated: 0,
       durationMs: 0,
-      status: 'completed',
+      status: "completed",
       errors: [],
     };
 
@@ -54,11 +54,11 @@ export class CodeIndexer {
 
       // 1. Scan files
       progressCallback?.({
-        phase: 'scanning',
+        phase: "scanning",
         current: 0,
         total: 100,
         percentage: 0,
-        message: 'Scanning files...',
+        message: "Scanning files...",
       });
 
       const scanner = new FileScanner({
@@ -73,7 +73,7 @@ export class CodeIndexer {
       stats.filesScanned = files.length;
 
       if (files.length === 0) {
-        stats.status = 'completed';
+        stats.status = "completed";
         stats.durationMs = Date.now() - startTime;
         return stats;
       }
@@ -91,7 +91,7 @@ export class CodeIndexer {
         await this.qdrant.createCollection(
           collectionName,
           vectorSize,
-          'Cosine',
+          "Cosine",
           this.config.enableHybridSearch
         );
       }
@@ -108,14 +108,14 @@ export class CodeIndexer {
       for (const [index, filePath] of files.entries()) {
         try {
           progressCallback?.({
-            phase: 'chunking',
+            phase: "chunking",
             current: index + 1,
             total: files.length,
             percentage: Math.round(((index + 1) / files.length) * 40), // 0-40%
             message: `Chunking file ${index + 1}/${files.length}`,
           });
 
-          const code = await fs.readFile(filePath, 'utf-8');
+          const code = await fs.readFile(filePath, "utf-8");
 
           // Check for secrets (basic detection)
           if (metadataExtractor.containsSecrets(code)) {
@@ -136,10 +136,7 @@ export class CodeIndexer {
             allChunks.push({ chunk, id });
 
             // Check total chunk limit
-            if (
-              this.config.maxTotalChunks &&
-              allChunks.length >= this.config.maxTotalChunks
-            ) {
+            if (this.config.maxTotalChunks && allChunks.length >= this.config.maxTotalChunks) {
               break;
             }
           }
@@ -147,10 +144,7 @@ export class CodeIndexer {
           stats.filesIndexed++;
 
           // Check total chunk limit
-          if (
-            this.config.maxTotalChunks &&
-            allChunks.length >= this.config.maxTotalChunks
-          ) {
+          if (this.config.maxTotalChunks && allChunks.length >= this.config.maxTotalChunks) {
             break;
           }
         } catch (error) {
@@ -162,7 +156,7 @@ export class CodeIndexer {
       stats.chunksCreated = allChunks.length;
 
       if (allChunks.length === 0) {
-        stats.status = 'completed';
+        stats.status = "completed";
         stats.durationMs = Date.now() - startTime;
         return stats;
       }
@@ -173,7 +167,7 @@ export class CodeIndexer {
         const batch = allChunks.slice(i, i + batchSize);
 
         progressCallback?.({
-          phase: 'embedding',
+          phase: "embedding",
           current: i + batch.length,
           total: allChunks.length,
           percentage: 40 + Math.round(((i + batch.length) / allChunks.length) * 30), // 40-70%
@@ -203,7 +197,7 @@ export class CodeIndexer {
           }));
 
           progressCallback?.({
-            phase: 'storing',
+            phase: "storing",
             current: i + batch.length,
             total: allChunks.length,
             percentage: 70 + Math.round(((i + batch.length) / allChunks.length) * 30), // 70-100%
@@ -238,7 +232,7 @@ export class CodeIndexer {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           stats.errors?.push(`Failed to process batch at index ${i}: ${errorMessage}`);
-          stats.status = 'partial';
+          stats.status = "partial";
         }
       }
 
@@ -248,14 +242,14 @@ export class CodeIndexer {
         await synchronizer.updateSnapshot(files);
       } catch (error) {
         // Snapshot failure shouldn't fail the entire indexing
-        console.error('Failed to save snapshot:', error);
+        console.error("Failed to save snapshot:", error);
       }
 
       stats.durationMs = Date.now() - startTime;
       return stats;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      stats.status = 'failed';
+      stats.status = "failed";
       stats.errors?.push(`Indexing failed: ${errorMessage}`);
       stats.durationMs = Date.now() - startTime;
       return stats;
@@ -288,13 +282,13 @@ export class CodeIndexer {
     const { embedding } = await this.embeddings.embed(query);
 
     // Build filter
-    let filter: any = undefined;
+    let filter: any;
     if (options?.fileTypes || options?.pathPattern) {
       filter = { must: [] };
 
       if (options.fileTypes && options.fileTypes.length > 0) {
         filter.must.push({
-          key: 'fileExtension',
+          key: "fileExtension",
           match: { any: options.fileTypes },
         });
       }
@@ -302,13 +296,13 @@ export class CodeIndexer {
       if (options.pathPattern) {
         // Convert glob pattern to regex (simplified)
         const regex = options.pathPattern
-          .replace(/\./g, '\\.')
-          .replace(/\*\*/g, '.*')
-          .replace(/\*/g, '[^/]*')
-          .replace(/\?/g, '.');
+          .replace(/\./g, "\\.")
+          .replace(/\*\*/g, ".*")
+          .replace(/\*/g, "[^/]*")
+          .replace(/\?/g, ".");
 
         filter.must.push({
-          key: 'relativePath',
+          key: "relativePath",
           match: { text: regex },
         });
       }
@@ -342,13 +336,13 @@ export class CodeIndexer {
 
     // Format results
     return filteredResults.map((r) => ({
-      content: r.payload?.content || '',
-      filePath: r.payload?.relativePath || '',
+      content: r.payload?.content || "",
+      filePath: r.payload?.relativePath || "",
       startLine: r.payload?.startLine || 0,
       endLine: r.payload?.endLine || 0,
-      language: r.payload?.language || 'unknown',
+      language: r.payload?.language || "unknown",
       score: r.score,
-      fileExtension: r.payload?.fileExtension || '',
+      fileExtension: r.payload?.fileExtension || "",
     }));
   }
 
@@ -378,10 +372,7 @@ export class CodeIndexer {
   /**
    * Incrementally re-index only changed files
    */
-  async reindexChanges(
-    path: string,
-    progressCallback?: ProgressCallback
-  ): Promise<ChangeStats> {
+  async reindexChanges(path: string, progressCallback?: ProgressCallback): Promise<ChangeStats> {
     const startTime = Date.now();
     const stats: ChangeStats = {
       filesAdded: 0,
@@ -407,16 +398,16 @@ export class CodeIndexer {
       const hasSnapshot = await synchronizer.initialize();
 
       if (!hasSnapshot) {
-        throw new Error('No previous snapshot found. Use index_codebase for initial indexing.');
+        throw new Error("No previous snapshot found. Use index_codebase for initial indexing.");
       }
 
       // Scan current files
       progressCallback?.({
-        phase: 'scanning',
+        phase: "scanning",
         current: 0,
         total: 100,
         percentage: 0,
-        message: 'Scanning for changes...',
+        message: "Scanning for changes...",
       });
 
       const scanner = new FileScanner({
@@ -447,21 +438,20 @@ export class CodeIndexer {
       const metadataExtractor = new MetadataExtractor();
 
       // Process deleted and modified files - collect chunk IDs to delete
-      const chunkIdsToDelete: string[] = [];
+      const _chunkIdsToDelete: string[] = [];
       const filesToReprocess = [...changes.modified, ...changes.deleted];
 
-      for (const filePath of filesToReprocess) {
+      for (const _filePath of filesToReprocess) {
         try {
           // Read old file content to generate chunk IDs for deletion
           // We need to regenerate the chunks to get their IDs
           // For now, we'll use a simpler approach: delete based on file path
           // This requires keeping track of chunk IDs per file
-
           // Since we don't have a direct way to query by file path,
           // we'll mark these as needing deletion by filename pattern
           // For simplicity in Phase 2, we'll re-index everything
           // A future enhancement would be to maintain a chunk ID mapping
-        } catch (error) {
+        } catch (_error) {
           // File might be deleted, skip
         }
       }
@@ -474,14 +464,14 @@ export class CodeIndexer {
       for (const [index, filePath] of filesToIndex.entries()) {
         try {
           progressCallback?.({
-            phase: 'chunking',
+            phase: "chunking",
             current: index + 1,
             total: filesToIndex.length,
             percentage: Math.round(((index + 1) / filesToIndex.length) * 40),
             message: `Processing file ${index + 1}/${filesToIndex.length}`,
           });
 
-          const code = await fs.readFile(filePath, 'utf-8');
+          const code = await fs.readFile(filePath, "utf-8");
 
           // Check for secrets
           if (metadataExtractor.containsSecrets(code)) {
@@ -508,7 +498,7 @@ export class CodeIndexer {
         const batch = allChunks.slice(i, i + batchSize);
 
         progressCallback?.({
-          phase: 'embedding',
+          phase: "embedding",
           current: i + batch.length,
           total: allChunks.length,
           percentage: 40 + Math.round(((i + batch.length) / allChunks.length) * 30),
@@ -536,7 +526,7 @@ export class CodeIndexer {
         }));
 
         progressCallback?.({
-          phase: 'storing',
+          phase: "storing",
           current: i + batch.length,
           total: allChunks.length,
           percentage: 70 + Math.round(((i + batch.length) / allChunks.length) * 30),
@@ -582,7 +572,7 @@ export class CodeIndexer {
     try {
       const synchronizer = new FileSynchronizer(absolutePath, collectionName);
       await synchronizer.deleteSnapshot();
-    } catch (error) {
+    } catch (_error) {
       // Ignore snapshot deletion errors
     }
   }
@@ -592,7 +582,7 @@ export class CodeIndexer {
    */
   private getCollectionName(path: string): string {
     const absolutePath = resolve(path);
-    const hash = createHash('md5').update(absolutePath).digest('hex');
+    const hash = createHash("md5").update(absolutePath).digest("hex");
     return `code_${hash.substring(0, 8)}`;
   }
 }

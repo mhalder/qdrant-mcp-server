@@ -2,10 +2,10 @@
  * FileScanner - Discovers code files in a directory while respecting ignore patterns
  */
 
-import ignore, { Ignore } from 'ignore';
-import { promises as fs } from 'fs';
-import { join, relative, extname, resolve } from 'path';
-import { ScannerConfig } from './types.js';
+import { promises as fs } from "node:fs";
+import { extname, join, relative, resolve } from "node:path";
+import ignore, { type Ignore } from "ignore";
+import type { ScannerConfig } from "./types.js";
 
 export class FileScanner {
   private ig: Ignore = ignore();
@@ -19,15 +19,15 @@ export class FileScanner {
    * Load ignore patterns from .gitignore, .dockerignore, .npmignore, and .contextignore
    */
   async loadIgnorePatterns(rootPath: string): Promise<void> {
-    const ignoreFiles = ['.gitignore', '.dockerignore', '.npmignore', '.contextignore'];
+    const ignoreFiles = [".gitignore", ".dockerignore", ".npmignore", ".contextignore"];
 
     for (const ignoreFile of ignoreFiles) {
       const ignorePath = join(rootPath, ignoreFile);
       if (await this.fileExists(ignorePath)) {
         try {
-          const content = await fs.readFile(ignorePath, 'utf-8');
+          const content = await fs.readFile(ignorePath, "utf-8");
           this.ig.add(content);
-        } catch (error) {
+        } catch (_error) {
           // Silently skip if file can't be read
         }
       }
@@ -105,7 +105,7 @@ export class FileScanner {
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Skip directories that can't be read (permission errors, etc.)
     }
   }

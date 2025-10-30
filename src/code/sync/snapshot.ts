@@ -3,9 +3,9 @@
  * Stores file hashes and tree structure for incremental updates
  */
 
-import { promises as fs } from 'fs';
-import { dirname } from 'path';
-import { MerkleTree } from './merkle.js';
+import { promises as fs } from "node:fs";
+import { dirname } from "node:path";
+import { MerkleTree } from "./merkle.js";
 
 export interface Snapshot {
   codebasePath: string;
@@ -37,7 +37,7 @@ export class SnapshotManager {
 
     // Write snapshot atomically (write to temp file, then rename)
     const tempPath = `${this.snapshotPath}.tmp`;
-    await fs.writeFile(tempPath, JSON.stringify(snapshot, null, 2), 'utf-8');
+    await fs.writeFile(tempPath, JSON.stringify(snapshot, null, 2), "utf-8");
     await fs.rename(tempPath, this.snapshotPath);
   }
 
@@ -50,7 +50,7 @@ export class SnapshotManager {
     timestamp: number;
   } | null> {
     try {
-      const data = await fs.readFile(this.snapshotPath, 'utf-8');
+      const data = await fs.readFile(this.snapshotPath, "utf-8");
       const snapshot: Snapshot = JSON.parse(data);
 
       const fileHashes = new Map(Object.entries(snapshot.fileHashes));
@@ -61,7 +61,7 @@ export class SnapshotManager {
         tree,
         timestamp: snapshot.timestamp,
       };
-    } catch (error) {
+    } catch (_error) {
       // Snapshot doesn't exist or is corrupted
       return null;
     }

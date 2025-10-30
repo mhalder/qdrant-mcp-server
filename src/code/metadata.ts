@@ -2,10 +2,10 @@
  * MetadataExtractor - Extracts metadata from code chunks
  */
 
-import { createHash } from 'crypto';
-import { extname } from 'path';
-import { CodeChunk } from './types.js';
-import { LANGUAGE_MAP } from './config.js';
+import { createHash } from "node:crypto";
+import { extname } from "node:path";
+import { LANGUAGE_MAP } from "./config.js";
+import type { CodeChunk } from "./types.js";
 
 export class MetadataExtractor {
   /**
@@ -13,7 +13,7 @@ export class MetadataExtractor {
    */
   extractLanguage(filePath: string): string {
     const ext = extname(filePath);
-    return LANGUAGE_MAP[ext] || 'unknown';
+    return LANGUAGE_MAP[ext] || "unknown";
   }
 
   /**
@@ -23,7 +23,7 @@ export class MetadataExtractor {
   generateChunkId(chunk: CodeChunk): string {
     const { metadata, startLine, endLine, content } = chunk;
     const combined = `${metadata.filePath}:${startLine}:${endLine}:${content}`;
-    const hash = createHash('sha256').update(combined).digest('hex');
+    const hash = createHash("sha256").update(combined).digest("hex");
     return `chunk_${hash.substring(0, 16)}`;
   }
 
@@ -84,14 +84,17 @@ export class MetadataExtractor {
   /**
    * Extract imports/exports from code (basic regex-based)
    */
-  extractImportsExports(code: string, language: string): {
+  extractImportsExports(
+    code: string,
+    language: string
+  ): {
     imports: string[];
     exports: string[];
   } {
     const imports: string[] = [];
     const exports: string[] = [];
 
-    if (language === 'typescript' || language === 'javascript') {
+    if (language === "typescript" || language === "javascript") {
       // Extract imports
       const importMatches = code.matchAll(/import\s+.*?\s+from\s+['"]([^'"]+)['"]/g);
       for (const match of importMatches) {
@@ -99,11 +102,13 @@ export class MetadataExtractor {
       }
 
       // Extract exports
-      const exportMatches = code.matchAll(/export\s+(?:default\s+)?(?:class|function|const|let|var)\s+(\w+)/g);
+      const exportMatches = code.matchAll(
+        /export\s+(?:default\s+)?(?:class|function|const|let|var)\s+(\w+)/g
+      );
       for (const match of exportMatches) {
         exports.push(match[1]);
       }
-    } else if (language === 'python') {
+    } else if (language === "python") {
       // Extract imports
       const importMatches = code.matchAll(/(?:from\s+(\S+)\s+)?import\s+([^;\n]+)/g);
       for (const match of importMatches) {

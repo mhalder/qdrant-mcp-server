@@ -3,25 +3,19 @@
  * Primary chunking strategy for supported languages
  */
 
-import Parser from 'tree-sitter';
-// @ts-ignore - tree-sitter language modules don't have proper types
-import TypeScript from 'tree-sitter-typescript';
-// @ts-ignore
-import JavaScript from 'tree-sitter-javascript';
-// @ts-ignore
-import Python from 'tree-sitter-python';
-// @ts-ignore
-import Go from 'tree-sitter-go';
-// @ts-ignore
-import Rust from 'tree-sitter-rust';
-// @ts-ignore
-import Java from 'tree-sitter-java';
-// @ts-ignore
-import Bash from 'tree-sitter-bash';
+import Parser from "tree-sitter";
+// tree-sitter language modules don't have proper types
+import Bash from "tree-sitter-bash";
+import Go from "tree-sitter-go";
+import Java from "tree-sitter-java";
+import JavaScript from "tree-sitter-javascript";
+import Python from "tree-sitter-python";
+import Rust from "tree-sitter-rust";
+import TypeScript from "tree-sitter-typescript";
 
-import { CodeChunk, ChunkerConfig } from '../types.js';
-import { CodeChunker } from './base.js';
-import { CharacterChunker } from './character-chunker.js';
+import type { ChunkerConfig, CodeChunk } from "../types.js";
+import type { CodeChunker } from "./base.js";
+import { CharacterChunker } from "./character-chunker.js";
 
 interface LanguageConfig {
   parser: Parser;
@@ -41,93 +35,83 @@ export class TreeSitterChunker implements CodeChunker {
     // TypeScript
     const tsParser = new Parser();
     tsParser.setLanguage(TypeScript.typescript as any);
-    this.languages.set('typescript', {
+    this.languages.set("typescript", {
       parser: tsParser,
       chunkableTypes: [
-        'function_declaration',
-        'method_definition',
-        'class_declaration',
-        'interface_declaration',
-        'type_alias_declaration',
-        'enum_declaration',
+        "function_declaration",
+        "method_definition",
+        "class_declaration",
+        "interface_declaration",
+        "type_alias_declaration",
+        "enum_declaration",
       ],
     });
 
     // JavaScript
     const jsParser = new Parser();
     jsParser.setLanguage(JavaScript as any);
-    this.languages.set('javascript', {
+    this.languages.set("javascript", {
       parser: jsParser,
       chunkableTypes: [
-        'function_declaration',
-        'method_definition',
-        'class_declaration',
-        'export_statement',
+        "function_declaration",
+        "method_definition",
+        "class_declaration",
+        "export_statement",
       ],
     });
 
     // Python
     const pyParser = new Parser();
     pyParser.setLanguage(Python as any);
-    this.languages.set('python', {
+    this.languages.set("python", {
       parser: pyParser,
-      chunkableTypes: ['function_definition', 'class_definition', 'decorated_definition'],
+      chunkableTypes: ["function_definition", "class_definition", "decorated_definition"],
     });
 
     // Go
     const goParser = new Parser();
     goParser.setLanguage(Go as any);
-    this.languages.set('go', {
+    this.languages.set("go", {
       parser: goParser,
       chunkableTypes: [
-        'function_declaration',
-        'method_declaration',
-        'type_declaration',
-        'interface_declaration',
+        "function_declaration",
+        "method_declaration",
+        "type_declaration",
+        "interface_declaration",
       ],
     });
 
     // Rust
     const rustParser = new Parser();
     rustParser.setLanguage(Rust as any);
-    this.languages.set('rust', {
+    this.languages.set("rust", {
       parser: rustParser,
-      chunkableTypes: [
-        'function_item',
-        'impl_item',
-        'trait_item',
-        'struct_item',
-        'enum_item',
-      ],
+      chunkableTypes: ["function_item", "impl_item", "trait_item", "struct_item", "enum_item"],
     });
 
     // Java
     const javaParser = new Parser();
     javaParser.setLanguage(Java as any);
-    this.languages.set('java', {
+    this.languages.set("java", {
       parser: javaParser,
       chunkableTypes: [
-        'method_declaration',
-        'class_declaration',
-        'interface_declaration',
-        'enum_declaration',
+        "method_declaration",
+        "class_declaration",
+        "interface_declaration",
+        "enum_declaration",
       ],
     });
 
     // Bash
     const bashParser = new Parser();
     bashParser.setLanguage(Bash as any);
-    this.languages.set('bash', {
+    this.languages.set("bash", {
       parser: bashParser,
-      chunkableTypes: ['function_definition', 'command'],
+      chunkableTypes: ["function_definition", "command"],
     });
   }
 
-  async chunk(
-    code: string,
-    filePath: string,
-    language: string
-  ): Promise<CodeChunk[]> {
+  async chunk(code: string, filePath: string, language: string): Promise<CodeChunk[]> {
     const langConfig = this.languages.get(language);
 
     if (!langConfig) {
@@ -200,7 +184,7 @@ export class TreeSitterChunker implements CodeChunker {
   }
 
   getStrategyName(): string {
-    return 'tree-sitter';
+    return "tree-sitter";
   }
 
   /**
@@ -233,14 +217,14 @@ export class TreeSitterChunker implements CodeChunker {
    */
   private extractName(node: Parser.SyntaxNode, code: string): string | undefined {
     // Try to find name node
-    const nameNode = node.childForFieldName('name');
+    const nameNode = node.childForFieldName("name");
     if (nameNode) {
       return code.substring(nameNode.startIndex, nameNode.endIndex);
     }
 
     // For some node types, name might be in a different location
     for (const child of node.children) {
-      if (child.type === 'identifier' || child.type === 'type_identifier') {
+      if (child.type === "identifier" || child.type === "type_identifier") {
         return code.substring(child.startIndex, child.endIndex);
       }
     }
@@ -251,21 +235,16 @@ export class TreeSitterChunker implements CodeChunker {
   /**
    * Map AST node type to chunk type
    */
-  private getChunkType(
-    nodeType: string
-  ): 'function' | 'class' | 'interface' | 'block' {
-    if (
-      nodeType.includes('function') ||
-      nodeType.includes('method')
-    ) {
-      return 'function';
+  private getChunkType(nodeType: string): "function" | "class" | "interface" | "block" {
+    if (nodeType.includes("function") || nodeType.includes("method")) {
+      return "function";
     }
-    if (nodeType.includes('class') || nodeType.includes('struct')) {
-      return 'class';
+    if (nodeType.includes("class") || nodeType.includes("struct")) {
+      return "class";
     }
-    if (nodeType.includes('interface') || nodeType.includes('trait')) {
-      return 'interface';
+    if (nodeType.includes("interface") || nodeType.includes("trait")) {
+      return "interface";
     }
-    return 'block';
+    return "block";
   }
 }

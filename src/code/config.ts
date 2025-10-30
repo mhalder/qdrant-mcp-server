@@ -4,128 +4,150 @@
 
 export const DEFAULT_CODE_EXTENSIONS = [
   // TypeScript/JavaScript
-  '.ts', '.tsx', '.js', '.jsx',
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
   // Python
-  '.py',
+  ".py",
   // Go
-  '.go',
+  ".go",
   // Rust
-  '.rs',
+  ".rs",
   // Java/Kotlin
-  '.java', '.kt',
+  ".java",
+  ".kt",
   // C/C++
-  '.c', '.cpp', '.h', '.hpp', '.cc', '.cxx',
+  ".c",
+  ".cpp",
+  ".h",
+  ".hpp",
+  ".cc",
+  ".cxx",
   // C#
-  '.cs',
+  ".cs",
   // Ruby
-  '.rb',
+  ".rb",
   // PHP
-  '.php',
+  ".php",
   // Swift
-  '.swift',
+  ".swift",
   // Dart
-  '.dart',
+  ".dart",
   // Scala
-  '.scala',
+  ".scala",
   // Clojure
-  '.clj', '.cljs',
+  ".clj",
+  ".cljs",
   // Haskell
-  '.hs',
+  ".hs",
   // OCaml
-  '.ml',
+  ".ml",
   // Shell
-  '.sh', '.bash', '.zsh', '.fish',
+  ".sh",
+  ".bash",
+  ".zsh",
+  ".fish",
   // SQL/Data
-  '.sql', '.proto', '.graphql',
+  ".sql",
+  ".proto",
+  ".graphql",
   // Web
-  '.vue', '.svelte',
+  ".vue",
+  ".svelte",
   // Config/Markup
-  '.md', '.markdown', '.json', '.yaml', '.yml', '.toml', '.xml',
+  ".md",
+  ".markdown",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".xml",
 ];
 
 export const DEFAULT_IGNORE_PATTERNS = [
-  'node_modules/**',
-  'dist/**',
-  'build/**',
-  'out/**',
-  'target/**',
-  'coverage/**',
-  '.nyc_output/**',
-  '.cache/**',
-  '__pycache__/**',
-  '.git/**',
-  '.svn/**',
-  '.hg/**',
-  '.vscode/**',
-  '.idea/**',
-  '*.min.js',
-  '*.min.css',
-  '*.bundle.js',
-  '*.map',
-  '*.log',
-  '.env',
-  '.env.*',
+  "node_modules/**",
+  "dist/**",
+  "build/**",
+  "out/**",
+  "target/**",
+  "coverage/**",
+  ".nyc_output/**",
+  ".cache/**",
+  "__pycache__/**",
+  ".git/**",
+  ".svn/**",
+  ".hg/**",
+  ".vscode/**",
+  ".idea/**",
+  "*.min.js",
+  "*.min.css",
+  "*.bundle.js",
+  "*.map",
+  "*.log",
+  ".env",
+  ".env.*",
 ];
 
 export const LANGUAGE_MAP: Record<string, string> = {
   // TypeScript/JavaScript
-  '.ts': 'typescript',
-  '.tsx': 'typescript',
-  '.js': 'javascript',
-  '.jsx': 'javascript',
+  ".ts": "typescript",
+  ".tsx": "typescript",
+  ".js": "javascript",
+  ".jsx": "javascript",
 
   // Backend languages
-  '.py': 'python',
-  '.java': 'java',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.rb': 'ruby',
-  '.php': 'php',
+  ".py": "python",
+  ".java": "java",
+  ".go": "go",
+  ".rs": "rust",
+  ".rb": "ruby",
+  ".php": "php",
 
   // Systems languages
-  '.c': 'c',
-  '.cpp': 'cpp',
-  '.cc': 'cpp',
-  '.cxx': 'cpp',
-  '.h': 'c',
-  '.hpp': 'cpp',
-  '.cs': 'c_sharp',
+  ".c": "c",
+  ".cpp": "cpp",
+  ".cc": "cpp",
+  ".cxx": "cpp",
+  ".h": "c",
+  ".hpp": "cpp",
+  ".cs": "c_sharp",
 
   // Mobile
-  '.swift': 'swift',
-  '.kt': 'kotlin',
-  '.dart': 'dart',
+  ".swift": "swift",
+  ".kt": "kotlin",
+  ".dart": "dart",
 
   // Functional
-  '.scala': 'scala',
-  '.clj': 'clojure',
-  '.cljs': 'clojure',
-  '.hs': 'haskell',
-  '.ml': 'ocaml',
+  ".scala": "scala",
+  ".clj": "clojure",
+  ".cljs": "clojure",
+  ".hs": "haskell",
+  ".ml": "ocaml",
 
   // Scripting
-  '.sh': 'bash',
-  '.bash': 'bash',
-  '.zsh': 'bash',
-  '.fish': 'fish',
+  ".sh": "bash",
+  ".bash": "bash",
+  ".zsh": "bash",
+  ".fish": "fish",
 
   // Data/Query
-  '.sql': 'sql',
-  '.proto': 'proto',
-  '.graphql': 'graphql',
+  ".sql": "sql",
+  ".proto": "proto",
+  ".graphql": "graphql",
 
   // Markup/Config
-  '.md': 'markdown',
-  '.markdown': 'markdown',
-  '.json': 'json',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.toml': 'toml',
-  '.xml': 'xml',
+  ".md": "markdown",
+  ".markdown": "markdown",
+  ".json": "json",
+  ".yaml": "yaml",
+  ".yml": "yaml",
+  ".toml": "toml",
+  ".xml": "xml",
 
   // Web
-  '.vue': 'vue',
-  '.svelte': 'svelte',
+  ".vue": "vue",
+  ".svelte": "svelte",
 };
 
 export const DEFAULT_CHUNK_SIZE = 2500;

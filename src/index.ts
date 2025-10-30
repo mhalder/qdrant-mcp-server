@@ -17,21 +17,21 @@ import {
 import Bottleneck from "bottleneck";
 import express from "express";
 import { z } from "zod";
+import {
+  DEFAULT_BATCH_SIZE,
+  DEFAULT_CHUNK_OVERLAP,
+  DEFAULT_CHUNK_SIZE,
+  DEFAULT_CODE_EXTENSIONS,
+  DEFAULT_IGNORE_PATTERNS,
+  DEFAULT_SEARCH_LIMIT,
+} from "./code/config.js";
+import { CodeIndexer } from "./code/indexer.js";
+import type { CodeConfig } from "./code/types.js";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { BM25SparseVectorGenerator } from "./embeddings/sparse.js";
 import { getPrompt, listPrompts, loadPromptsConfig, type PromptsConfig } from "./prompts/index.js";
 import { renderTemplate, validateArguments } from "./prompts/template.js";
 import { QdrantManager } from "./qdrant/client.js";
-import { CodeIndexer } from "./code/indexer.js";
-import {
-  DEFAULT_CODE_EXTENSIONS,
-  DEFAULT_IGNORE_PATTERNS,
-  DEFAULT_CHUNK_SIZE,
-  DEFAULT_CHUNK_OVERLAP,
-  DEFAULT_BATCH_SIZE,
-  DEFAULT_SEARCH_LIMIT,
-} from "./code/config.js";
-import type { CodeConfig } from "./code/types.js";
 
 // Read package.json for version
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -745,9 +745,7 @@ function registerHandlers(server: Server) {
             { forceReindex, extensions, ignorePatterns },
             (progress) => {
               // Progress callback - could send progress updates via SSE in future
-              console.error(
-                `[${progress.phase}] ${progress.percentage}% - ${progress.message}`
-              );
+              console.error(`[${progress.phase}] ${progress.percentage}% - ${progress.message}`);
             }
           );
 
@@ -866,11 +864,7 @@ function registerHandlers(server: Server) {
           message += `- Chunks added: ${stats.chunksAdded}\n`;
           message += `- Duration: ${(stats.durationMs / 1000).toFixed(1)}s`;
 
-          if (
-            stats.filesAdded === 0 &&
-            stats.filesModified === 0 &&
-            stats.filesDeleted === 0
-          ) {
+          if (stats.filesAdded === 0 && stats.filesModified === 0 && stats.filesDeleted === 0) {
             message = `No changes detected. Codebase is up to date.`;
           }
 

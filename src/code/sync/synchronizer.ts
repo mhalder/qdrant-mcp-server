@@ -3,13 +3,13 @@
  * Detects file changes and updates snapshots
  */
 
-import { promises as fs } from 'fs';
-import { createHash } from 'crypto';
-import { join, dirname } from 'path';
-import { homedir } from 'os';
-import { MerkleTree } from './merkle.js';
-import { SnapshotManager } from './snapshot.js';
-import { FileChanges } from '../types.js';
+import { createHash } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import type { FileChanges } from "../types.js";
+import { MerkleTree } from "./merkle.js";
+import { SnapshotManager } from "./snapshot.js";
 
 export class FileSynchronizer {
   private snapshotManager: SnapshotManager;
@@ -18,10 +18,10 @@ export class FileSynchronizer {
 
   constructor(
     private codebasePath: string,
-    private collectionName: string
+    collectionName: string
   ) {
     // Store snapshots in ~/.qdrant-mcp/snapshots/
-    const snapshotDir = join(homedir(), '.qdrant-mcp', 'snapshots');
+    const snapshotDir = join(homedir(), ".qdrant-mcp", "snapshots");
     const snapshotPath = join(snapshotDir, `${collectionName}.json`);
     this.snapshotManager = new SnapshotManager(snapshotPath);
   }
@@ -46,11 +46,11 @@ export class FileSynchronizer {
    */
   private async hashFile(filePath: string): Promise<string> {
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      return createHash('sha256').update(content).digest('hex');
-    } catch (error) {
+      const content = await fs.readFile(filePath, "utf-8");
+      return createHash("sha256").update(content).digest("hex");
+    } catch (_error) {
       // If file can't be read, return empty hash
-      return '';
+      return "";
     }
   }
 

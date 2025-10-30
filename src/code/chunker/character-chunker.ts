@@ -3,28 +3,24 @@
  * Used as fallback when AST parsing is not available
  */
 
-import { CodeChunk, ChunkerConfig } from '../types.js';
-import { CodeChunker } from './base.js';
+import type { ChunkerConfig, CodeChunk } from "../types.js";
+import type { CodeChunker } from "./base.js";
 
 export class CharacterChunker implements CodeChunker {
   constructor(private config: ChunkerConfig) {}
 
-  async chunk(
-    code: string,
-    filePath: string,
-    language: string
-  ): Promise<CodeChunk[]> {
+  async chunk(code: string, filePath: string, language: string): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
-    const lines = code.split('\n');
+    const lines = code.split("\n");
 
-    let currentChunk = '';
+    let currentChunk = "";
     let currentStartLine = 1;
     let currentLineCount = 0;
     let chunkIndex = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      currentChunk += line + '\n';
+      currentChunk += `${line}\n`;
       currentLineCount++;
 
       // Check if we've reached chunk size
@@ -35,7 +31,7 @@ export class CharacterChunker implements CodeChunker {
         if (breakPoint > i && breakPoint - i < 20) {
           // Include lines up to break point
           for (let j = i + 1; j <= breakPoint && j < lines.length; j++) {
-            currentChunk += lines[j] + '\n';
+            currentChunk += `${lines[j]}\n`;
             currentLineCount++;
             i = j;
           }
@@ -50,7 +46,7 @@ export class CharacterChunker implements CodeChunker {
             filePath,
             language,
             chunkIndex,
-            chunkType: 'block',
+            chunkType: "block",
           },
         });
 
@@ -58,10 +54,10 @@ export class CharacterChunker implements CodeChunker {
 
         // Calculate overlap
         const overlapLines = this.calculateOverlapLines(currentLineCount);
-        const overlapStart = Math.max(0, currentLineCount - overlapLines);
+        const _overlapStart = Math.max(0, currentLineCount - overlapLines);
 
         // Start new chunk with overlap
-        currentChunk = lines.slice(i - overlapLines + 1, i + 1).join('\n') + '\n';
+        currentChunk = `${lines.slice(i - overlapLines + 1, i + 1).join("\n")}\n`;
         currentStartLine = currentStartLine + currentLineCount - overlapLines;
         currentLineCount = overlapLines;
       }
@@ -77,7 +73,7 @@ export class CharacterChunker implements CodeChunker {
           filePath,
           language,
           chunkIndex,
-          chunkType: 'block',
+          chunkType: "block",
         },
       });
     }
@@ -85,13 +81,13 @@ export class CharacterChunker implements CodeChunker {
     return chunks;
   }
 
-  supportsLanguage(language: string): boolean {
+  supportsLanguage(_language: string): boolean {
     // Character chunker supports all languages
     return true;
   }
 
   getStrategyName(): string {
-    return 'character-based';
+    return "character-based";
   }
 
   /**
@@ -101,16 +97,16 @@ export class CharacterChunker implements CodeChunker {
     const searchWindow = Math.min(20, lines.length - startIdx);
 
     for (let i = 0; i < searchWindow; i++) {
-      const line = lines[startIdx + i]?.trim() || '';
+      const line = lines[startIdx + i]?.trim() || "";
 
       // Good break points
       if (
-        line === '' ||
-        line === '}' ||
-        line === '};' ||
-        line === ']);' ||
-        line.startsWith('//') ||
-        line.startsWith('#')
+        line === "" ||
+        line === "}" ||
+        line === "};" ||
+        line === "]);" ||
+        line.startsWith("//") ||
+        line.startsWith("#")
       ) {
         return startIdx + i;
       }
