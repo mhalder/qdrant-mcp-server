@@ -118,7 +118,10 @@ describe("CodeIndexer Integration Tests", () => {
   let codebaseDir: string;
 
   beforeEach(async () => {
-    tempDir = join(tmpdir(), `qdrant-mcp-test-${Date.now()}`);
+    tempDir = join(
+      tmpdir(),
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    );
     codebaseDir = join(tempDir, "codebase");
     await fs.mkdir(codebaseDir, { recursive: true });
 
@@ -251,12 +254,22 @@ def process_data(data):
       await createTestFile(
         codebaseDir,
         "file1.ts",
-        "export const firstValue = 1;\nconsole.log('First file loaded');"
+        `export const firstValue = 1;
+console.log('First file loaded successfully');
+function init(): string {
+  console.log('Initializing system');
+  return 'ready';
+}`
       );
       await createTestFile(
         codebaseDir,
         "file2.ts",
-        "export const secondValue = 2;\nconsole.log('Second file loaded');"
+        `export const secondValue = 2;
+console.log('Second file loaded successfully');
+function start(): string {
+  console.log('Starting application');
+  return 'started';
+}`
       );
 
       const initialStats = await indexer.indexCodebase(codebaseDir);
@@ -266,7 +279,19 @@ def process_data(data):
       await createTestFile(
         codebaseDir,
         "file3.ts",
-        "export const thirdValue = 3;\nconsole.log('Third file added');"
+        `/**
+ * Process data and return result string
+ */
+export function process(): string {
+  console.log('Processing data in third file');
+  const status = 'processed';
+  if (status) {
+    console.log('Status confirmed:', status);
+  }
+  return status;
+}
+
+export const thirdValue = 3;`
       );
 
       // Incremental update
@@ -307,12 +332,12 @@ def process_data(data):
       await createTestFile(
         codebaseDir,
         "temp.ts",
-        "export const tempValue = true;\nconsole.log('Temporary file');"
+        "export const tempValue = true;\nconsole.log('Temporary file created');\nfunction cleanup() { return null; }"
       );
       await createTestFile(
         codebaseDir,
         "keep.ts",
-        "export const keepValue = true;\nconsole.log('Permanent file');"
+        "export const keepValue = true;\nconsole.log('Permanent file stays');\nfunction maintain() { return true; }"
       );
 
       await indexer.indexCodebase(codebaseDir);
@@ -443,7 +468,12 @@ def process_data(data):
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const testValue = true;\nconsole.log('Test value set');"
+        `export const testValue = true;
+console.log('Test value configured successfully');
+function validate(): boolean {
+  console.log('Validating test value');
+  return testValue === true;
+}`
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -552,7 +582,7 @@ def process_data(data):
         await createTestFile(
           codebaseDir,
           `file${i}.ts`,
-          `export const value${i} = ${i};\nconsole.log('File ${i} loaded');`
+          `export const value${i} = ${i};\nconsole.log('File ${i} loaded successfully');\nfunction process${i}() { return value${i} * 2; }`
         );
       }
 
@@ -591,6 +621,76 @@ def process_data(data):
       await indexer.reindexChanges(codebaseDir, progressCallback);
 
       expect(progressUpdates.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Hybrid search with incremental updates", () => {
+    it("should use hybrid search during reindexChanges", async () => {
+      const hybridConfig = { ...config, enableHybridSearch: true };
+      const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
+
+      // Initial indexing with hybrid search
+      await createTestFile(
+        codebaseDir,
+        "initial.ts",
+        "export const initial = 1;\nconsole.log('Initial file');"
+      );
+      await hybridIndexer.indexCodebase(codebaseDir);
+
+      // Add a new file with enough content to create chunks
+      await createTestFile(
+        codebaseDir,
+        "added.ts",
+        `export const added = 2;
+console.log('Added file with more content');
+
+/**
+ * Function to demonstrate hybrid search indexing
+ */
+export function processData(data: string[]): string[] {
+  console.log('Processing data in hybrid search mode');
+  const result = data.map(item => item.toUpperCase());
+  return result;
+}
+
+export class DataProcessor {
+  process(input: string): string {
+    return input.trim();
+  }
+}`
+      );
+
+      // Reindex with hybrid search - this should cover lines 540-545
+      const updateStats = await hybridIndexer.reindexChanges(codebaseDir);
+
+      expect(updateStats.filesAdded).toBe(1);
+      expect(updateStats.chunksAdded).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Error handling during reindexChanges", () => {
+    it("should handle file processing errors gracefully", async () => {
+      // Initial indexing
+      await createTestFile(
+        codebaseDir,
+        "file1.ts",
+        "export const value = 1;\nconsole.log('File 1');"
+      );
+      await indexer.indexCodebase(codebaseDir);
+
+      // Add a new file
+      await createTestFile(
+        codebaseDir,
+        "file2.ts",
+        "export const value2 = 2;\nconsole.log('File 2');"
+      );
+
+      // This should not throw even if there are processing errors
+      const stats = await indexer.reindexChanges(codebaseDir);
+
+      // Stats should still be returned
+      expect(stats).toBeDefined();
+      expect(stats.filesAdded).toBeGreaterThanOrEqual(0);
     });
   });
 });

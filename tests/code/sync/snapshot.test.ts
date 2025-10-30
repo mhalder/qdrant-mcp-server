@@ -12,7 +12,10 @@ describe("SnapshotManager", () => {
 
   beforeEach(async () => {
     // Create a temporary directory for test snapshots
-    tempDir = join(tmpdir(), `qdrant-mcp-test-${Date.now()}`);
+    tempDir = join(
+      tmpdir(),
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    );
     await fs.mkdir(tempDir, { recursive: true });
 
     collectionName = "test-collection";

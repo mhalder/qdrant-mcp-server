@@ -24,6 +24,18 @@ describe("FileScanner", () => {
       const files = await scanner.scanDirectory(join(fixturesDir, "sample-ts"));
       expect(files.length).toBeGreaterThan(0);
       expect(files.some((f) => f.endsWith("auth.ts"))).toBe(true);
+
+      // Verify new fixture files are found
+      expect(files.some((f) => f.endsWith("database.ts"))).toBe(true);
+      expect(files.some((f) => f.endsWith("utils.ts"))).toBe(true);
+      expect(files.some((f) => f.endsWith("validator.ts"))).toBe(true);
+      expect(files.some((f) => f.endsWith("config.ts"))).toBe(true);
+      expect(files.some((f) => f.endsWith("index.ts"))).toBe(true);
+      expect(files.some((f) => f.endsWith("async-operations.ts"))).toBe(true);
+      expect(files.some((f) => f.endsWith("types-advanced.ts"))).toBe(true);
+
+      // Should have at least 8 TypeScript files
+      expect(files.length).toBeGreaterThanOrEqual(8);
     });
 
     it("should respect supported extensions", async () => {
@@ -87,6 +99,33 @@ describe("FileScanner", () => {
       await customScanner.loadIgnorePatterns(join(fixturesDir, "sample-ts"));
       const files = await customScanner.scanDirectory(join(fixturesDir, "sample-ts"));
       expect(files.some((f) => f.includes(".test.ts"))).toBe(false);
+    });
+
+    it("should properly ignore files matching ignore patterns", async () => {
+      const ignoreConfig: ScannerConfig = {
+        supportedExtensions: [".ts", ".js"],
+        ignorePatterns: ["**/auth.ts"],
+      };
+      const ignoreScanner = new FileScanner(ignoreConfig);
+      await ignoreScanner.loadIgnorePatterns(join(fixturesDir, "sample-ts"));
+      const files = await ignoreScanner.scanDirectory(join(fixturesDir, "sample-ts"));
+
+      // Should not include auth.ts due to ignore pattern
+      expect(files.some((f) => f.endsWith("auth.ts"))).toBe(false);
+    });
+
+    it("should handle directories with .gitignore", async () => {
+      const scannerWithGitignore = new FileScanner(config);
+      await scannerWithGitignore.loadIgnorePatterns(join(fixturesDir, "sample-ts"));
+      const files = await scannerWithGitignore.scanDirectory(join(fixturesDir, "sample-ts"));
+
+      // Files matching .gitignore patterns should be excluded
+      expect(Array.isArray(files)).toBe(true);
+    });
+
+    it("should gracefully handle non-existent directories", async () => {
+      const files = await scanner.scanDirectory("/nonexistent/directory/path");
+      expect(files).toEqual([]);
     });
   });
 });

@@ -4,7 +4,7 @@
 
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
-import { extname, relative, resolve } from "node:path";
+import { extname, join, relative, resolve } from "node:path";
 import type { EmbeddingProvider } from "../embeddings/base.js";
 import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
 import type { QdrantManager } from "../qdrant/client.js";
@@ -473,15 +473,16 @@ export class CodeIndexer {
             message: `Processing file ${index + 1}/${filesToIndex.length}`,
           });
 
-          const code = await fs.readFile(filePath, "utf-8");
+          const absoluteFilePath = join(absolutePath, filePath);
+          const code = await fs.readFile(absoluteFilePath, "utf-8");
 
           // Check for secrets
           if (metadataExtractor.containsSecrets(code)) {
             continue;
           }
 
-          const language = metadataExtractor.extractLanguage(filePath);
-          const chunks = await chunker.chunk(code, filePath, language);
+          const language = metadataExtractor.extractLanguage(absoluteFilePath);
+          const chunks = await chunker.chunk(code, absoluteFilePath, language);
 
           for (const chunk of chunks) {
             const id = metadataExtractor.generateChunkId(chunk);

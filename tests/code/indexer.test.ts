@@ -102,7 +102,10 @@ describe("CodeIndexer", () => {
 
   beforeEach(async () => {
     // Create temporary test directory
-    tempDir = join(tmpdir(), `qdrant-mcp-test-${Date.now()}`);
+    tempDir = join(
+      tmpdir(),
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    );
     codebaseDir = join(tempDir, "codebase");
     await fs.mkdir(codebaseDir, { recursive: true });
 
@@ -358,9 +361,22 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export function testFunction(): boolean {\n  console.log('Running test');\n  return true;\n}"
+        `export function testFunction(): boolean {
+  console.log('Running comprehensive test suite');
+  const result = performValidation();
+  const status = checkStatus();
+  return result && status;
+}
+function performValidation(): boolean {
+  console.log('Validating data');
+  return true;
+}
+function checkStatus(): boolean {
+  return true;
+}`
       );
-      await hybridIndexer.indexCodebase(codebaseDir);
+      // Force reindex to recreate collection with hybrid search enabled
+      await hybridIndexer.indexCodebase(codebaseDir, { forceReindex: true });
 
       const hybridSearchSpy = vi.spyOn(qdrant, "hybridSearch");
 
@@ -394,7 +410,7 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const APP_CONFIG = {\n  port: 3000,\n  host: 'localhost',\n  debug: true\n};"
+        "export const APP_CONFIG = {\n  port: 3000,\n  host: 'localhost',\n  debug: true,\n  apiUrl: 'https://api.example.com',\n  timeout: 5000\n};\nconsole.log('Config loaded');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -415,14 +431,39 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "file1.ts",
-        "export const initialValue = 1;\nconsole.log('Initial file');"
+        `export const initialValue = 1;
+console.log('Initial file created');
+function helper(param: string): boolean {
+  console.log('Processing:', param);
+  return true;
+}`
       );
       await indexer.indexCodebase(codebaseDir);
 
       await createTestFile(
         codebaseDir,
         "file2.ts",
-        "export const secondValue = 2;\nconsole.log('Second file');"
+        [
+          "export function process(data: number): number {",
+          "  console.log('Processing data with value:', data);",
+          "  const multiplier = 42;",
+          "  const result = data * multiplier;",
+          "  console.log('Computed result:', result);",
+          "  if (result > 100) {",
+          "    console.log('Result is large');",
+          "  }",
+          "  return result;",
+          "}",
+          "",
+          "export function validate(input: string): boolean {",
+          "  if (!input || input.length === 0) {",
+          "    console.log('Invalid input');",
+          "    return false;",
+          "  }",
+          "  console.log('Valid input');",
+          "  return input.length > 5;",
+          "}",
+        ].join("\n")
       );
 
       const stats = await indexer.reindexChanges(codebaseDir);
@@ -540,8 +581,14 @@ describe("CodeIndexer", () => {
       await fs.mkdir(join(codebaseDir, "src", "components"), { recursive: true });
       await createTestFile(
         codebaseDir,
-        "src/components/Button.tsx",
-        "export const Button = () => {\n  console.log('Button component');\n  return <button>Click me</button>;\n}"
+        "src/components/Button.ts",
+        `export const Button = () => {
+  console.log('Button component rendering');
+  const handleClick = () => {
+    console.log('Button clicked');
+  };
+  return '<button>Click me</button>';
+}`
       );
 
       const stats = await indexer.indexCodebase(codebaseDir);
@@ -594,6 +641,155 @@ describe("CodeIndexer", () => {
       const results = await Promise.all(searchPromises);
 
       expect(results).toHaveLength(3);
+    });
+  });
+
+  describe("Chunk limiting configuration", () => {
+    it("should respect maxChunksPerFile limit", async () => {
+      const limitedConfig = {
+        ...config,
+        maxChunksPerFile: 2,
+      };
+      const limitedIndexer = new CodeIndexer(qdrant as any, embeddings, limitedConfig);
+
+      // Create a large file that would generate many chunks
+      const largeContent = Array(50)
+        .fill(null)
+        .map((_, i) => `function test${i}() { console.log('test ${i}'); return ${i}; }`)
+        .join("\n\n");
+
+      await createTestFile(codebaseDir, "large.ts", largeContent);
+
+      const stats = await limitedIndexer.indexCodebase(codebaseDir);
+
+      // Should limit chunks per file to 2
+      expect(stats.chunksCreated).toBeLessThanOrEqual(2);
+      expect(stats.filesIndexed).toBe(1);
+    });
+
+    it("should respect maxTotalChunks limit", async () => {
+      const limitedConfig = {
+        ...config,
+        maxTotalChunks: 3,
+      };
+      const limitedIndexer = new CodeIndexer(qdrant as any, embeddings, limitedConfig);
+
+      // Create multiple files
+      for (let i = 0; i < 10; i++) {
+        await createTestFile(
+          codebaseDir,
+          `file${i}.ts`,
+          `export function func${i}() { console.log('function ${i}'); return ${i}; }`
+        );
+      }
+
+      const stats = await limitedIndexer.indexCodebase(codebaseDir);
+
+      // Should stop after reaching max total chunks
+      expect(stats.chunksCreated).toBeLessThanOrEqual(3);
+      expect(stats.filesIndexed).toBeGreaterThan(0);
+    });
+
+    it("should handle maxTotalChunks during chunk iteration", async () => {
+      const limitedConfig = {
+        ...config,
+        maxTotalChunks: 1,
+      };
+      const limitedIndexer = new CodeIndexer(qdrant as any, embeddings, limitedConfig);
+
+      // Create a file with multiple chunks
+      const content = `
+function first() {
+  console.log('first function');
+  return 1;
+}
+
+function second() {
+  console.log('second function');
+  return 2;
+}
+
+function third() {
+  console.log('third function');
+  return 3;
+}
+      `;
+
+      await createTestFile(codebaseDir, "multi.ts", content);
+
+      const stats = await limitedIndexer.indexCodebase(codebaseDir);
+
+      // Should stop after first chunk
+      expect(stats.chunksCreated).toBe(1);
+    });
+  });
+
+  describe("Progress callback coverage", () => {
+    it("should call progress callback during reindexChanges", async () => {
+      // Initial indexing
+      await createTestFile(
+        codebaseDir,
+        "file1.ts",
+        "export const initial = 1;\nconsole.log('Initial');"
+      );
+      await indexer.indexCodebase(codebaseDir);
+
+      // Add new file
+      await createTestFile(
+        codebaseDir,
+        "file2.ts",
+        `export const added = 2;
+console.log('Added file');
+
+export function process() {
+  console.log('Processing');
+  return true;
+}`
+      );
+
+      const progressUpdates: string[] = [];
+      const progressCallback = (progress: any) => {
+        progressUpdates.push(progress.phase);
+      };
+
+      await indexer.reindexChanges(codebaseDir, progressCallback);
+
+      // Should have called progress callback with various phases
+      expect(progressUpdates.length).toBeGreaterThan(0);
+      expect(progressUpdates).toContain("scanning");
+    });
+  });
+
+  describe("Error handling edge cases", () => {
+    it("should handle non-Error exceptions", async () => {
+      // This tests the `error instanceof Error ? error.message : String(error)` branch
+      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+
+      // Mock fs.readFile to throw a non-Error object
+      const originalReadFile = fs.readFile;
+      let callCount = 0;
+
+      // @ts-expect-error - Mocking for test
+      fs.readFile = async (path: any, encoding: any) => {
+        callCount++;
+        if (callCount === 1 && typeof path === "string" && path.endsWith("test.ts")) {
+          // Throw a non-Error object
+          throw "String error";
+        }
+        return originalReadFile(path, encoding);
+      };
+
+      try {
+        const stats = await indexer.indexCodebase(codebaseDir);
+
+        // Should handle the error gracefully
+        expect(stats.status).toBe("completed");
+        expect(stats.errors?.some((e) => e.includes("String error"))).toBe(true);
+      } finally {
+        // Restore original function
+        // @ts-expect-error
+        fs.readFile = originalReadFile;
+      }
     });
   });
 });

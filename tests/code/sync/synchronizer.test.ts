@@ -12,7 +12,10 @@ describe("FileSynchronizer", () => {
 
   beforeEach(async () => {
     // Create temporary directories for testing
-    tempDir = join(tmpdir(), `qdrant-mcp-test-${Date.now()}`);
+    tempDir = join(
+      tmpdir(),
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
+    );
     codebaseDir = join(tempDir, "codebase");
     await fs.mkdir(codebaseDir, { recursive: true });
 
@@ -403,6 +406,88 @@ describe("FileSynchronizer", () => {
       const changes = await synchronizer.detectChanges(["file.ts"]);
 
       expect(changes.modified).toEqual(["file.ts"]);
+    });
+  });
+
+  describe("getSnapshotAge", () => {
+    it("should return snapshot age in milliseconds", async () => {
+      await createFile(codebaseDir, "file.ts", "content");
+      await synchronizer.updateSnapshot(["file.ts"]);
+
+      // Wait a bit to ensure some time passes
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const age = await synchronizer.getSnapshotAge();
+
+      expect(age).not.toBeNull();
+      expect(age).toBeGreaterThanOrEqual(10);
+    });
+
+    it("should return null when no snapshot exists", async () => {
+      const age = await synchronizer.getSnapshotAge();
+
+      expect(age).toBeNull();
+    });
+
+    it("should return age after snapshot creation", async () => {
+      await createFile(codebaseDir, "file.ts", "content");
+      await synchronizer.updateSnapshot(["file.ts"]);
+
+      const age = await synchronizer.getSnapshotAge();
+
+      expect(age).not.toBeNull();
+      expect(age).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe("needsReindex", () => {
+    it("should return true when no previous tree exists", async () => {
+      await createFile(codebaseDir, "file.ts", "content");
+
+      const needsReindex = await synchronizer.needsReindex(["file.ts"]);
+
+      expect(needsReindex).toBe(true);
+    });
+
+    it("should return false when files are unchanged", async () => {
+      await createFile(codebaseDir, "file.ts", "content");
+      await synchronizer.updateSnapshot(["file.ts"]);
+
+      const needsReindex = await synchronizer.needsReindex(["file.ts"]);
+
+      expect(needsReindex).toBe(false);
+    });
+
+    it("should return true when files have changed", async () => {
+      await createFile(codebaseDir, "file.ts", "original content");
+      await synchronizer.updateSnapshot(["file.ts"]);
+
+      await createFile(codebaseDir, "file.ts", "modified content");
+
+      const needsReindex = await synchronizer.needsReindex(["file.ts"]);
+
+      expect(needsReindex).toBe(true);
+    });
+
+    it("should return true when files are added", async () => {
+      await createFile(codebaseDir, "file1.ts", "content1");
+      await synchronizer.updateSnapshot(["file1.ts"]);
+
+      await createFile(codebaseDir, "file2.ts", "content2");
+
+      const needsReindex = await synchronizer.needsReindex(["file1.ts", "file2.ts"]);
+
+      expect(needsReindex).toBe(true);
+    });
+
+    it("should return true when files are deleted", async () => {
+      await createFile(codebaseDir, "file1.ts", "content1");
+      await createFile(codebaseDir, "file2.ts", "content2");
+      await synchronizer.updateSnapshot(["file1.ts", "file2.ts"]);
+
+      const needsReindex = await synchronizer.needsReindex(["file1.ts"]);
+
+      expect(needsReindex).toBe(true);
     });
   });
 });
