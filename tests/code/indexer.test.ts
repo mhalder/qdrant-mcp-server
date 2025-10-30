@@ -542,6 +542,27 @@ function helper(param: string): boolean {
     });
   });
 
+  describe("path validation", () => {
+    it("should handle non-existent paths gracefully", async () => {
+      // Create a path that doesn't exist yet
+      const nonExistentDir = join(codebaseDir, "non-existent-dir");
+
+      // Should not throw error, validatePath falls back to absolute path
+      // and scanner finds 0 files
+      const stats = await indexer.indexCodebase(nonExistentDir);
+      expect(stats.filesScanned).toBe(0);
+      expect(stats.status).toBe("completed");
+    });
+
+    it("should resolve real paths for existing directories", async () => {
+      await createTestFile(codebaseDir, "test.ts", "export const test = true;");
+
+      // Should successfully index with real path
+      const stats = await indexer.indexCodebase(codebaseDir);
+      expect(stats.filesScanned).toBeGreaterThan(0);
+    });
+  });
+
   describe("clearIndex", () => {
     it("should clear indexed codebase", async () => {
       await createTestFile(
