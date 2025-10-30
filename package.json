@@ -32,6 +32,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "overrides": {
+    "tree-sitter": "^0.25.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@qdrant/js-client-rest": "^1.12.0",
