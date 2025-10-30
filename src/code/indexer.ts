@@ -7,6 +7,7 @@ import { relative, extname, resolve } from 'path';
 import { createHash } from 'crypto';
 import { QdrantManager } from '../qdrant/client.js';
 import { EmbeddingProvider } from '../embeddings/base.js';
+import { BM25SparseVectorGenerator } from '../embeddings/sparse.js';
 import { FileScanner } from './scanner.js';
 import { TreeSitterChunker } from './chunker/tree-sitter-chunker.js';
 import { MetadataExtractor } from './metadata.js';
@@ -209,7 +210,31 @@ export class CodeIndexer {
             message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
           });
 
-          await this.qdrant.addPoints(collectionName, points);
+          if (this.config.enableHybridSearch) {
+            // Generate sparse vectors for hybrid search
+            const sparseGenerator = new BM25SparseVectorGenerator();
+            const hybridPoints = batch.map((b, idx) => ({
+              id: b.id,
+              vector: embeddings[idx].embedding,
+              sparseVector: sparseGenerator.generate(b.chunk.content),
+              payload: {
+                content: b.chunk.content,
+                relativePath: relative(absolutePath, b.chunk.metadata.filePath),
+                startLine: b.chunk.startLine,
+                endLine: b.chunk.endLine,
+                fileExtension: extname(b.chunk.metadata.filePath),
+                language: b.chunk.metadata.language,
+                codebasePath: absolutePath,
+                chunkIndex: b.chunk.metadata.chunkIndex,
+                ...(b.chunk.metadata.name && { name: b.chunk.metadata.name }),
+                ...(b.chunk.metadata.chunkType && { chunkType: b.chunk.metadata.chunkType }),
+              },
+            }));
+
+            await this.qdrant.addPointsWithSparse(collectionName, hybridPoints);
+          } else {
+            await this.qdrant.addPoints(collectionName, points);
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           stats.errors?.push(`Failed to process batch at index ${i}: ${errorMessage}`);
@@ -254,6 +279,11 @@ export class CodeIndexer {
       throw new Error(`Codebase not indexed: ${path}`);
     }
 
+    // Check if collection has hybrid search enabled
+    const collectionInfo = await this.qdrant.getCollectionInfo(collectionName);
+    const useHybrid =
+      (options?.useHybrid ?? this.config.enableHybridSearch) && collectionInfo.hybridEnabled;
+
     // Generate query embedding
     const { embedding } = await this.embeddings.embed(query);
 
@@ -273,7 +303,8 @@ export class CodeIndexer {
         // Convert glob pattern to regex (simplified)
         const regex = options.pathPattern
           .replace(/\./g, '\\.')
-          .replace(/\*/g, '.*')
+          .replace(/\*\*/g, '.*')
+          .replace(/\*/g, '[^/]*')
           .replace(/\?/g, '.');
 
         filter.must.push({
@@ -283,13 +314,26 @@ export class CodeIndexer {
       }
     }
 
-    // Search
-    const results = await this.qdrant.search(
-      collectionName,
-      embedding,
-      options?.limit || this.config.defaultSearchLimit,
-      filter
-    );
+    // Search with hybrid or standard search
+    let results;
+    if (useHybrid) {
+      const sparseGenerator = new BM25SparseVectorGenerator();
+      const sparseVector = sparseGenerator.generate(query);
+      results = await this.qdrant.hybridSearch(
+        collectionName,
+        embedding,
+        sparseVector,
+        options?.limit || this.config.defaultSearchLimit,
+        filter
+      );
+    } else {
+      results = await this.qdrant.search(
+        collectionName,
+        embedding,
+        options?.limit || this.config.defaultSearchLimit,
+        filter
+      );
+    }
 
     // Apply score threshold if specified
     const filteredResults = options?.scoreThreshold
@@ -499,7 +543,16 @@ export class CodeIndexer {
           message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
         });
 
-        await this.qdrant.addPoints(collectionName, points);
+        if (this.config.enableHybridSearch) {
+          const sparseGenerator = new BM25SparseVectorGenerator();
+          const hybridPoints = points.map((point, idx) => ({
+            ...point,
+            sparseVector: sparseGenerator.generate(allChunks[i + idx].chunk.content),
+          }));
+          await this.qdrant.addPointsWithSparse(collectionName, hybridPoints);
+        } else {
+          await this.qdrant.addPoints(collectionName, points);
+        }
       }
 
       // Update snapshot
