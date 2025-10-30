@@ -1,3 +1,21 @@
+## 1.5.0 (2025-10-30)
+
+* Merge pull request #32 from mhalder/feature/code-vectorization ([50c6cb0](https://github.com/mhalder/qdrant-mcp-server/commit/50c6cb0)), closes [#32](https://github.com/mhalder/qdrant-mcp-server/issues/32)
+* ci: add codecov configuration for coverage thresholds ([153a85e](https://github.com/mhalder/qdrant-mcp-server/commit/153a85e))
+* ci: make codecov project check informational ([f8a09c3](https://github.com/mhalder/qdrant-mcp-server/commit/f8a09c3))
+* test: add comprehensive test suite for code vectorization (802/840 passing) ([969c000](https://github.com/mhalder/qdrant-mcp-server/commit/969c000))
+* test: add path validation tests to improve coverage ([4cbf5ed](https://github.com/mhalder/qdrant-mcp-server/commit/4cbf5ed))
+* test: fix test samples and secret detection (809/840 passing) ([963a5c7](https://github.com/mhalder/qdrant-mcp-server/commit/963a5c7))
+* test: improve test coverage to 97.72% and fix race conditions ([78a75cd](https://github.com/mhalder/qdrant-mcp-server/commit/78a75cd))
+* feat: add code vectorization for semantic code search (#31) ([2a3745e](https://github.com/mhalder/qdrant-mcp-server/commit/2a3745e)), closes [#31](https://github.com/mhalder/qdrant-mcp-server/issues/31) [#31](https://github.com/mhalder/qdrant-mcp-server/issues/31)
+* feat: add hybrid search and advanced filtering for code search (#31) ([bfb022e](https://github.com/mhalder/qdrant-mcp-server/commit/bfb022e)), closes [#31](https://github.com/mhalder/qdrant-mcp-server/issues/31) [#31](https://github.com/mhalder/qdrant-mcp-server/issues/31)
+* feat: add incremental re-indexing with Merkle tree change detection (#31) ([dcd7c55](https://github.com/mhalder/qdrant-mcp-server/commit/dcd7c55)), closes [#31](https://github.com/mhalder/qdrant-mcp-server/issues/31) [Hi#level](https://github.com/Hi/issues/level) [#31](https://github.com/mhalder/qdrant-mcp-server/issues/31)
+* feat: add path traversal validation for security ([0d783cc](https://github.com/mhalder/qdrant-mcp-server/commit/0d783cc)), closes [#2](https://github.com/mhalder/qdrant-mcp-server/issues/2)
+* fix: improve test coverage and fix critical bugs (830/840 passing) ([32c13b2](https://github.com/mhalder/qdrant-mcp-server/commit/32c13b2))
+* fix: resolve tree-sitter peer dependency conflicts for Node.js 22.x ([61d614f](https://github.com/mhalder/qdrant-mcp-server/commit/61d614f))
+* docs: add comprehensive code vectorization examples and documentation ([1e0d48d](https://github.com/mhalder/qdrant-mcp-server/commit/1e0d48d))
+* style: format code vectorization module with project formatter ([beb71bb](https://github.com/mhalder/qdrant-mcp-server/commit/beb71bb))
+
 ## 1.4.0 (2025-10-13)
 
 * Merge pull request #29 from mhalder/feature/configurable-prompts ([f9652b1](https://github.com/mhalder/qdrant-mcp-server/commit/f9652b1)), closes [#29](https://github.com/mhalder/qdrant-mcp-server/issues/29)
