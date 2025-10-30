@@ -248,14 +248,26 @@ def process_data(data):
   describe("Incremental updates workflow", () => {
     it("should detect and index only changed files", async () => {
       // Initial indexing
-      await createTestFile(codebaseDir, "file1.ts", "const x = 1;");
-      await createTestFile(codebaseDir, "file2.ts", "const y = 2;");
+      await createTestFile(
+        codebaseDir,
+        "file1.ts",
+        "export const firstValue = 1;\nconsole.log('First file loaded');"
+      );
+      await createTestFile(
+        codebaseDir,
+        "file2.ts",
+        "export const secondValue = 2;\nconsole.log('Second file loaded');"
+      );
 
       const initialStats = await indexer.indexCodebase(codebaseDir);
       expect(initialStats.filesIndexed).toBe(2);
 
       // Add a new file
-      await createTestFile(codebaseDir, "file3.ts", "const z = 3;");
+      await createTestFile(
+        codebaseDir,
+        "file3.ts",
+        "export const thirdValue = 3;\nconsole.log('Third file added');"
+      );
 
       // Incremental update
       const updateStats = await indexer.reindexChanges(codebaseDir);
@@ -265,17 +277,25 @@ def process_data(data):
       expect(updateStats.filesDeleted).toBe(0);
 
       // Verify search includes new content
-      const results = await indexer.searchCode(codebaseDir, "const z");
+      const results = await indexer.searchCode(codebaseDir, "third");
       expect(results.length).toBeGreaterThan(0);
     });
 
     it("should handle file modifications", async () => {
-      await createTestFile(codebaseDir, "config.ts", "export const DEBUG = false;");
+      await createTestFile(
+        codebaseDir,
+        "config.ts",
+        "export const DEBUG_MODE = false;\nconsole.log('Debug mode off');"
+      );
 
       await indexer.indexCodebase(codebaseDir);
 
       // Modify the file
-      await createTestFile(codebaseDir, "config.ts", "export const DEBUG = true;");
+      await createTestFile(
+        codebaseDir,
+        "config.ts",
+        "export const DEBUG_MODE = true;\nconsole.log('Debug mode on');"
+      );
 
       const updateStats = await indexer.reindexChanges(codebaseDir);
 
@@ -284,8 +304,16 @@ def process_data(data):
     });
 
     it("should handle file deletions", async () => {
-      await createTestFile(codebaseDir, "temp.ts", "const temp = true;");
-      await createTestFile(codebaseDir, "keep.ts", "const keep = true;");
+      await createTestFile(
+        codebaseDir,
+        "temp.ts",
+        "export const tempValue = true;\nconsole.log('Temporary file');"
+      );
+      await createTestFile(
+        codebaseDir,
+        "keep.ts",
+        "export const keepValue = true;\nconsole.log('Permanent file');"
+      );
 
       await indexer.indexCodebase(codebaseDir);
 
@@ -300,15 +328,35 @@ def process_data(data):
 
     it("should handle mixed changes in one update", async () => {
       // Initial state
-      await createTestFile(codebaseDir, "file1.ts", "const a = 1;");
-      await createTestFile(codebaseDir, "file2.ts", "const b = 2;");
-      await createTestFile(codebaseDir, "file3.ts", "const c = 3;");
+      await createTestFile(
+        codebaseDir,
+        "file1.ts",
+        "export const alpha = 1;\nconsole.log('Alpha file');"
+      );
+      await createTestFile(
+        codebaseDir,
+        "file2.ts",
+        "export const beta = 2;\nconsole.log('Beta file');"
+      );
+      await createTestFile(
+        codebaseDir,
+        "file3.ts",
+        "export const gamma = 3;\nconsole.log('Gamma file');"
+      );
 
       await indexer.indexCodebase(codebaseDir);
 
       // Mixed changes
-      await createTestFile(codebaseDir, "file1.ts", "const a = 100;"); // Modified
-      await createTestFile(codebaseDir, "file4.ts", "const d = 4;"); // Added
+      await createTestFile(
+        codebaseDir,
+        "file1.ts",
+        "export const alpha = 100;\nconsole.log('Alpha modified');"
+      ); // Modified
+      await createTestFile(
+        codebaseDir,
+        "file4.ts",
+        "export const delta = 4;\nconsole.log('Delta file added');"
+      ); // Added
       await fs.unlink(join(codebaseDir, "file3.ts")); // Deleted
 
       const updateStats = await indexer.reindexChanges(codebaseDir);
@@ -392,7 +440,11 @@ def process_data(data):
       const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
 
       // Index without hybrid
-      await createTestFile(codebaseDir, "test.ts", "const test = true;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const testValue = true;\nconsole.log('Test value set');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
       // Search with hybrid-enabled indexer but collection without hybrid
@@ -436,8 +488,16 @@ def process_data(data):
 
   describe("Error handling and recovery", () => {
     it("should continue indexing after encountering errors", async () => {
-      await createTestFile(codebaseDir, "valid.ts", "const valid = true;");
-      await createTestFile(codebaseDir, "secrets.ts", 'const key = "sk_live_abcd1234567890";');
+      await createTestFile(
+        codebaseDir,
+        "valid.ts",
+        "export const validValue = true;\nconsole.log('Valid file');"
+      );
+      await createTestFile(
+        codebaseDir,
+        "secrets.ts",
+        'export const apiKey = "sk_test_FAKE_KEY_FOR_TESTING_NOT_REAL_KEY";\nconsole.log("Secrets file");'
+      );
 
       const stats = await indexer.indexCodebase(codebaseDir);
 
@@ -448,7 +508,11 @@ def process_data(data):
     });
 
     it("should allow re-indexing after partial failure", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const test = true;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const testData = true;\nconsole.log('Test data loaded');"
+      );
 
       const stats1 = await indexer.indexCodebase(codebaseDir);
       expect(stats1.status).toBe("completed");
@@ -485,7 +549,11 @@ def process_data(data):
   describe("Progress tracking", () => {
     it("should report progress through all phases", async () => {
       for (let i = 0; i < 5; i++) {
-        await createTestFile(codebaseDir, `file${i}.ts`, `const x${i} = ${i};`);
+        await createTestFile(
+          codebaseDir,
+          `file${i}.ts`,
+          `export const value${i} = ${i};\nconsole.log('File ${i} loaded');`
+        );
       }
 
       const progressUpdates: string[] = [];
@@ -502,10 +570,18 @@ def process_data(data):
     });
 
     it("should report progress during incremental updates", async () => {
-      await createTestFile(codebaseDir, "file1.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "file1.ts",
+        "export const initial = 1;\nconsole.log('Initial file');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
-      await createTestFile(codebaseDir, "file2.ts", "const y = 2;");
+      await createTestFile(
+        codebaseDir,
+        "file2.ts",
+        "export const additional = 2;\nconsole.log('Additional file');"
+      );
 
       const progressUpdates: string[] = [];
       const progressCallback = (progress: any) => {

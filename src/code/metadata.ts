@@ -32,7 +32,11 @@ export class MetadataExtractor {
    * Based on: cyclomatic complexity indicators
    */
   calculateComplexity(code: string): number {
-    let complexity = 1; // Base complexity
+    if (!code || code.trim().length === 0) {
+      return 0;
+    }
+
+    let complexity = 0;
 
     // Count control flow statements
     const controlFlowPatterns = [
@@ -45,6 +49,7 @@ export class MetadataExtractor {
       /\bcatch\b/g,
       /\b&&\b/g,
       /\b\|\|\b/g,
+      /\?[^?]/g, // Ternary operator
     ];
 
     for (const pattern of controlFlowPatterns) {
@@ -62,10 +67,10 @@ export class MetadataExtractor {
    */
   containsSecrets(code: string): boolean {
     const secretPatterns = [
-      /api[_-]?key[_-]?=\s*['"][a-zA-Z0-9]{20,}['"]/i,
-      /secret[_-]?=\s*['"][a-zA-Z0-9]{20,}['"]/i,
+      /api[_-]?key[_-]?=\s*['"][a-zA-Z0-9_-]{20,}['"]/i,
+      /secret[_-]?=\s*['"][a-zA-Z0-9_-]{20,}['"]/i,
       /password[_-]?=\s*['"][^'"]{8,}['"]/i,
-      /token[_-]?=\s*['"][a-zA-Z0-9]{20,}['"]/i,
+      /token[_-]?=\s*['"][a-zA-Z0-9_-]{20,}['"]/i,
       /-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----/,
       /sk_live_[a-zA-Z0-9]{24,}/, // Stripe secret key
       /AIza[0-9A-Za-z\\-_]{35}/, // Google API key

@@ -133,7 +133,11 @@ describe("CodeIndexer", () => {
 
   describe("indexCodebase", () => {
     it("should index a simple codebase", async () => {
-      await createTestFile(codebaseDir, "hello.ts", 'function hello() { return "world"; }');
+      await createTestFile(
+        codebaseDir,
+        "hello.ts",
+        'export function hello(name: string): string {\n  console.log("Greeting user");\n  return `Hello, ${name}!`;\n}'
+      );
 
       const stats = await indexer.indexCodebase(codebaseDir);
 
@@ -163,7 +167,11 @@ describe("CodeIndexer", () => {
     });
 
     it("should create collection with correct settings", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const configuration = {\n  apiKey: process.env.API_KEY,\n  timeout: 5000\n};"
+      );
 
       const createCollectionSpy = vi.spyOn(qdrant, "createCollection");
 
@@ -178,7 +186,11 @@ describe("CodeIndexer", () => {
     });
 
     it("should force re-index when option is set", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export function calculateTotal(items: number[]): number {\n  return items.reduce((sum, item) => sum + item, 0);\n}"
+      );
 
       await indexer.indexCodebase(codebaseDir);
       const deleteCollectionSpy = vi.spyOn(qdrant, "deleteCollection");
@@ -189,7 +201,11 @@ describe("CodeIndexer", () => {
     });
 
     it("should call progress callback", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export interface User {\n  id: string;\n  name: string;\n  email: string;\n}"
+      );
 
       const progressCallback = vi.fn();
 
@@ -228,7 +244,11 @@ describe("CodeIndexer", () => {
       const hybridConfig = { ...config, enableHybridSearch: true };
       const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
 
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export class DataService {\n  async fetchData(): Promise<any[]> {\n    return [];\n  }\n}"
+      );
 
       const createCollectionSpy = vi.spyOn(qdrant, "createCollection");
 
@@ -277,7 +297,11 @@ describe("CodeIndexer", () => {
 
   describe("searchCode", () => {
     beforeEach(async () => {
-      await createTestFile(codebaseDir, "test.ts", 'function hello() { return "world"; }');
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export function hello(name: string): string {\n  const greeting = `Hello, ${name}!`;\n  return greeting;\n}"
+      );
       await indexer.indexCodebase(codebaseDir);
     });
 
@@ -327,7 +351,11 @@ describe("CodeIndexer", () => {
       const hybridConfig = { ...config, enableHybridSearch: true };
       const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
 
-      await createTestFile(codebaseDir, "test.ts", "function test() {}");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export function testFunction(): boolean {\n  console.log('Running test');\n  return true;\n}"
+      );
       await hybridIndexer.indexCodebase(codebaseDir);
 
       const hybridSearchSpy = vi.spyOn(qdrant, "hybridSearch");
@@ -359,7 +387,11 @@ describe("CodeIndexer", () => {
     });
 
     it("should return indexed status after indexing", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const APP_CONFIG = {\n  port: 3000,\n  host: 'localhost',\n  debug: true\n};"
+      );
       await indexer.indexCodebase(codebaseDir);
 
       const status = await indexer.getIndexStatus(codebaseDir);
@@ -376,10 +408,18 @@ describe("CodeIndexer", () => {
     });
 
     it("should detect and index new files", async () => {
-      await createTestFile(codebaseDir, "file1.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "file1.ts",
+        "export const initialValue = 1;\nconsole.log('Initial file');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
-      await createTestFile(codebaseDir, "file2.ts", "const y = 2;");
+      await createTestFile(
+        codebaseDir,
+        "file2.ts",
+        "export const secondValue = 2;\nconsole.log('Second file');"
+      );
 
       const stats = await indexer.reindexChanges(codebaseDir);
 
@@ -388,10 +428,18 @@ describe("CodeIndexer", () => {
     });
 
     it("should detect modified files", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const originalValue = 1;\nconsole.log('Original');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
-      await createTestFile(codebaseDir, "test.ts", "const x = 2;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const updatedValue = 2;\nconsole.log('Updated');"
+      );
 
       const stats = await indexer.reindexChanges(codebaseDir);
 
@@ -399,7 +447,11 @@ describe("CodeIndexer", () => {
     });
 
     it("should detect deleted files", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const toBeDeleted = 1;\nconsole.log('Will be deleted');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
       await fs.unlink(join(codebaseDir, "test.ts"));
@@ -410,7 +462,11 @@ describe("CodeIndexer", () => {
     });
 
     it("should handle no changes", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const unchangedValue = 1;\nconsole.log('No changes');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
       const stats = await indexer.reindexChanges(codebaseDir);
@@ -421,10 +477,18 @@ describe("CodeIndexer", () => {
     });
 
     it("should call progress callback during reindexing", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const existingValue = 1;\nconsole.log('Existing');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
-      await createTestFile(codebaseDir, "new.ts", "const y = 2;");
+      await createTestFile(
+        codebaseDir,
+        "new.ts",
+        "export const newValue = 2;\nconsole.log('New file');"
+      );
 
       const progressCallback = vi.fn();
       await indexer.reindexChanges(codebaseDir, progressCallback);
@@ -435,7 +499,11 @@ describe("CodeIndexer", () => {
 
   describe("clearIndex", () => {
     it("should clear indexed codebase", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const configValue = 1;\nconsole.log('Config loaded');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
       await indexer.clearIndex(codebaseDir);
@@ -449,7 +517,11 @@ describe("CodeIndexer", () => {
     });
 
     it("should allow re-indexing after clearing", async () => {
-      await createTestFile(codebaseDir, "test.ts", "const x = 1;");
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const reindexValue = 1;\nconsole.log('Reindexing');"
+      );
       await indexer.indexCodebase(codebaseDir);
 
       await indexer.clearIndex(codebaseDir);
