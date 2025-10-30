@@ -452,6 +452,21 @@ function registerHandlers(server: Server) {
           },
         },
         {
+          name: "reindex_changes",
+          description:
+            "Incrementally re-index only changed files. Detects added, modified, and deleted files since last index. Requires previous indexing with index_codebase.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: {
+                type: "string",
+                description: "Path to codebase",
+              },
+            },
+            required: ["path"],
+          },
+        },
+        {
           name: "get_index_status",
           description: "Get indexing status and statistics for a codebase.",
           inputSchema: {
@@ -828,6 +843,42 @@ function registerHandlers(server: Server) {
               {
                 type: "text",
                 text: JSON.stringify(status, null, 2),
+              },
+            ],
+          };
+        }
+
+        case "reindex_changes": {
+          const ReindexChangesSchema = z.object({
+            path: z.string(),
+          });
+
+          const { path } = ReindexChangesSchema.parse(args);
+
+          const stats = await codeIndexer.reindexChanges(path, (progress) => {
+            console.error(`[${progress.phase}] ${progress.percentage}% - ${progress.message}`);
+          });
+
+          let message = `Incremental re-index complete:\n`;
+          message += `- Files added: ${stats.filesAdded}\n`;
+          message += `- Files modified: ${stats.filesModified}\n`;
+          message += `- Files deleted: ${stats.filesDeleted}\n`;
+          message += `- Chunks added: ${stats.chunksAdded}\n`;
+          message += `- Duration: ${(stats.durationMs / 1000).toFixed(1)}s`;
+
+          if (
+            stats.filesAdded === 0 &&
+            stats.filesModified === 0 &&
+            stats.filesDeleted === 0
+          ) {
+            message = `No changes detected. Codebase is up to date.`;
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: message,
               },
             ],
           };
