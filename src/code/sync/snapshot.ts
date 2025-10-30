@@ -36,7 +36,8 @@ export class SnapshotManager {
     await fs.mkdir(dirname(this.snapshotPath), { recursive: true });
 
     // Write snapshot atomically (write to temp file, then rename)
-    const tempPath = `${this.snapshotPath}.tmp`;
+    // Use unique temp file name to avoid race conditions
+    const tempPath = `${this.snapshotPath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 9)}`;
     await fs.writeFile(tempPath, JSON.stringify(snapshot, null, 2), "utf-8");
     await fs.rename(tempPath, this.snapshotPath);
   }

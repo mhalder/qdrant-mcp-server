@@ -47,8 +47,8 @@ export class MetadataExtractor {
       /\bswitch\b/g,
       /\bcase\b/g,
       /\bcatch\b/g,
-      /\b&&\b/g,
-      /\b\|\|\b/g,
+      /&&/g,
+      /\|\|/g,
       /\?[^?]/g, // Ternary operator
     ];
 
@@ -59,6 +59,11 @@ export class MetadataExtractor {
       }
     }
 
+    // If code contains function/method/class, add base complexity of 1
+    if (complexity > 0 || /\b(function|class|def|fn)\b/.test(code)) {
+      complexity = Math.max(1, complexity);
+    }
+
     return complexity;
   }
 
@@ -67,12 +72,13 @@ export class MetadataExtractor {
    */
   containsSecrets(code: string): boolean {
     const secretPatterns = [
-      /api[_-]?key[_-]?=\s*['"][a-zA-Z0-9_-]{20,}['"]/i,
-      /secret[_-]?=\s*['"][a-zA-Z0-9_-]{20,}['"]/i,
-      /password[_-]?=\s*['"][^'"]{8,}['"]/i,
-      /token[_-]?=\s*['"][a-zA-Z0-9_-]{20,}['"]/i,
+      /(?:api[-_]?key|apikey)\s*=\s*['"][^'"]{20,}['"]/i,
+      /(?:secret|SECRET)\s*=\s*['"][^'"]{20,}['"]/i,
+      /(?:password|PASSWORD)\s*=\s*['"][^'"]{8,}['"]/i,
+      /(?:token|TOKEN)\s*=\s*['"][^'"]{20,}['"]/i,
       /-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----/,
       /sk_live_[a-zA-Z0-9]{24,}/, // Stripe secret key
+      /ghp_[a-zA-Z0-9]{36,}/, // GitHub personal access token
       /AIza[0-9A-Za-z\\-_]{35}/, // Google API key
       /AKIA[0-9A-Z]{16}/, // AWS access key
     ];
@@ -106,11 +112,26 @@ export class MetadataExtractor {
         imports.push(match[1]);
       }
 
-      // Extract exports
-      const exportMatches = code.matchAll(
-        /export\s+(?:default\s+)?(?:class|function|const|let|var)\s+(\w+)/g
-      );
+      // Extract require statements
+      const requireMatches = code.matchAll(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/g);
+      for (const match of requireMatches) {
+        imports.push(match[1]);
+      }
+
+      // Extract exports - regular declarations
+      const exportMatches = code.matchAll(/export\s+(?:class|function|const|let|var)\s+(\w+)/g);
       for (const match of exportMatches) {
+        exports.push(match[1]);
+      }
+
+      // Extract export default
+      if (/export\s+default\b/.test(code)) {
+        exports.push("default");
+      }
+
+      // Extract named exports from other modules: export { name } from 'module'
+      const reExportMatches = code.matchAll(/export\s+\{\s*(\w+)\s*\}/g);
+      for (const match of reExportMatches) {
         exports.push(match[1]);
       }
     } else if (language === "python") {

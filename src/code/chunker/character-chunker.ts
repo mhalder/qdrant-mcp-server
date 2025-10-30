@@ -29,9 +29,14 @@ export class CharacterChunker implements CodeChunker {
         const breakPoint = this.findBreakPoint(lines, i + 1);
 
         if (breakPoint > i && breakPoint - i < 20) {
-          // Include lines up to break point
+          // Include lines up to break point, but respect maxChunkSize
           for (let j = i + 1; j <= breakPoint && j < lines.length; j++) {
-            currentChunk += `${lines[j]}\n`;
+            const nextLine = `${lines[j]}\n`;
+            // Stop if adding this line would exceed maxChunkSize
+            if (currentChunk.length + nextLine.length > this.config.maxChunkSize) {
+              break;
+            }
+            currentChunk += nextLine;
             currentLineCount++;
             i = j;
           }

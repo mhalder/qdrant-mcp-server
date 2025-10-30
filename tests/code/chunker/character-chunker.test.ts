@@ -28,7 +28,9 @@ describe("CharacterChunker", () => {
     });
 
     it("should chunk large code into multiple chunks", async () => {
-      const code = Array(10).fill("function test() { console.log('test'); }\n").join("");
+      const code = Array(20)
+        .fill("function testFunction() { console.log('This is a test function'); return true; }\n")
+        .join("");
       const chunks = await chunker.chunk(code, "test.js", "javascript");
 
       expect(chunks.length).toBeGreaterThan(1);

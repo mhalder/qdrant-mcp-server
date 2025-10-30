@@ -284,7 +284,11 @@ describe("CodeIndexer", () => {
     it("should batch embed operations", async () => {
       // Create multiple files to trigger batching
       for (let i = 0; i < 5; i++) {
-        await createTestFile(codebaseDir, `file${i}.ts`, `function test${i}() {}`);
+        await createTestFile(
+          codebaseDir,
+          `file${i}.ts`,
+          `export function test${i}() {\n  console.log('Test function ${i}');\n  return ${i};\n}`
+        );
       }
 
       const embedBatchSpy = vi.spyOn(embeddings, "embedBatch");
@@ -537,7 +541,7 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "src/components/Button.tsx",
-        "export const Button = () => {}"
+        "export const Button = () => {\n  console.log('Button component');\n  return <button>Click me</button>;\n}"
       );
 
       const stats = await indexer.indexCodebase(codebaseDir);

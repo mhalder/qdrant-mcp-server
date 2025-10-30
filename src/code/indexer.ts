@@ -155,6 +155,17 @@ export class CodeIndexer {
 
       stats.chunksCreated = allChunks.length;
 
+      // Save snapshot for incremental updates (even if no chunks were created)
+      try {
+        const synchronizer = new FileSynchronizer(absolutePath, collectionName);
+        await synchronizer.updateSnapshot(files);
+      } catch (error) {
+        // Snapshot failure shouldn't fail the entire indexing
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Failed to save snapshot:", errorMessage);
+        stats.errors?.push(`Snapshot save failed: ${errorMessage}`);
+      }
+
       if (allChunks.length === 0) {
         stats.status = "completed";
         stats.durationMs = Date.now() - startTime;
@@ -234,15 +245,6 @@ export class CodeIndexer {
           stats.errors?.push(`Failed to process batch at index ${i}: ${errorMessage}`);
           stats.status = "partial";
         }
-      }
-
-      // Save snapshot for incremental updates
-      try {
-        const synchronizer = new FileSynchronizer(absolutePath, collectionName);
-        await synchronizer.updateSnapshot(files);
-      } catch (error) {
-        // Snapshot failure shouldn't fail the entire indexing
-        console.error("Failed to save snapshot:", error);
       }
 
       stats.durationMs = Date.now() - startTime;

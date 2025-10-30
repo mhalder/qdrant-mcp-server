@@ -1,5 +1,5 @@
 import { promises as fs } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FileSynchronizer } from "../../../src/code/sync/synchronizer.js";
@@ -16,7 +16,8 @@ describe("FileSynchronizer", () => {
     codebaseDir = join(tempDir, "codebase");
     await fs.mkdir(codebaseDir, { recursive: true });
 
-    collectionName = "test-collection";
+    // Use unique collection name to avoid conflicts between test runs
+    collectionName = `test-collection-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     synchronizer = new FileSynchronizer(codebaseDir, collectionName);
   });
 
@@ -24,6 +25,14 @@ describe("FileSynchronizer", () => {
     // Clean up temporary directory
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
+    } catch (_error) {
+      // Ignore cleanup errors
+    }
+
+    // Clean up snapshot file
+    try {
+      const snapshotPath = join(homedir(), ".qdrant-mcp", "snapshots", `${collectionName}.json`);
+      await fs.rm(snapshotPath, { force: true });
     } catch (_error) {
       // Ignore cleanup errors
     }
