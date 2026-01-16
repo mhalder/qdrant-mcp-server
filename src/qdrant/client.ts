@@ -23,8 +23,8 @@ export interface SparseVector {
 export class QdrantManager {
   private client: QdrantClient;
 
-  constructor(url: string = "http://localhost:6333") {
-    this.client = new QdrantClient({ url });
+  constructor(url: string = "http://localhost:6333", apiKey?: string) {
+    this.client = new QdrantClient({ url, apiKey });
   }
 
   /**

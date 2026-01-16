@@ -39,6 +39,7 @@ const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf-8")
 
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
+const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
 const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerCase();
 const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
@@ -151,7 +152,7 @@ async function checkOllamaAvailability() {
 }
 
 // Initialize clients
-const qdrant = new QdrantManager(QDRANT_URL);
+const qdrant = new QdrantManager(QDRANT_URL, QDRANT_API_KEY);
 const embeddings = EmbeddingProviderFactory.createFromEnv();
 
 // Initialize code indexer
