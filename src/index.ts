@@ -202,25 +202,30 @@ if (existsSync(PROMPTS_CONFIG_FILE)) {
 
 // Function to create and configure a new MCP server instance
 function createAndConfigureServer(): McpServer {
-  const server = new McpServer({
-    name: pkg.name,
-    version: pkg.version,
-  });
+  try {
+    const server = new McpServer({
+      name: pkg.name,
+      version: pkg.version,
+    });
 
-  // Register all tools
-  registerAllTools(server, {
-    qdrant,
-    embeddings,
-    codeIndexer,
-  });
+    // Register all tools
+    registerAllTools(server, {
+      qdrant,
+      embeddings,
+      codeIndexer,
+    });
 
-  // Register all resources
-  registerAllResources(server, qdrant);
+    // Register all resources
+    registerAllResources(server, qdrant);
 
-  // Register all prompts (if configured)
-  registerAllPrompts(server, promptsConfig);
+    // Register all prompts (if configured)
+    registerAllPrompts(server, promptsConfig);
 
-  return server;
+    return server;
+  } catch (error) {
+    console.error("Failed to configure MCP server:", error);
+    throw error;
+  }
 }
 
 // Create a shared MCP server for stdio mode

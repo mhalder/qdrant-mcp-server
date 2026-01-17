@@ -1,5 +1,10 @@
 /**
  * Consolidated Zod schemas for all MCP tools
+ *
+ * Note: Schemas are exported as plain objects (not wrapped in z.object()) because
+ * McpServer.registerTool() expects schemas in this format. The SDK internally
+ * converts these to JSON Schema for the MCP protocol. Each property is a Zod
+ * field definition that gets composed into the final schema by the SDK.
  */
 
 import { z } from "zod";

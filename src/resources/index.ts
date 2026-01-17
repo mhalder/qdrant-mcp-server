@@ -59,8 +59,12 @@ export function registerAllResources(
       description: "Detailed information about a specific collection",
       mimeType: "application/json",
     },
-    async (uri, { name }) => {
-      const info = await qdrant.getCollectionInfo(name as string);
+    async (uri, params) => {
+      const name = params.name;
+      if (typeof name !== "string" || !name) {
+        throw new Error("Invalid collection name parameter");
+      }
+      const info = await qdrant.getCollectionInfo(name);
       return {
         contents: [
           {

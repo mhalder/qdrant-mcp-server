@@ -14,12 +14,7 @@ function buildArgsSchema(args: PromptArgument[]): Record<string, z.ZodTypeAny> {
   const schema: Record<string, z.ZodTypeAny> = {};
 
   for (const arg of args) {
-    let fieldSchema = z.string().describe(arg.description);
-
-    if (!arg.required) {
-      fieldSchema = fieldSchema.optional() as unknown as z.ZodString;
-    }
-
+    const fieldSchema = z.string().describe(arg.description);
     schema[arg.name] = arg.required ? fieldSchema : fieldSchema.optional();
   }
 
