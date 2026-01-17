@@ -1,3 +1,9 @@
+## <small>2.1.1 (2026-01-17)</small>
+
+* Merge pull request #43 from mhalder/feat/mcpserver-migration ([48ac95b](https://github.com/mhalder/qdrant-mcp-server/commit/48ac95b)), closes [#43](https://github.com/mhalder/qdrant-mcp-server/issues/43)
+* fix: address PR review feedback for type safety and docs ([608100d](https://github.com/mhalder/qdrant-mcp-server/commit/608100d))
+* refactor: migrate from Server to McpServer API ([1315104](https://github.com/mhalder/qdrant-mcp-server/commit/1315104))
+
 ## 2.1.0 (2026-01-17)
 
 * Merge pull request #42 from mhalder/feat/configurable-http-timeout ([15a5a5a](https://github.com/mhalder/qdrant-mcp-server/commit/15a5a5a)), closes [#42](https://github.com/mhalder/qdrant-mcp-server/issues/42)
