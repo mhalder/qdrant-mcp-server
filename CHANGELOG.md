@@ -1,3 +1,19 @@
+## 1.6.0 (2026-01-17)
+
+* Merge pull request #34 from No-Smoke/feature/add-qdrant-api-key-support ([c6af3ae](https://github.com/mhalder/qdrant-mcp-server/commit/c6af3ae)), closes [#34](https://github.com/mhalder/qdrant-mcp-server/issues/34)
+* Merge pull request #37 from mhalder/fix/trusted-publishing-and-workflows ([e6a464d](https://github.com/mhalder/qdrant-mcp-server/commit/e6a464d)), closes [#37](https://github.com/mhalder/qdrant-mcp-server/issues/37)
+* Merge pull request #38 from mhalder/fix/npm-provenance-publishing ([53dce5f](https://github.com/mhalder/qdrant-mcp-server/commit/53dce5f)), closes [#38](https://github.com/mhalder/qdrant-mcp-server/issues/38)
+* Merge pull request #39 from mhalder/fix/add-npm-token-for-verification ([aaa32c1](https://github.com/mhalder/qdrant-mcp-server/commit/aaa32c1)), closes [#39](https://github.com/mhalder/qdrant-mcp-server/issues/39)
+* Merge pull request #40 from mhalder/fix/remove-registry-url-from-setup-node ([f507b1b](https://github.com/mhalder/qdrant-mcp-server/commit/f507b1b)), closes [#40](https://github.com/mhalder/qdrant-mcp-server/issues/40)
+* ci: add NPM_TOKEN for semantic-release verification ([19f746d](https://github.com/mhalder/qdrant-mcp-server/commit/19f746d))
+* ci: enable npm provenance for OIDC trusted publishing ([2e18bea](https://github.com/mhalder/qdrant-mcp-server/commit/2e18bea))
+* ci: remove registry-url from setup-node ([4e7d496](https://github.com/mhalder/qdrant-mcp-server/commit/4e7d496))
+* ci: switch to npm trusted publishing and fix workflow permissions ([93ee2ba](https://github.com/mhalder/qdrant-mcp-server/commit/93ee2ba))
+* test: add constructor tests for apiKey parameter ([aa497b0](https://github.com/mhalder/qdrant-mcp-server/commit/aa497b0))
+* docs: Add QDRANT_API_KEY documentation ([f5dd238](https://github.com/mhalder/qdrant-mcp-server/commit/f5dd238))
+* feat: Add QDRANT_API_KEY support to QdrantManager ([ae7b3b2](https://github.com/mhalder/qdrant-mcp-server/commit/ae7b3b2))
+* feat: Read QDRANT_API_KEY from environment and pass to QdrantManager ([1b3a263](https://github.com/mhalder/qdrant-mcp-server/commit/1b3a263))
+
 ## 1.5.0 (2025-10-30)
 
 * Merge pull request #32 from mhalder/feature/code-vectorization ([50c6cb0](https://github.com/mhalder/qdrant-mcp-server/commit/50c6cb0)), closes [#32](https://github.com/mhalder/qdrant-mcp-server/issues/32)
