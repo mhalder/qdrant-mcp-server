@@ -30,7 +30,8 @@
     "url": "https://github.com/mhalder/qdrant-mcp-server.git"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "overrides": {
     "tree-sitter": "^0.25.0"
