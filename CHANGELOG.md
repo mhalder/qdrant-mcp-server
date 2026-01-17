@@ -1,3 +1,9 @@
+## <small>2.1.2 (2026-01-17)</small>
+
+* Merge pull request #44 from mhalder/fix/index-status-bug ([350e2a5](https://github.com/mhalder/qdrant-mcp-server/commit/350e2a5)), closes [#44](https://github.com/mhalder/qdrant-mcp-server/issues/44)
+* fix(code): correctly report indexing status during active indexing ([cd6b4af](https://github.com/mhalder/qdrant-mcp-server/commit/cd6b4af))
+* fix(code): persist indexing status in Qdrant instead of in-memory ([799e1cf](https://github.com/mhalder/qdrant-mcp-server/commit/799e1cf))
+
 ## <small>2.1.1 (2026-01-17)</small>
 
 * Merge pull request #43 from mhalder/feat/mcpserver-migration ([48ac95b](https://github.com/mhalder/qdrant-mcp-server/commit/48ac95b)), closes [#43](https://github.com/mhalder/qdrant-mcp-server/issues/43)
