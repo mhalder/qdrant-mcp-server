@@ -2,28 +2,41 @@ import { QdrantClient } from "@qdrant/js-client-rest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QdrantManager } from "./client.js";
 
+const mockClient = {
+  createCollection: vi.fn().mockResolvedValue({}),
+  getCollection: vi.fn().mockResolvedValue({}),
+  getCollections: vi.fn().mockResolvedValue({ collections: [] }),
+  deleteCollection: vi.fn().mockResolvedValue({}),
+  upsert: vi.fn().mockResolvedValue({}),
+  search: vi.fn().mockResolvedValue([]),
+  retrieve: vi.fn().mockResolvedValue([]),
+  delete: vi.fn().mockResolvedValue({}),
+  query: vi.fn().mockResolvedValue({ points: [] }),
+};
+
 vi.mock("@qdrant/js-client-rest", () => ({
-  QdrantClient: vi.fn(),
+  QdrantClient: vi.fn().mockImplementation(function () {
+    return mockClient;
+  }),
 }));
 
 describe("QdrantManager", () => {
   let manager: QdrantManager;
-  let mockClient: any;
 
   beforeEach(() => {
-    mockClient = {
-      createCollection: vi.fn(),
-      getCollection: vi.fn(),
-      getCollections: vi.fn(),
-      deleteCollection: vi.fn(),
-      upsert: vi.fn(),
-      search: vi.fn(),
-      retrieve: vi.fn(),
-      delete: vi.fn(),
-    };
-
-    vi.mocked(QdrantClient).mockImplementation(() => mockClient as any);
-
+    // Reset mocks and restore default implementations
+    mockClient.createCollection.mockReset().mockResolvedValue({});
+    mockClient.getCollection.mockReset().mockResolvedValue({});
+    mockClient.getCollections
+      .mockReset()
+      .mockResolvedValue({ collections: [] });
+    mockClient.deleteCollection.mockReset().mockResolvedValue({});
+    mockClient.upsert.mockReset().mockResolvedValue({});
+    mockClient.search.mockReset().mockResolvedValue([]);
+    mockClient.retrieve.mockReset().mockResolvedValue([]);
+    mockClient.delete.mockReset().mockResolvedValue({});
+    mockClient.query.mockReset().mockResolvedValue({ points: [] });
+    vi.mocked(QdrantClient).mockClear();
     manager = new QdrantManager("http://localhost:6333");
   });
 
@@ -51,41 +64,50 @@ describe("QdrantManager", () => {
     it("should create a collection with default distance metric", async () => {
       await manager.createCollection("test-collection", 1536);
 
-      expect(mockClient.createCollection).toHaveBeenCalledWith("test-collection", {
-        vectors: {
-          size: 1536,
-          distance: "Cosine",
+      expect(mockClient.createCollection).toHaveBeenCalledWith(
+        "test-collection",
+        {
+          vectors: {
+            size: 1536,
+            distance: "Cosine",
+          },
         },
-      });
+      );
     });
 
     it("should create a collection with custom distance metric", async () => {
       await manager.createCollection("test-collection", 1536, "Euclid");
 
-      expect(mockClient.createCollection).toHaveBeenCalledWith("test-collection", {
-        vectors: {
-          size: 1536,
-          distance: "Euclid",
+      expect(mockClient.createCollection).toHaveBeenCalledWith(
+        "test-collection",
+        {
+          vectors: {
+            size: 1536,
+            distance: "Euclid",
+          },
         },
-      });
+      );
     });
 
     it("should create a hybrid collection with sparse vectors enabled", async () => {
       await manager.createCollection("test-collection", 1536, "Cosine", true);
 
-      expect(mockClient.createCollection).toHaveBeenCalledWith("test-collection", {
-        vectors: {
-          dense: {
-            size: 1536,
-            distance: "Cosine",
+      expect(mockClient.createCollection).toHaveBeenCalledWith(
+        "test-collection",
+        {
+          vectors: {
+            dense: {
+              size: 1536,
+              distance: "Cosine",
+            },
+          },
+          sparse_vectors: {
+            text: {
+              modifier: "idf",
+            },
           },
         },
-        sparse_vectors: {
-          text: {
-            modifier: "idf",
-          },
-        },
-      });
+      );
     });
   });
 
@@ -111,12 +133,20 @@ describe("QdrantManager", () => {
   describe("listCollections", () => {
     it("should return list of collection names", async () => {
       mockClient.getCollections.mockResolvedValue({
-        collections: [{ name: "collection1" }, { name: "collection2" }, { name: "collection3" }],
+        collections: [
+          { name: "collection1" },
+          { name: "collection2" },
+          { name: "collection3" },
+        ],
       });
 
       const collections = await manager.listCollections();
 
-      expect(collections).toEqual(["collection1", "collection2", "collection3"]);
+      expect(collections).toEqual([
+        "collection1",
+        "collection2",
+        "collection3",
+      ]);
     });
 
     it("should return empty array when no collections exist", async () => {
@@ -211,7 +241,9 @@ describe("QdrantManager", () => {
     it("should delete a collection", async () => {
       await manager.deleteCollection("test-collection");
 
-      expect(mockClient.deleteCollection).toHaveBeenCalledWith("test-collection");
+      expect(mockClient.deleteCollection).toHaveBeenCalledWith(
+        "test-collection",
+      );
     });
   });
 
@@ -260,7 +292,7 @@ describe("QdrantManager", () => {
       const normalizedId = calls[0][1].points[0].id;
       // Check that it's a valid UUID format
       expect(normalizedId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       );
       // Ensure it's not the original ID
       expect(normalizedId).not.toBe("my-custom-id");
@@ -268,7 +300,9 @@ describe("QdrantManager", () => {
 
     it("should preserve UUID format IDs without modification", async () => {
       const uuidId = "123e4567-e89b-12d3-a456-426614174000";
-      const points = [{ id: uuidId, vector: [0.1, 0.2, 0.3], payload: { text: "test" } }];
+      const points = [
+        { id: uuidId, vector: [0.1, 0.2, 0.3], payload: { text: "test" } },
+      ];
 
       await manager.addPoints("test-collection", points);
 
@@ -296,8 +330,10 @@ describe("QdrantManager", () => {
         },
       });
 
-      await expect(manager.addPoints("test-collection", points)).rejects.toThrow(
-        'Failed to add points to collection "test-collection": Vector dimension mismatch'
+      await expect(
+        manager.addPoints("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points to collection "test-collection": Vector dimension mismatch',
       );
     });
 
@@ -306,8 +342,10 @@ describe("QdrantManager", () => {
 
       mockClient.upsert.mockRejectedValue(new Error("Network error"));
 
-      await expect(manager.addPoints("test-collection", points)).rejects.toThrow(
-        'Failed to add points to collection "test-collection": Network error'
+      await expect(
+        manager.addPoints("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points to collection "test-collection": Network error',
       );
     });
 
@@ -316,8 +354,10 @@ describe("QdrantManager", () => {
 
       mockClient.upsert.mockRejectedValue("Unknown error");
 
-      await expect(manager.addPoints("test-collection", points)).rejects.toThrow(
-        'Failed to add points to collection "test-collection": Unknown error'
+      await expect(
+        manager.addPoints("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points to collection "test-collection": Unknown error',
       );
     });
   });
@@ -345,7 +385,11 @@ describe("QdrantManager", () => {
         { id: 2, score: 0.85, payload: { text: "result2" } },
       ]);
 
-      const results = await manager.search("test-collection", [0.1, 0.2, 0.3], 5);
+      const results = await manager.search(
+        "test-collection",
+        [0.1, 0.2, 0.3],
+        5,
+      );
 
       expect(results).toEqual([
         { id: 1, score: 0.95, payload: { text: "result1" } },
@@ -444,7 +488,9 @@ describe("QdrantManager", () => {
     });
 
     it("should handle null payload in results", async () => {
-      mockClient.search.mockResolvedValue([{ id: 1, score: 0.95, payload: null }]);
+      mockClient.search.mockResolvedValue([
+        { id: 1, score: 0.95, payload: null },
+      ]);
 
       const results = await manager.search("test-collection", [0.1, 0.2, 0.3]);
 
@@ -473,11 +519,19 @@ describe("QdrantManager", () => {
         },
       });
 
-      mockClient.search.mockResolvedValue([{ id: 1, score: 0.95, payload: { text: "result1" } }]);
+      mockClient.search.mockResolvedValue([
+        { id: 1, score: 0.95, payload: { text: "result1" } },
+      ]);
 
-      const results = await manager.search("hybrid-collection", [0.1, 0.2, 0.3], 5);
+      const results = await manager.search(
+        "hybrid-collection",
+        [0.1, 0.2, 0.3],
+        5,
+      );
 
-      expect(results).toEqual([{ id: 1, score: 0.95, payload: { text: "result1" } }]);
+      expect(results).toEqual([
+        { id: 1, score: 0.95, payload: { text: "result1" } },
+      ]);
       expect(mockClient.search).toHaveBeenCalledWith("hybrid-collection", {
         vector: { name: "dense", vector: [0.1, 0.2, 0.3] },
         limit: 5,
@@ -500,11 +554,19 @@ describe("QdrantManager", () => {
         },
       });
 
-      mockClient.search.mockResolvedValue([{ id: 1, score: 0.95, payload: { text: "result1" } }]);
+      mockClient.search.mockResolvedValue([
+        { id: 1, score: 0.95, payload: { text: "result1" } },
+      ]);
 
-      const results = await manager.search("standard-collection", [0.1, 0.2, 0.3], 5);
+      const results = await manager.search(
+        "standard-collection",
+        [0.1, 0.2, 0.3],
+        5,
+      );
 
-      expect(results).toEqual([{ id: 1, score: 0.95, payload: { text: "result1" } }]);
+      expect(results).toEqual([
+        { id: 1, score: 0.95, payload: { text: "result1" } },
+      ]);
       expect(mockClient.search).toHaveBeenCalledWith("standard-collection", {
         vector: [0.1, 0.2, 0.3],
         limit: 5,
@@ -515,7 +577,9 @@ describe("QdrantManager", () => {
 
   describe("getPoint", () => {
     it("should retrieve a point by id", async () => {
-      mockClient.retrieve.mockResolvedValue([{ id: 1, payload: { text: "test" } }]);
+      mockClient.retrieve.mockResolvedValue([
+        { id: 1, payload: { text: "test" } },
+      ]);
 
       const point = await manager.getPoint("test-collection", 1);
 
@@ -586,7 +650,11 @@ describe("QdrantManager", () => {
         ],
       });
 
-      const results = await manager.hybridSearch("test-collection", denseVector, sparseVector);
+      const results = await manager.hybridSearch(
+        "test-collection",
+        denseVector,
+        sparseVector,
+      );
 
       expect(results).toEqual([
         { id: 1, score: 0.95, payload: { text: "result1" } },
@@ -622,7 +690,12 @@ describe("QdrantManager", () => {
 
       mockClient.query.mockResolvedValue({ points: [] });
 
-      await manager.hybridSearch("test-collection", denseVector, sparseVector, 10);
+      await manager.hybridSearch(
+        "test-collection",
+        denseVector,
+        sparseVector,
+        10,
+      );
 
       expect(mockClient.query).toHaveBeenCalledWith(
         "test-collection",
@@ -631,7 +704,7 @@ describe("QdrantManager", () => {
             expect.objectContaining({ limit: 40 }), // 10 * 4
           ]),
           limit: 10,
-        })
+        }),
       );
     });
 
@@ -642,7 +715,13 @@ describe("QdrantManager", () => {
 
       mockClient.query.mockResolvedValue({ points: [] });
 
-      await manager.hybridSearch("test-collection", denseVector, sparseVector, 5, filter);
+      await manager.hybridSearch(
+        "test-collection",
+        denseVector,
+        sparseVector,
+        5,
+        filter,
+      );
 
       expect(mockClient.query).toHaveBeenCalledWith("test-collection", {
         prefetch: [
@@ -684,7 +763,13 @@ describe("QdrantManager", () => {
 
       mockClient.query.mockResolvedValue({ points: [] });
 
-      await manager.hybridSearch("test-collection", denseVector, sparseVector, 5, filter);
+      await manager.hybridSearch(
+        "test-collection",
+        denseVector,
+        sparseVector,
+        5,
+        filter,
+      );
 
       const call = mockClient.query.mock.calls[0][1];
       expect(call.prefetch[0].filter).toEqual(filter);
@@ -694,11 +779,19 @@ describe("QdrantManager", () => {
     it("should handle Qdrant format filter (should)", async () => {
       const denseVector = [0.1, 0.2, 0.3];
       const sparseVector = { indices: [1], values: [0.5] };
-      const filter = { should: [{ key: "tag", match: { value: "important" } }] };
+      const filter = {
+        should: [{ key: "tag", match: { value: "important" } }],
+      };
 
       mockClient.query.mockResolvedValue({ points: [] });
 
-      await manager.hybridSearch("test-collection", denseVector, sparseVector, 5, filter);
+      await manager.hybridSearch(
+        "test-collection",
+        denseVector,
+        sparseVector,
+        5,
+        filter,
+      );
 
       const call = mockClient.query.mock.calls[0][1];
       expect(call.prefetch[0].filter).toEqual(filter);
@@ -708,11 +801,19 @@ describe("QdrantManager", () => {
     it("should handle Qdrant format filter (must_not)", async () => {
       const denseVector = [0.1, 0.2, 0.3];
       const sparseVector = { indices: [1], values: [0.5] };
-      const filter = { must_not: [{ key: "status", match: { value: "deleted" } }] };
+      const filter = {
+        must_not: [{ key: "status", match: { value: "deleted" } }],
+      };
 
       mockClient.query.mockResolvedValue({ points: [] });
 
-      await manager.hybridSearch("test-collection", denseVector, sparseVector, 5, filter);
+      await manager.hybridSearch(
+        "test-collection",
+        denseVector,
+        sparseVector,
+        5,
+        filter,
+      );
 
       const call = mockClient.query.mock.calls[0][1];
       expect(call.prefetch[0].filter).toEqual(filter);
@@ -725,7 +826,13 @@ describe("QdrantManager", () => {
 
       mockClient.query.mockResolvedValue({ points: [] });
 
-      await manager.hybridSearch("test-collection", denseVector, sparseVector, 5, {});
+      await manager.hybridSearch(
+        "test-collection",
+        denseVector,
+        sparseVector,
+        5,
+        {},
+      );
 
       const call = mockClient.query.mock.calls[0][1];
       expect(call.prefetch[0].filter).toBeUndefined();
@@ -740,7 +847,11 @@ describe("QdrantManager", () => {
         points: [{ id: 1, score: 0.95, payload: null }],
       });
 
-      const results = await manager.hybridSearch("test-collection", denseVector, sparseVector);
+      const results = await manager.hybridSearch(
+        "test-collection",
+        denseVector,
+        sparseVector,
+      );
 
       expect(results).toEqual([{ id: 1, score: 0.95, payload: undefined }]);
     });
@@ -758,9 +869,9 @@ describe("QdrantManager", () => {
       });
 
       await expect(
-        manager.hybridSearch("test-collection", denseVector, sparseVector)
+        manager.hybridSearch("test-collection", denseVector, sparseVector),
       ).rejects.toThrow(
-        'Hybrid search failed on collection "test-collection": Named vector not found'
+        'Hybrid search failed on collection "test-collection": Named vector not found',
       );
     });
 
@@ -771,8 +882,10 @@ describe("QdrantManager", () => {
       mockClient.query.mockRejectedValue(new Error("Network timeout"));
 
       await expect(
-        manager.hybridSearch("test-collection", denseVector, sparseVector)
-      ).rejects.toThrow('Hybrid search failed on collection "test-collection": Network timeout');
+        manager.hybridSearch("test-collection", denseVector, sparseVector),
+      ).rejects.toThrow(
+        'Hybrid search failed on collection "test-collection": Network timeout',
+      );
     });
 
     it("should throw error with String(error) fallback", async () => {
@@ -782,8 +895,10 @@ describe("QdrantManager", () => {
       mockClient.query.mockRejectedValue("Unknown error");
 
       await expect(
-        manager.hybridSearch("test-collection", denseVector, sparseVector)
-      ).rejects.toThrow('Hybrid search failed on collection "test-collection": Unknown error');
+        manager.hybridSearch("test-collection", denseVector, sparseVector),
+      ).rejects.toThrow(
+        'Hybrid search failed on collection "test-collection": Unknown error',
+      );
     });
   });
 
@@ -874,7 +989,7 @@ describe("QdrantManager", () => {
       const normalizedId = calls[0][1].points[0].id;
       // Check that it's a valid UUID format
       expect(normalizedId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       );
       expect(normalizedId).not.toBe("my-doc-id");
     });
@@ -924,8 +1039,10 @@ describe("QdrantManager", () => {
         },
       });
 
-      await expect(manager.addPointsWithSparse("test-collection", points)).rejects.toThrow(
-        'Failed to add points with sparse vectors to collection "test-collection": Sparse vector not configured'
+      await expect(
+        manager.addPointsWithSparse("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points with sparse vectors to collection "test-collection": Sparse vector not configured',
       );
     });
 
@@ -940,8 +1057,10 @@ describe("QdrantManager", () => {
 
       mockClient.upsert.mockRejectedValue(new Error("Connection refused"));
 
-      await expect(manager.addPointsWithSparse("test-collection", points)).rejects.toThrow(
-        'Failed to add points with sparse vectors to collection "test-collection": Connection refused'
+      await expect(
+        manager.addPointsWithSparse("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points with sparse vectors to collection "test-collection": Connection refused',
       );
     });
 
@@ -956,8 +1075,10 @@ describe("QdrantManager", () => {
 
       mockClient.upsert.mockRejectedValue("Unexpected error");
 
-      await expect(manager.addPointsWithSparse("test-collection", points)).rejects.toThrow(
-        'Failed to add points with sparse vectors to collection "test-collection": Unexpected error'
+      await expect(
+        manager.addPointsWithSparse("test-collection", points),
+      ).rejects.toThrow(
+        'Failed to add points with sparse vectors to collection "test-collection": Unexpected error',
       );
     });
   });

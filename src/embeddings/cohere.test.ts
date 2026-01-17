@@ -2,21 +2,22 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CohereEmbeddings } from "./cohere.js";
 import { CohereClient } from "cohere-ai";
 
+const mockClient = {
+  embed: vi.fn().mockResolvedValue({ embeddings: [[]] }),
+};
+
 vi.mock("cohere-ai", () => ({
-  CohereClient: vi.fn(),
+  CohereClient: vi.fn().mockImplementation(function () {
+    return mockClient;
+  }),
 }));
 
 describe("CohereEmbeddings", () => {
   let embeddings: CohereEmbeddings;
-  let mockClient: any;
 
   beforeEach(() => {
-    mockClient = {
-      embed: vi.fn(),
-    };
-
-    vi.mocked(CohereClient).mockImplementation(() => mockClient as any);
-
+    mockClient.embed.mockReset().mockResolvedValue({ embeddings: [[]] });
+    vi.mocked(CohereClient).mockClear();
     embeddings = new CohereEmbeddings("test-api-key");
   });
 

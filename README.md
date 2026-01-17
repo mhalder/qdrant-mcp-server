@@ -24,8 +24,8 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 
 ### Prerequisites
 
-- Node.js 20+
-- Docker and Docker Compose
+- Node.js 22+
+- Podman or Docker with Compose support
 
 ### Installation
 
@@ -35,9 +35,13 @@ git clone https://github.com/mhalder/qdrant-mcp-server.git
 cd qdrant-mcp-server
 npm install
 
-# Start services and pull model
-docker compose up -d
-docker exec ollama ollama pull nomic-embed-text
+# Start services (choose one)
+podman compose up -d   # Using Podman
+docker compose up -d   # Using Docker
+
+# Pull the embedding model
+podman exec ollama ollama pull nomic-embed-text  # Podman
+docker exec ollama ollama pull nomic-embed-text  # Docker
 
 # Build
 npm run build
@@ -149,13 +153,13 @@ See [Advanced Configuration](#advanced-configuration) section below for all opti
 
 ### Code Vectorization
 
-| Tool               | Description                                                                                    |
-| ------------------ | ---------------------------------------------------------------------------------------------- |
-| `index_codebase`   | Index a codebase for semantic code search with AST-aware chunking                              |
-| `search_code`      | Search indexed codebase using natural language queries                                         |
-| `reindex_changes`  | Incrementally re-index only changed files (detects added/modified/deleted)                     |
-| `get_index_status` | Get indexing status and statistics for a codebase                                              |
-| `clear_index`      | Delete all indexed data for a codebase                                                         |
+| Tool               | Description                                                                |
+| ------------------ | -------------------------------------------------------------------------- |
+| `index_codebase`   | Index a codebase for semantic code search with AST-aware chunking          |
+| `search_code`      | Search indexed codebase using natural language queries                     |
+| `reindex_changes`  | Incrementally re-index only changed files (detects added/modified/deleted) |
+| `get_index_status` | Get indexing status and statistics for a codebase                          |
+| `clear_index`      | Delete all indexed data for a codebase                                     |
 
 ### Resources
 
@@ -285,8 +289,8 @@ Intelligently index and search your codebase using semantic code search. Perfect
 
 index_codebase({
   path: "/workspace/my-app",
-  forceReindex: false  // Set to true to re-index from scratch
-})
+  forceReindex: false, // Set to true to re-index from scratch
+});
 
 // Output:
 // ✓ Indexed 247 files (1,823 chunks) in 45.2s
@@ -298,8 +302,8 @@ index_codebase({
 search_code({
   path: "/workspace/my-app",
   query: "how does user authentication work?",
-  limit: 5
-})
+  limit: 5,
+});
 
 // Results include file path, line numbers, and code snippets:
 // [
@@ -323,16 +327,16 @@ search_code({
   path: "/workspace/my-app",
   query: "error handling patterns",
   fileTypes: [".ts", ".tsx"],
-  limit: 10
-})
+  limit: 10,
+});
 
 // Only search in specific directories
 search_code({
   path: "/workspace/my-app",
   query: "API route handlers",
   pathPattern: "src/api/**",
-  limit: 10
-})
+  limit: 10,
+});
 ```
 
 #### Incremental Re-indexing
@@ -340,8 +344,8 @@ search_code({
 ```typescript
 // After making changes to your codebase
 reindex_changes({
-  path: "/workspace/my-app"
-})
+  path: "/workspace/my-app",
+});
 
 // Output:
 // ✓ Updated: +3 files added, ~5 files modified, -1 files deleted
@@ -352,8 +356,8 @@ reindex_changes({
 
 ```typescript
 get_index_status({
-  path: "/workspace/my-app"
-})
+  path: "/workspace/my-app",
+});
 
 // Output:
 // {
@@ -369,6 +373,7 @@ get_index_status({
 ### Supported Languages
 
 **Programming Languages** (35+ file types):
+
 - **Web**: TypeScript, JavaScript, Vue, Svelte
 - **Backend**: Python, Java, Go, Rust, Ruby, PHP
 - **Systems**: C, C++, C#
@@ -406,11 +411,11 @@ Create a `.contextignore` file in your project root to specify additional patter
 
 Typical performance on a modern laptop (Apple M1/M2 or similar):
 
-| Codebase Size | Files | Indexing Time | Search Latency |
-|--------------|-------|---------------|----------------|
-| Small (10k LOC) | 50 | ~10s | <100ms |
-| Medium (100k LOC) | 500 | ~2min | <200ms |
-| Large (500k LOC) | 2,500 | ~10min | <500ms |
+| Codebase Size     | Files | Indexing Time | Search Latency |
+| ----------------- | ----- | ------------- | -------------- |
+| Small (10k LOC)   | 50    | ~10s          | <100ms         |
+| Medium (100k LOC) | 500   | ~2min         | <200ms         |
+| Large (500k LOC)  | 2,500 | ~10min        | <500ms         |
 
 **Note**: Indexing time varies based on embedding provider. Ollama (local) is fastest for initial indexing.
 
@@ -419,6 +424,7 @@ Typical performance on a modern laptop (Apple M1/M2 or similar):
 See [examples/](examples/) directory for detailed guides:
 
 - **[Basic Usage](examples/basic/)** - Create collections, add documents, search
+- **[Hybrid Search](examples/hybrid-search/)** - Combine semantic and keyword search
 - **[Knowledge Base](examples/knowledge-base/)** - Structured documentation with metadata
 - **[Advanced Filtering](examples/filters/)** - Complex boolean filters
 - **[Rate Limiting](examples/rate-limiting/)** - Batch processing with cloud providers
@@ -430,39 +436,39 @@ See [examples/](examples/) directory for detailed guides:
 
 #### Core Configuration
 
-| Variable                            | Description                            | Default               |
-| ----------------------------------- | -------------------------------------- | --------------------- |
-| `TRANSPORT_MODE`                    | "stdio" or "http"                      | stdio                 |
-| `HTTP_PORT`                         | Port for HTTP transport                | 3000                  |
-| `EMBEDDING_PROVIDER`                | "ollama", "openai", "cohere", "voyage" | ollama                |
-| `QDRANT_URL`                        | Qdrant server URL                      | http://localhost:6333 |
-| `QDRANT_API_KEY`                    | API key for Qdrant authentication      | -                     |
-| `PROMPTS_CONFIG_FILE`               | Path to prompts configuration JSON     | prompts.json          |
+| Variable              | Description                            | Default               |
+| --------------------- | -------------------------------------- | --------------------- |
+| `TRANSPORT_MODE`      | "stdio" or "http"                      | stdio                 |
+| `HTTP_PORT`           | Port for HTTP transport                | 3000                  |
+| `EMBEDDING_PROVIDER`  | "ollama", "openai", "cohere", "voyage" | ollama                |
+| `QDRANT_URL`          | Qdrant server URL                      | http://localhost:6333 |
+| `QDRANT_API_KEY`      | API key for Qdrant authentication      | -                     |
+| `PROMPTS_CONFIG_FILE` | Path to prompts configuration JSON     | prompts.json          |
 
 #### Embedding Configuration
 
-| Variable                            | Description                            | Default               |
-| ----------------------------------- | -------------------------------------- | --------------------- |
-| `EMBEDDING_MODEL`                   | Model name                             | Provider-specific     |
-| `EMBEDDING_BASE_URL`                | Custom API URL                         | Provider-specific     |
-| `EMBEDDING_MAX_REQUESTS_PER_MINUTE` | Rate limit                             | Provider-specific     |
-| `EMBEDDING_RETRY_ATTEMPTS`          | Retry count                            | 3                     |
-| `EMBEDDING_RETRY_DELAY`             | Initial retry delay (ms)               | 1000                  |
-| `OPENAI_API_KEY`                    | OpenAI API key                         | -                     |
-| `COHERE_API_KEY`                    | Cohere API key                         | -                     |
-| `VOYAGE_API_KEY`                    | Voyage AI API key                      | -                     |
+| Variable                            | Description              | Default           |
+| ----------------------------------- | ------------------------ | ----------------- |
+| `EMBEDDING_MODEL`                   | Model name               | Provider-specific |
+| `EMBEDDING_BASE_URL`                | Custom API URL           | Provider-specific |
+| `EMBEDDING_MAX_REQUESTS_PER_MINUTE` | Rate limit               | Provider-specific |
+| `EMBEDDING_RETRY_ATTEMPTS`          | Retry count              | 3                 |
+| `EMBEDDING_RETRY_DELAY`             | Initial retry delay (ms) | 1000              |
+| `OPENAI_API_KEY`                    | OpenAI API key           | -                 |
+| `COHERE_API_KEY`                    | Cohere API key           | -                 |
+| `VOYAGE_API_KEY`                    | Voyage AI API key        | -                 |
 
 #### Code Vectorization Configuration
 
-| Variable                  | Description                                      | Default |
-| ------------------------- | ------------------------------------------------ | ------- |
-| `CODE_CHUNK_SIZE`         | Maximum chunk size in characters                 | 2500    |
-| `CODE_CHUNK_OVERLAP`      | Overlap between chunks in characters             | 300     |
-| `CODE_ENABLE_AST`         | Enable AST-aware chunking (tree-sitter)          | true    |
-| `CODE_BATCH_SIZE`         | Number of chunks to embed in one batch           | 100     |
-| `CODE_CUSTOM_EXTENSIONS`  | Additional file extensions (comma-separated)     | -       |
-| `CODE_CUSTOM_IGNORE`      | Additional ignore patterns (comma-separated)     | -       |
-| `CODE_DEFAULT_LIMIT`      | Default search result limit                      | 5       |
+| Variable                 | Description                                  | Default |
+| ------------------------ | -------------------------------------------- | ------- |
+| `CODE_CHUNK_SIZE`        | Maximum chunk size in characters             | 2500    |
+| `CODE_CHUNK_OVERLAP`     | Overlap between chunks in characters         | 300     |
+| `CODE_ENABLE_AST`        | Enable AST-aware chunking (tree-sitter)      | true    |
+| `CODE_BATCH_SIZE`        | Number of chunks to embed in one batch       | 100     |
+| `CODE_CUSTOM_EXTENSIONS` | Additional file extensions (comma-separated) | -       |
+| `CODE_CUSTOM_IGNORE`     | Additional ignore patterns (comma-separated) | -       |
+| `CODE_DEFAULT_LIMIT`     | Default search result limit                  | 5       |
 
 ### Provider Comparison
 
@@ -473,25 +479,28 @@ See [examples/](examples/) directory for detailed guides:
 | **Cohere** | `embed-english-v3.0` (default), `embed-multilingual-v3.0`       | 1024           | 100/min    | Multilingual support |
 | **Voyage** | `voyage-2` (default), `voyage-large-2`, `voyage-code-2`         | 1024, 1536     | 300/min    | Code-specialized     |
 
-**Note:** Ollama models require `docker exec ollama ollama pull <model-name>` before use.
+**Note:** Ollama models require pulling before use:
+
+- Podman: `podman exec ollama ollama pull <model-name>`
+- Docker: `docker exec ollama ollama pull <model-name>`
 
 ## Troubleshooting
 
-| Issue                           | Solution                                                                     |
-| ------------------------------- | ---------------------------------------------------------------------------- |
-| **Qdrant not running**          | `docker compose up -d`                                                       |
-| **Collection missing**          | Create collection first before adding documents                              |
-| **Ollama not running**          | Verify with `curl http://localhost:11434`, start with `docker compose up -d` |
-| **Model missing**               | `docker exec ollama ollama pull nomic-embed-text`                            |
-| **Rate limit errors**           | Adjust `EMBEDDING_MAX_REQUESTS_PER_MINUTE` to match your provider tier       |
-| **API key errors**              | Verify correct API key in environment configuration                          |
-| **Qdrant unauthorized**         | Set `QDRANT_API_KEY` environment variable for secured instances              |
-| **Filter errors**               | Ensure Qdrant filter format, check field names match metadata                |
-| **Codebase not indexed**        | Run `index_codebase` before `search_code`                                    |
-| **Slow indexing**               | Use Ollama (local) for faster indexing, or increase `CODE_BATCH_SIZE`        |
-| **Files not found**             | Check `.gitignore` and `.contextignore` patterns                             |
-| **Search returns no results**   | Try broader queries, check if codebase is indexed with `get_index_status`    |
-| **Out of memory during index**  | Reduce `CODE_CHUNK_SIZE` or `CODE_BATCH_SIZE`                                |
+| Issue                          | Solution                                                                                  |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| **Qdrant not running**         | `podman compose up -d` or `docker compose up -d`                                          |
+| **Collection missing**         | Create collection first before adding documents                                           |
+| **Ollama not running**         | Verify with `curl http://localhost:11434`, start with `podman compose up -d`              |
+| **Model missing**              | `podman exec ollama ollama pull nomic-embed-text` or `docker exec ollama ollama pull ...` |
+| **Rate limit errors**          | Adjust `EMBEDDING_MAX_REQUESTS_PER_MINUTE` to match your provider tier                    |
+| **API key errors**             | Verify correct API key in environment configuration                                       |
+| **Qdrant unauthorized**        | Set `QDRANT_API_KEY` environment variable for secured instances                           |
+| **Filter errors**              | Ensure Qdrant filter format, check field names match metadata                             |
+| **Codebase not indexed**       | Run `index_codebase` before `search_code`                                                 |
+| **Slow indexing**              | Use Ollama (local) for faster indexing, or increase `CODE_BATCH_SIZE`                     |
+| **Files not found**            | Check `.gitignore` and `.contextignore` patterns                                          |
+| **Search returns no results**  | Try broader queries, check if codebase is indexed with `get_index_status`                 |
+| **Out of memory during index** | Reduce `CODE_CHUNK_SIZE` or `CODE_BATCH_SIZE`                                             |
 
 ## Development
 
@@ -505,12 +514,12 @@ npm run test:coverage # Coverage report
 
 ### Testing
 
-**422 tests** (376 unit + 46 functional) with **98%+ coverage**:
+**548 tests** across 21 test files with **98%+ coverage**:
 
-- **Unit Tests**: QdrantManager (21), Ollama (31), OpenAI (25), Cohere (29), Voyage (31), Factory (32), MCP Server (19)
-- **Functional Tests**: Live API integration, end-to-end workflows (46)
+- **Unit Tests**: QdrantManager (54), Ollama (41), OpenAI (25), Cohere (29), Voyage (31), Factory (43), Prompts (50), Transport (15), MCP Server (19)
+- **Integration Tests**: Code indexer, scanner, chunker, synchronizer, merkle tree
 
-**CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 20 & 22 for every push/PR.
+**CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22 LTS for every push/PR.
 
 ## Contributing
 

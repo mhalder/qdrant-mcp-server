@@ -37,7 +37,8 @@ export class QdrantManager {
     }
 
     // Check if already a valid UUID (8-4-4-4-12 format)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(id)) {
       return id;
     }
@@ -51,7 +52,7 @@ export class QdrantManager {
     name: string,
     vectorSize: number,
     distance: "Cosine" | "Euclid" | "Dot" = "Cosine",
-    enableSparse: boolean = false
+    enableSparse: boolean = false,
   ): Promise<void> {
     const config: any = {};
 
@@ -139,7 +140,7 @@ export class QdrantManager {
       id: string | number;
       vector: number[];
       payload?: Record<string, any>;
-    }>
+    }>,
   ): Promise<void> {
     try {
       // Normalize all IDs to ensure string IDs are in UUID format
@@ -153,8 +154,11 @@ export class QdrantManager {
         points: normalizedPoints,
       });
     } catch (error: any) {
-      const errorMessage = error?.data?.status?.error || error?.message || String(error);
-      throw new Error(`Failed to add points to collection "${collectionName}": ${errorMessage}`);
+      const errorMessage =
+        error?.data?.status?.error || error?.message || String(error);
+      throw new Error(
+        `Failed to add points to collection "${collectionName}": ${errorMessage}`,
+      );
     }
   }
 
@@ -162,7 +166,7 @@ export class QdrantManager {
     collectionName: string,
     vector: number[],
     limit: number = 5,
-    filter?: Record<string, any>
+    filter?: Record<string, any>,
   ): Promise<SearchResult[]> {
     // Convert simple key-value filter to Qdrant filter format
     // Accepts either:
@@ -202,7 +206,7 @@ export class QdrantManager {
 
   async getPoint(
     collectionName: string,
-    id: string | number
+    id: string | number,
   ): Promise<{ id: string | number; payload?: Record<string, any> } | null> {
     try {
       const normalizedId = this.normalizeId(id);
@@ -223,7 +227,10 @@ export class QdrantManager {
     }
   }
 
-  async deletePoints(collectionName: string, ids: (string | number)[]): Promise<void> {
+  async deletePoints(
+    collectionName: string,
+    ids: (string | number)[],
+  ): Promise<void> {
     // Normalize IDs to ensure string IDs are in UUID format
     const normalizedIds = ids.map((id) => this.normalizeId(id));
 
@@ -243,7 +250,7 @@ export class QdrantManager {
     sparseVector: SparseVector,
     limit: number = 5,
     filter?: Record<string, any>,
-    _semanticWeight: number = 0.7
+    _semanticWeight: number = 0.7,
   ): Promise<SearchResult[]> {
     // Convert simple key-value filter to Qdrant filter format
     let qdrantFilter;
@@ -293,8 +300,11 @@ export class QdrantManager {
         payload: result.payload || undefined,
       }));
     } catch (error: any) {
-      const errorMessage = error?.data?.status?.error || error?.message || String(error);
-      throw new Error(`Hybrid search failed on collection "${collectionName}": ${errorMessage}`);
+      const errorMessage =
+        error?.data?.status?.error || error?.message || String(error);
+      throw new Error(
+        `Hybrid search failed on collection "${collectionName}": ${errorMessage}`,
+      );
     }
   }
 
@@ -308,7 +318,7 @@ export class QdrantManager {
       vector: number[];
       sparseVector: SparseVector;
       payload?: Record<string, any>;
-    }>
+    }>,
   ): Promise<void> {
     try {
       // Normalize all IDs to ensure string IDs are in UUID format
@@ -326,9 +336,10 @@ export class QdrantManager {
         points: normalizedPoints,
       });
     } catch (error: any) {
-      const errorMessage = error?.data?.status?.error || error?.message || String(error);
+      const errorMessage =
+        error?.data?.status?.error || error?.message || String(error);
       throw new Error(
-        `Failed to add points with sparse vectors to collection "${collectionName}": ${errorMessage}`
+        `Failed to add points with sparse vectors to collection "${collectionName}": ${errorMessage}`,
       );
     }
   }

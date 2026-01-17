@@ -7,11 +7,13 @@ Practical examples demonstrating Qdrant MCP Server usage.
 Before running examples:
 
 ```bash
-# Start services
-docker compose up -d
+# Start services (choose one)
+podman compose up -d   # Using Podman
+docker compose up -d   # Using Docker
 
 # Pull embedding model
-docker exec ollama ollama pull nomic-embed-text
+podman exec ollama ollama pull nomic-embed-text  # Podman
+docker exec ollama ollama pull nomic-embed-text  # Docker
 ```
 
 Configure MCP server as described in [main README](../README.md).
