@@ -16,7 +16,7 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - qdrant_data:/qdrant/storage
+      - qdrant_data:/qdrant/storage:Z
     environment:
       QDRANT__SERVICE__GRPC_PORT: "6334"
     restart: unless-stopped
@@ -41,7 +41,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama
+      - ollama_data:/root/.ollama:Z
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
