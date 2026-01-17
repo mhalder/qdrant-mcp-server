@@ -27,6 +27,26 @@ describe("QdrantManager", () => {
     manager = new QdrantManager("http://localhost:6333");
   });
 
+  describe("constructor", () => {
+    it("should pass apiKey to QdrantClient when provided", () => {
+      new QdrantManager("http://localhost:6333", "test-api-key");
+
+      expect(QdrantClient).toHaveBeenCalledWith({
+        url: "http://localhost:6333",
+        apiKey: "test-api-key",
+      });
+    });
+
+    it("should work without apiKey for unauthenticated instances", () => {
+      new QdrantManager("http://localhost:6333");
+
+      expect(QdrantClient).toHaveBeenCalledWith({
+        url: "http://localhost:6333",
+        apiKey: undefined,
+      });
+    });
+  });
+
   describe("createCollection", () => {
     it("should create a collection with default distance metric", async () => {
       await manager.createCollection("test-collection", 1536);

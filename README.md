@@ -18,6 +18,7 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 - **Rate Limiting**: Intelligent throttling with exponential backoff
 - **Full CRUD**: Create, search, and manage collections and documents
 - **Flexible Deployment**: Run locally (stdio) or as a remote HTTP server
+- **API Key Authentication**: Connect to secured Qdrant instances (Qdrant Cloud, self-hosted with API keys)
 
 ## Quick Start
 
@@ -56,6 +57,26 @@ Add to `~/.claude/claude_code_config.json`:
       "args": ["/path/to/qdrant-mcp-server/build/index.js"],
       "env": {
         "QDRANT_URL": "http://localhost:6333",
+        "EMBEDDING_BASE_URL": "http://localhost:11434"
+      }
+    }
+  }
+}
+```
+
+#### Connecting to Secured Qdrant Instances
+
+For Qdrant Cloud or self-hosted instances with API key authentication:
+
+```json
+{
+  "mcpServers": {
+    "qdrant": {
+      "command": "node",
+      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
+      "env": {
+        "QDRANT_URL": "https://your-cluster.qdrant.io:6333",
+        "QDRANT_API_KEY": "your-api-key-here",
         "EMBEDDING_BASE_URL": "http://localhost:11434"
       }
     }
@@ -415,6 +436,7 @@ See [examples/](examples/) directory for detailed guides:
 | `HTTP_PORT`                         | Port for HTTP transport                | 3000                  |
 | `EMBEDDING_PROVIDER`                | "ollama", "openai", "cohere", "voyage" | ollama                |
 | `QDRANT_URL`                        | Qdrant server URL                      | http://localhost:6333 |
+| `QDRANT_API_KEY`                    | API key for Qdrant authentication      | -                     |
 | `PROMPTS_CONFIG_FILE`               | Path to prompts configuration JSON     | prompts.json          |
 
 #### Embedding Configuration
@@ -463,6 +485,7 @@ See [examples/](examples/) directory for detailed guides:
 | **Model missing**               | `docker exec ollama ollama pull nomic-embed-text`                            |
 | **Rate limit errors**           | Adjust `EMBEDDING_MAX_REQUESTS_PER_MINUTE` to match your provider tier       |
 | **API key errors**              | Verify correct API key in environment configuration                          |
+| **Qdrant unauthorized**         | Set `QDRANT_API_KEY` environment variable for secured instances              |
 | **Filter errors**               | Ensure Qdrant filter format, check field names match metadata                |
 | **Codebase not indexed**        | Run `index_codebase` before `search_code`                                    |
 | **Slow indexing**               | Use Ollama (local) for faster indexing, or increase `CODE_BATCH_SIZE`        |
