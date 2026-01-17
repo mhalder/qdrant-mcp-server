@@ -1206,6 +1206,14 @@ const REQUEST_TIMEOUT_MS = parseInt(
 );
 const SHUTDOWN_GRACE_PERIOD_MS = 10 * 1000; // 10 seconds
 
+// Validate REQUEST_TIMEOUT_MS
+if (Number.isNaN(REQUEST_TIMEOUT_MS) || REQUEST_TIMEOUT_MS <= 0) {
+  console.error(
+    `Error: Invalid HTTP_REQUEST_TIMEOUT_MS "${process.env.HTTP_REQUEST_TIMEOUT_MS}". Must be a positive integer.`,
+  );
+  process.exit(1);
+}
+
 // Start server with HTTP transport
 async function startHttpServer() {
   await checkOllamaAvailability();
