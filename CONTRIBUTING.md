@@ -147,8 +147,20 @@ Automated via [semantic-release](https://semantic-release.gitbook.io/):
 ```
 qdrant-mcp-server/
 ├── src/              # Source code
-│   ├── embeddings/   # Embedding providers
-│   └── qdrant/       # Qdrant client
+│   ├── code/         # Code indexing and vectorization
+│   │   ├── chunker/  # AST-aware code chunking
+│   │   └── sync/     # File synchronization with Merkle trees
+│   ├── embeddings/   # Embedding providers (Ollama, OpenAI, Cohere, Voyage)
+│   ├── prompts/      # MCP prompt templates and registration
+│   ├── qdrant/       # Qdrant vector database client
+│   ├── resources/    # MCP resource definitions
+│   └── tools/        # MCP tool implementations
+│       ├── code.ts       # Code indexing tools
+│       ├── collection.ts # Collection management
+│       ├── document.ts   # Document operations
+│       ├── search.ts     # Search tools (semantic + hybrid)
+│       ├── schemas.ts    # Zod validation schemas
+│       └── index.ts      # Tool registration orchestrator
 ├── build/            # Compiled output
 ├── examples/         # Usage examples
 ├── scripts/          # Utility scripts
