@@ -69,20 +69,30 @@ After making changes to your codebase:
 
 ## Example 5: Check Index Status
 
-```bash
-# Get information about an indexed codebase
-/mcp__qdrant__get_index_status /path/to/your/project
+The index status tracks three states: `not_indexed`, `indexing`, and `indexed`.
 
+```bash
+# Check status before indexing
+/mcp__qdrant__get_index_status /path/to/your/project
+# Output: Codebase at "/path/to/your/project" is not indexed. Use index_codebase to index it first.
+
+# Check status during indexing (in another terminal/session)
+/mcp__qdrant__get_index_status /path/to/your/project
+# Output: Codebase at "/path/to/your/project" is currently being indexed. 523 chunks processed so far.
+
+# Check status after indexing completes
+/mcp__qdrant__get_index_status /path/to/your/project
 # Output:
 # {
 #   "isIndexed": true,
+#   "status": "indexed",
 #   "collectionName": "code_a3f8d2e1",
 #   "chunksCount": 1823,
-#   "filesCount": 247,
-#   "lastUpdated": "2025-01-30T10:15:00Z",
-#   "languages": ["typescript", "javascript", "json"]
+#   "lastUpdated": "2025-01-30T10:15:00Z"
 # }
 ```
+
+This is useful for monitoring long-running indexing operations on large codebases.
 
 ## Example 6: Multi-Language Project
 
@@ -224,6 +234,11 @@ export EMBEDDING_PROVIDER=ollama
 ```bash
 # Check if codebase is indexed
 /mcp__qdrant__get_index_status /path/to/your/project
+
+# Possible status responses:
+# - "not indexed" → Run index_codebase first
+# - "currently being indexed" → Wait for indexing to complete
+# - JSON with status: "indexed" → Codebase is ready for search
 
 # If not indexed:
 /mcp__qdrant__index_codebase /path/to/your/project

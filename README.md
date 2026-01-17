@@ -361,7 +361,8 @@ get_index_status({
 
 // Output:
 // {
-//   isIndexed: true,
+//   status: "indexed",      // "not_indexed" | "indexing" | "indexed"
+//   isIndexed: true,        // deprecated: use status instead
 //   collectionName: "code_a3f8d2e1",
 //   chunksCount: 1823,
 //   filesCount: 247,
@@ -515,7 +516,7 @@ npm run test:coverage # Coverage report
 
 ### Testing
 
-**548 tests** across 21 test files with **98%+ coverage**:
+**563 tests** across 21 test files with **98%+ coverage**:
 
 - **Unit Tests**: QdrantManager (54), Ollama (41), OpenAI (25), Cohere (29), Voyage (31), Factory (43), Prompts (50), Transport (15), MCP Server (19)
 - **Integration Tests**: Code indexer, scanner, chunker, synchronizer, merkle tree
