@@ -29,27 +29,37 @@ import { CodeIndexer } from "./code/indexer.js";
 import type { CodeConfig } from "./code/types.js";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { BM25SparseVectorGenerator } from "./embeddings/sparse.js";
-import { getPrompt, listPrompts, loadPromptsConfig, type PromptsConfig } from "./prompts/index.js";
+import {
+  getPrompt,
+  listPrompts,
+  loadPromptsConfig,
+  type PromptsConfig,
+} from "./prompts/index.js";
 import { renderTemplate, validateArguments } from "./prompts/template.js";
 import { QdrantManager } from "./qdrant/client.js";
 
 // Read package.json for version
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf-8"));
+const pkg = JSON.parse(
+  readFileSync(join(__dirname, "../package.json"), "utf-8"),
+);
 
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
-const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerCase();
+const EMBEDDING_PROVIDER = (
+  process.env.EMBEDDING_PROVIDER || "ollama"
+).toLowerCase();
 const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
-const PROMPTS_CONFIG_FILE = process.env.PROMPTS_CONFIG_FILE || join(__dirname, "../prompts.json");
+const PROMPTS_CONFIG_FILE =
+  process.env.PROMPTS_CONFIG_FILE || join(__dirname, "../prompts.json");
 
 // Validate HTTP_PORT when HTTP mode is selected
 if (TRANSPORT_MODE === "http") {
   if (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) {
     console.error(
-      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`
+      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`,
     );
     process.exit(1);
   }
@@ -75,13 +85,15 @@ if (EMBEDDING_PROVIDER !== "ollama") {
       break;
     default:
       console.error(
-        `Error: Unknown embedding provider "${EMBEDDING_PROVIDER}". Supported providers: openai, cohere, voyage, ollama.`
+        `Error: Unknown embedding provider "${EMBEDDING_PROVIDER}". Supported providers: openai, cohere, voyage, ollama.`,
       );
       process.exit(1);
   }
 
   if (!apiKey) {
-    console.error(`Error: ${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider.`);
+    console.error(
+      `Error: ${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider.`,
+    );
     process.exit(1);
   }
 }
@@ -90,7 +102,8 @@ if (EMBEDDING_PROVIDER !== "ollama") {
 async function checkOllamaAvailability() {
   if (EMBEDDING_PROVIDER === "ollama") {
     const baseUrl = process.env.EMBEDDING_BASE_URL || "http://localhost:11434";
-    const isLocalhost = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
+    const isLocalhost =
+      baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
 
     try {
       const response = await fetch(`${baseUrl}/api/version`);
@@ -103,7 +116,7 @@ async function checkOllamaAvailability() {
       const { models } = await tagsResponse.json();
       const modelName = process.env.EMBEDDING_MODEL || "nomic-embed-text";
       const modelExists = models.some(
-        (m: any) => m.name === modelName || m.name.startsWith(`${modelName}:`)
+        (m: any) => m.name === modelName || m.name.startsWith(`${modelName}:`),
       );
 
       if (!modelExists) {
@@ -112,6 +125,7 @@ async function checkOllamaAvailability() {
         if (isLocalhost) {
           errorMessage +=
             `Pull it with:\n` +
+            `  - Using Podman: podman exec ollama ollama pull ${modelName}\n` +
             `  - Using Docker: docker exec ollama ollama pull ${modelName}\n` +
             `  - Or locally: ollama pull ${modelName}`;
         } else {
@@ -133,6 +147,7 @@ async function checkOllamaAvailability() {
       if (isLocalhost) {
         helpText =
           `Please start Ollama:\n` +
+          `  - Using Podman: podman compose up -d\n` +
           `  - Using Docker: docker compose up -d\n` +
           `  - Or install locally: curl -fsSL https://ollama.ai/install.sh | sh\n` +
           `\nThen pull the embedding model:\n` +
@@ -157,13 +172,25 @@ const embeddings = EmbeddingProviderFactory.createFromEnv();
 
 // Initialize code indexer
 const codeConfig: CodeConfig = {
-  chunkSize: parseInt(process.env.CODE_CHUNK_SIZE || String(DEFAULT_CHUNK_SIZE), 10),
-  chunkOverlap: parseInt(process.env.CODE_CHUNK_OVERLAP || String(DEFAULT_CHUNK_OVERLAP), 10),
+  chunkSize: parseInt(
+    process.env.CODE_CHUNK_SIZE || String(DEFAULT_CHUNK_SIZE),
+    10,
+  ),
+  chunkOverlap: parseInt(
+    process.env.CODE_CHUNK_OVERLAP || String(DEFAULT_CHUNK_OVERLAP),
+    10,
+  ),
   enableASTChunking: process.env.CODE_ENABLE_AST !== "false",
   supportedExtensions: DEFAULT_CODE_EXTENSIONS,
   ignorePatterns: DEFAULT_IGNORE_PATTERNS,
-  batchSize: parseInt(process.env.CODE_BATCH_SIZE || String(DEFAULT_BATCH_SIZE), 10),
-  defaultSearchLimit: parseInt(process.env.CODE_SEARCH_LIMIT || String(DEFAULT_SEARCH_LIMIT), 10),
+  batchSize: parseInt(
+    process.env.CODE_BATCH_SIZE || String(DEFAULT_BATCH_SIZE),
+    10,
+  ),
+  defaultSearchLimit: parseInt(
+    process.env.CODE_SEARCH_LIMIT || String(DEFAULT_SEARCH_LIMIT),
+    10,
+  ),
   enableHybridSearch: process.env.CODE_ENABLE_HYBRID === "true",
 };
 
@@ -174,9 +201,14 @@ let promptsConfig: PromptsConfig | null = null;
 if (existsSync(PROMPTS_CONFIG_FILE)) {
   try {
     promptsConfig = loadPromptsConfig(PROMPTS_CONFIG_FILE);
-    console.error(`Loaded ${promptsConfig.prompts.length} prompts from ${PROMPTS_CONFIG_FILE}`);
+    console.error(
+      `Loaded ${promptsConfig.prompts.length} prompts from ${PROMPTS_CONFIG_FILE}`,
+    );
   } catch (error) {
-    console.error(`Failed to load prompts configuration from ${PROMPTS_CONFIG_FILE}:`, error);
+    console.error(
+      `Failed to load prompts configuration from ${PROMPTS_CONFIG_FILE}:`,
+      error,
+    );
     process.exit(1);
   }
 }
@@ -205,7 +237,7 @@ function createServer() {
     },
     {
       capabilities,
-    }
+    },
   );
 }
 
@@ -236,7 +268,8 @@ function registerHandlers(server: Server) {
               },
               enableHybrid: {
                 type: "boolean",
-                description: "Enable hybrid search with sparse vectors (default: false)",
+                description:
+                  "Enable hybrid search with sparse vectors (default: false)",
               },
             },
             required: ["name"],
@@ -269,7 +302,8 @@ function registerHandlers(server: Server) {
                     },
                     metadata: {
                       type: "object",
-                      description: "Optional metadata to store with the document",
+                      description:
+                        "Optional metadata to store with the document",
                     },
                   },
                   required: ["id", "text"],
@@ -345,7 +379,8 @@ function registerHandlers(server: Server) {
         },
         {
           name: "delete_documents",
-          description: "Delete specific documents from a collection by their IDs.",
+          description:
+            "Delete specific documents from a collection by their IDs.",
           inputSchema: {
             type: "object",
             properties: {
@@ -400,21 +435,25 @@ function registerHandlers(server: Server) {
             properties: {
               path: {
                 type: "string",
-                description: "Absolute or relative path to codebase root directory",
+                description:
+                  "Absolute or relative path to codebase root directory",
               },
               forceReindex: {
                 type: "boolean",
-                description: "Force full re-index even if already indexed (default: false)",
+                description:
+                  "Force full re-index even if already indexed (default: false)",
               },
               extensions: {
                 type: "array",
                 items: { type: "string" },
-                description: "Custom file extensions to index (e.g., ['.proto', '.graphql'])",
+                description:
+                  "Custom file extensions to index (e.g., ['.proto', '.graphql'])",
               },
               ignorePatterns: {
                 type: "array",
                 items: { type: "string" },
-                description: "Additional patterns to ignore (e.g., ['**/test/**', '**/*.test.ts'])",
+                description:
+                  "Additional patterns to ignore (e.g., ['**/test/**', '**/*.test.ts'])",
               },
             },
             required: ["path"],
@@ -433,7 +472,8 @@ function registerHandlers(server: Server) {
               },
               query: {
                 type: "string",
-                description: "Natural language search query (e.g., 'authentication logic')",
+                description:
+                  "Natural language search query (e.g., 'authentication logic')",
               },
               limit: {
                 type: "number",
@@ -446,7 +486,8 @@ function registerHandlers(server: Server) {
               },
               pathPattern: {
                 type: "string",
-                description: "Filter by path glob pattern (e.g., 'src/services/**')",
+                description:
+                  "Filter by path glob pattern (e.g., 'src/services/**')",
               },
             },
             required: ["path", "query"],
@@ -507,9 +548,15 @@ function registerHandlers(server: Server) {
     try {
       switch (name) {
         case "create_collection": {
-          const { name, distance, enableHybrid } = CreateCollectionSchema.parse(args);
+          const { name, distance, enableHybrid } =
+            CreateCollectionSchema.parse(args);
           const vectorSize = embeddings.getDimensions();
-          await qdrant.createCollection(name, vectorSize, distance, enableHybrid || false);
+          await qdrant.createCollection(
+            name,
+            vectorSize,
+            distance,
+            enableHybrid || false,
+          );
 
           let message = `Collection "${name}" created successfully with ${vectorSize} dimensions and ${distance || "Cosine"} distance metric.`;
           if (enableHybrid) {
@@ -590,7 +637,8 @@ function registerHandlers(server: Server) {
         }
 
         case "semantic_search": {
-          const { collection, query, limit, filter } = SemanticSearchSchema.parse(args);
+          const { collection, query, limit, filter } =
+            SemanticSearchSchema.parse(args);
 
           // Check if collection exists
           const exists = await qdrant.collectionExists(collection);
@@ -610,7 +658,12 @@ function registerHandlers(server: Server) {
           const { embedding } = await embeddings.embed(query);
 
           // Search
-          const results = await qdrant.search(collection, embedding, limit || 5, filter);
+          const results = await qdrant.search(
+            collection,
+            embedding,
+            limit || 5,
+            filter,
+          );
 
           return {
             content: [
@@ -674,7 +727,8 @@ function registerHandlers(server: Server) {
         }
 
         case "hybrid_search": {
-          const { collection, query, limit, filter } = HybridSearchSchema.parse(args);
+          const { collection, query, limit, filter } =
+            HybridSearchSchema.parse(args);
 
           // Check if collection exists
           const exists = await qdrant.collectionExists(collection);
@@ -717,7 +771,7 @@ function registerHandlers(server: Server) {
             embedding,
             sparseVector,
             limit || 5,
-            filter
+            filter,
           );
 
           return {
@@ -746,8 +800,10 @@ function registerHandlers(server: Server) {
             { forceReindex, extensions, ignorePatterns },
             (progress) => {
               // Progress callback - could send progress updates via SSE in future
-              console.error(`[${progress.phase}] ${progress.percentage}% - ${progress.message}`);
-            }
+              console.error(
+                `[${progress.phase}] ${progress.percentage}% - ${progress.message}`,
+              );
+            },
           );
 
           let statusMessage = `Indexed ${stats.filesIndexed}/${stats.filesScanned} files (${stats.chunksCreated} chunks) in ${(stats.durationMs / 1000).toFixed(1)}s`;
@@ -778,7 +834,8 @@ function registerHandlers(server: Server) {
             pathPattern: z.string().optional(),
           });
 
-          const { path, query, limit, fileTypes, pathPattern } = SearchCodeSchema.parse(args);
+          const { path, query, limit, fileTypes, pathPattern } =
+            SearchCodeSchema.parse(args);
 
           const results = await codeIndexer.searchCode(path, query, {
             limit,
@@ -804,7 +861,7 @@ function registerHandlers(server: Server) {
                 `\n--- Result ${idx + 1} (score: ${r.score.toFixed(3)}) ---\n` +
                 `File: ${r.filePath}:${r.startLine}-${r.endLine}\n` +
                 `Language: ${r.language}\n\n` +
-                `${r.content}\n`
+                `${r.content}\n`,
             )
             .join("\n");
 
@@ -855,7 +912,9 @@ function registerHandlers(server: Server) {
           const { path } = ReindexChangesSchema.parse(args);
 
           const stats = await codeIndexer.reindexChanges(path, (progress) => {
-            console.error(`[${progress.phase}] ${progress.percentage}% - ${progress.message}`);
+            console.error(
+              `[${progress.phase}] ${progress.percentage}% - ${progress.message}`,
+            );
           });
 
           let message = `Incremental re-index complete:\n`;
@@ -865,7 +924,11 @@ function registerHandlers(server: Server) {
           message += `- Chunks added: ${stats.chunksAdded}\n`;
           message += `- Duration: ${(stats.durationMs / 1000).toFixed(1)}s`;
 
-          if (stats.filesAdded === 0 && stats.filesModified === 0 && stats.filesDeleted === 0) {
+          if (
+            stats.filesAdded === 0 &&
+            stats.filesModified === 0 &&
+            stats.filesDeleted === 0
+          ) {
             message = `No changes detected. Codebase is up to date.`;
           }
 
@@ -910,7 +973,8 @@ function registerHandlers(server: Server) {
       }
     } catch (error: any) {
       // Enhanced error details for debugging
-      const errorDetails = error instanceof Error ? error.message : JSON.stringify(error, null, 2);
+      const errorDetails =
+        error instanceof Error ? error.message : JSON.stringify(error, null, 2);
 
       console.error("Tool execution error:", {
         tool: name,
@@ -1028,7 +1092,11 @@ function registerHandlers(server: Server) {
         validateArguments(args || {}, prompt.arguments);
 
         // Render template
-        const rendered = renderTemplate(prompt.template, args || {}, prompt.arguments);
+        const rendered = renderTemplate(
+          prompt.template,
+          args || {},
+          prompt.arguments,
+        );
 
         return {
           messages: [
@@ -1043,7 +1111,7 @@ function registerHandlers(server: Server) {
         };
       } catch (error) {
         throw new Error(
-          `Failed to render prompt "${name}": ${error instanceof Error ? error.message : String(error)}`
+          `Failed to render prompt "${name}": ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     });
@@ -1071,13 +1139,15 @@ const AddDocumentsSchema = z.object({
   documents: z
     .array(
       z.object({
-        id: z.union([z.string(), z.number()]).describe("Unique identifier for the document"),
+        id: z
+          .union([z.string(), z.number()])
+          .describe("Unique identifier for the document"),
         text: z.string().describe("Text content to embed and store"),
         metadata: z
           .record(z.any())
           .optional()
           .describe("Optional metadata to store with the document"),
-      })
+      }),
     )
     .describe("Array of documents to add"),
 });
@@ -1085,7 +1155,10 @@ const AddDocumentsSchema = z.object({
 const SemanticSearchSchema = z.object({
   collection: z.string().describe("Name of the collection to search"),
   query: z.string().describe("Search query text"),
-  limit: z.number().optional().describe("Maximum number of results (default: 5)"),
+  limit: z
+    .number()
+    .optional()
+    .describe("Maximum number of results (default: 5)"),
   filter: z.record(z.any()).optional().describe("Optional metadata filter"),
 });
 
@@ -1099,13 +1172,18 @@ const GetCollectionInfoSchema = z.object({
 
 const DeleteDocumentsSchema = z.object({
   collection: z.string().describe("Name of the collection"),
-  ids: z.array(z.union([z.string(), z.number()])).describe("Array of document IDs to delete"),
+  ids: z
+    .array(z.union([z.string(), z.number()]))
+    .describe("Array of document IDs to delete"),
 });
 
 const HybridSearchSchema = z.object({
   collection: z.string().describe("Name of the collection to search"),
   query: z.string().describe("Search query text"),
-  limit: z.number().optional().describe("Maximum number of results (default: 5)"),
+  limit: z
+    .number()
+    .optional()
+    .describe("Maximum number of results (default: 5)"),
   filter: z.record(z.any()).optional().describe("Optional metadata filter"),
 });
 
@@ -1148,7 +1226,7 @@ async function startHttpServer() {
     res: express.Response,
     code: number,
     message: string,
-    httpStatus: number = 500
+    httpStatus: number = 500,
   ) => {
     if (!res.headersSent) {
       res.status(httpStatus).json({
@@ -1187,7 +1265,7 @@ async function startHttpServer() {
   const rateLimitMiddleware = async (
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) => {
     const clientIp = req.ip || req.socket.remoteAddress || "unknown";
 
@@ -1281,7 +1359,9 @@ async function startHttpServer() {
 
   const httpServer = app
     .listen(HTTP_PORT, () => {
-      console.error(`Qdrant MCP server running on http://localhost:${HTTP_PORT}/mcp`);
+      console.error(
+        `Qdrant MCP server running on http://localhost:${HTTP_PORT}/mcp`,
+      );
     })
     .on("error", (error) => {
       console.error("HTTP server error:", error);
@@ -1295,7 +1375,9 @@ async function startHttpServer() {
     if (isShuttingDown) return;
     isShuttingDown = true;
 
-    console.error("Shutdown signal received, closing HTTP server gracefully...");
+    console.error(
+      "Shutdown signal received, closing HTTP server gracefully...",
+    );
 
     // Clear the cleanup interval to allow graceful shutdown
     clearInterval(cleanupIntervalId);
@@ -1325,7 +1407,7 @@ async function main() {
     await startStdioServer();
   } else {
     console.error(
-      `Error: Invalid TRANSPORT_MODE "${TRANSPORT_MODE}". Supported modes: stdio, http.`
+      `Error: Invalid TRANSPORT_MODE "${TRANSPORT_MODE}". Supported modes: stdio, http.`,
     );
     process.exit(1);
   }

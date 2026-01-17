@@ -1,0 +1,57 @@
+# Compose file for Qdrant MCP Server dependencies
+# Compatible with both `podman compose` and `docker compose`
+#
+# Usage:
+#   podman compose up -d    # Start services with Podman
+#   docker compose up -d    # Start services with Docker
+#
+# Pull models after starting:
+#   podman exec ollama ollama pull nomic-embed-text
+
+services:
+  qdrant:
+    image: docker.io/qdrant/qdrant:latest
+    container_name: qdrant-mcp
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: "6334"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:6333/readyz",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  qdrant_data:
+    driver: local
+  ollama_data:
+    driver: local

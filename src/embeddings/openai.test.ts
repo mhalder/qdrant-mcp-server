@@ -2,23 +2,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { OpenAIEmbeddings } from "./openai.js";
 import OpenAI from "openai";
 
+const mockOpenAI = {
+  embeddings: {
+    create: vi.fn().mockResolvedValue({ data: [{ embedding: [] }] }),
+  },
+};
+
 vi.mock("openai", () => ({
-  default: vi.fn(),
+  default: vi.fn().mockImplementation(function () {
+    return mockOpenAI;
+  }),
 }));
 
 describe("OpenAIEmbeddings", () => {
   let embeddings: OpenAIEmbeddings;
-  let mockOpenAI: any;
 
   beforeEach(() => {
-    mockOpenAI = {
-      embeddings: {
-        create: vi.fn(),
-      },
-    };
-
-    vi.mocked(OpenAI).mockImplementation(() => mockOpenAI as any);
-
+    mockOpenAI.embeddings.create
+      .mockReset()
+      .mockResolvedValue({ data: [{ embedding: [] }] });
+    vi.mocked(OpenAI).mockClear();
     embeddings = new OpenAIEmbeddings("test-api-key");
   });
 
