@@ -1200,7 +1200,10 @@ const RATE_LIMIT_MAX_REQUESTS = 100; // Max requests per window
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_CONCURRENT = 10; // Max concurrent requests per IP
 const RATE_LIMITER_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const REQUEST_TIMEOUT_MS = 30 * 1000; // 30 seconds per request
+const REQUEST_TIMEOUT_MS = parseInt(
+  process.env.HTTP_REQUEST_TIMEOUT_MS || "300000",
+  10,
+);
 const SHUTDOWN_GRACE_PERIOD_MS = 10 * 1000; // 10 seconds
 
 // Start server with HTTP transport

@@ -436,14 +436,15 @@ See [examples/](examples/) directory for detailed guides:
 
 #### Core Configuration
 
-| Variable              | Description                            | Default               |
-| --------------------- | -------------------------------------- | --------------------- |
-| `TRANSPORT_MODE`      | "stdio" or "http"                      | stdio                 |
-| `HTTP_PORT`           | Port for HTTP transport                | 3000                  |
-| `EMBEDDING_PROVIDER`  | "ollama", "openai", "cohere", "voyage" | ollama                |
-| `QDRANT_URL`          | Qdrant server URL                      | http://localhost:6333 |
-| `QDRANT_API_KEY`      | API key for Qdrant authentication      | -                     |
-| `PROMPTS_CONFIG_FILE` | Path to prompts configuration JSON     | prompts.json          |
+| Variable                  | Description                             | Default               |
+| ------------------------- | --------------------------------------- | --------------------- |
+| `TRANSPORT_MODE`          | "stdio" or "http"                       | stdio                 |
+| `HTTP_PORT`               | Port for HTTP transport                 | 3000                  |
+| `HTTP_REQUEST_TIMEOUT_MS` | Request timeout for HTTP transport (ms) | 300000                |
+| `EMBEDDING_PROVIDER`      | "ollama", "openai", "cohere", "voyage"  | ollama                |
+| `QDRANT_URL`              | Qdrant server URL                       | http://localhost:6333 |
+| `QDRANT_API_KEY`          | API key for Qdrant authentication       | -                     |
+| `PROMPTS_CONFIG_FILE`     | Path to prompts configuration JSON      | prompts.json          |
 
 #### Embedding Configuration
 
