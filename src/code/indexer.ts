@@ -24,11 +24,17 @@ import type {
   SearchOptions,
 } from "./types.js";
 
+/** Reserved ID for storing indexing metadata in the collection */
+const INDEXING_METADATA_ID = "__indexing_metadata__";
+
 export class CodeIndexer {
+  /** Tracks collections currently being indexed (for real-time status) */
+  private indexingCollections: Set<string> = new Set();
+
   constructor(
     private qdrant: QdrantManager,
     private embeddings: EmbeddingProvider,
-    private config: CodeConfig
+    private config: CodeConfig,
   ) {}
 
   /**
@@ -59,7 +65,7 @@ export class CodeIndexer {
   async indexCodebase(
     path: string,
     options?: IndexOptions,
-    progressCallback?: ProgressCallback
+    progressCallback?: ProgressCallback,
   ): Promise<IndexStats> {
     const startTime = Date.now();
     const stats: IndexStats = {
@@ -71,9 +77,13 @@ export class CodeIndexer {
       errors: [],
     };
 
-    try {
-      const absolutePath = await this.validatePath(path);
+    const absolutePath = await this.validatePath(path);
+    const collectionName = this.getCollectionName(absolutePath);
 
+    // Mark this collection as currently indexing
+    this.indexingCollections.add(collectionName);
+
+    try {
       // 1. Scan files
       progressCallback?.({
         phase: "scanning",
@@ -84,9 +94,11 @@ export class CodeIndexer {
       });
 
       const scanner = new FileScanner({
-        supportedExtensions: options?.extensions || this.config.supportedExtensions,
+        supportedExtensions:
+          options?.extensions || this.config.supportedExtensions,
         ignorePatterns: this.config.ignorePatterns,
-        customIgnorePatterns: options?.ignorePatterns || this.config.customIgnorePatterns,
+        customIgnorePatterns:
+          options?.ignorePatterns || this.config.customIgnorePatterns,
       });
 
       await scanner.loadIgnorePatterns(absolutePath);
@@ -101,8 +113,8 @@ export class CodeIndexer {
       }
 
       // 2. Create or verify collection
-      const collectionName = this.getCollectionName(absolutePath);
-      const collectionExists = await this.qdrant.collectionExists(collectionName);
+      const collectionExists =
+        await this.qdrant.collectionExists(collectionName);
 
       if (options?.forceReindex && collectionExists) {
         await this.qdrant.deleteCollection(collectionName);
@@ -114,7 +126,7 @@ export class CodeIndexer {
           collectionName,
           vectorSize,
           "Cosine",
-          this.config.enableHybridSearch
+          this.config.enableHybridSearch,
         );
       }
 
@@ -141,7 +153,9 @@ export class CodeIndexer {
 
           // Check for secrets (basic detection)
           if (metadataExtractor.containsSecrets(code)) {
-            stats.errors?.push(`Skipped ${filePath}: potential secrets detected`);
+            stats.errors?.push(
+              `Skipped ${filePath}: potential secrets detected`,
+            );
             continue;
           }
 
@@ -158,7 +172,10 @@ export class CodeIndexer {
             allChunks.push({ chunk, id });
 
             // Check total chunk limit
-            if (this.config.maxTotalChunks && allChunks.length >= this.config.maxTotalChunks) {
+            if (
+              this.config.maxTotalChunks &&
+              allChunks.length >= this.config.maxTotalChunks
+            ) {
               break;
             }
           }
@@ -166,11 +183,15 @@ export class CodeIndexer {
           stats.filesIndexed++;
 
           // Check total chunk limit
-          if (this.config.maxTotalChunks && allChunks.length >= this.config.maxTotalChunks) {
+          if (
+            this.config.maxTotalChunks &&
+            allChunks.length >= this.config.maxTotalChunks
+          ) {
             break;
           }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
           stats.errors?.push(`Failed to process ${filePath}: ${errorMessage}`);
         }
       }
@@ -183,12 +204,15 @@ export class CodeIndexer {
         await synchronizer.updateSnapshot(files);
       } catch (error) {
         // Snapshot failure shouldn't fail the entire indexing
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         console.error("Failed to save snapshot:", errorMessage);
         stats.errors?.push(`Snapshot save failed: ${errorMessage}`);
       }
 
       if (allChunks.length === 0) {
+        // Still store completion marker even with no chunks
+        await this.storeCompletionMarker(collectionName);
         stats.status = "completed";
         stats.durationMs = Date.now() - startTime;
         return stats;
@@ -203,7 +227,8 @@ export class CodeIndexer {
           phase: "embedding",
           current: i + batch.length,
           total: allChunks.length,
-          percentage: 40 + Math.round(((i + batch.length) / allChunks.length) * 30), // 40-70%
+          percentage:
+            40 + Math.round(((i + batch.length) / allChunks.length) * 30), // 40-70%
           message: `Generating embeddings ${i + batch.length}/${allChunks.length}`,
         });
 
@@ -225,7 +250,9 @@ export class CodeIndexer {
               codebasePath: absolutePath,
               chunkIndex: b.chunk.metadata.chunkIndex,
               ...(b.chunk.metadata.name && { name: b.chunk.metadata.name }),
-              ...(b.chunk.metadata.chunkType && { chunkType: b.chunk.metadata.chunkType }),
+              ...(b.chunk.metadata.chunkType && {
+                chunkType: b.chunk.metadata.chunkType,
+              }),
             },
           }));
 
@@ -233,7 +260,8 @@ export class CodeIndexer {
             phase: "storing",
             current: i + batch.length,
             total: allChunks.length,
-            percentage: 70 + Math.round(((i + batch.length) / allChunks.length) * 30), // 70-100%
+            percentage:
+              70 + Math.round(((i + batch.length) / allChunks.length) * 30), // 70-100%
             message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
           });
 
@@ -254,7 +282,9 @@ export class CodeIndexer {
                 codebasePath: absolutePath,
                 chunkIndex: b.chunk.metadata.chunkIndex,
                 ...(b.chunk.metadata.name && { name: b.chunk.metadata.name }),
-                ...(b.chunk.metadata.chunkType && { chunkType: b.chunk.metadata.chunkType }),
+                ...(b.chunk.metadata.chunkType && {
+                  chunkType: b.chunk.metadata.chunkType,
+                }),
               },
             }));
 
@@ -263,20 +293,75 @@ export class CodeIndexer {
             await this.qdrant.addPoints(collectionName, points);
           }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          stats.errors?.push(`Failed to process batch at index ${i}: ${errorMessage}`);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          stats.errors?.push(
+            `Failed to process batch at index ${i}: ${errorMessage}`,
+          );
           stats.status = "partial";
         }
       }
 
+      // Store completion marker to indicate indexing is complete
+      await this.storeCompletionMarker(collectionName);
+
       stats.durationMs = Date.now() - startTime;
       return stats;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       stats.status = "failed";
       stats.errors?.push(`Indexing failed: ${errorMessage}`);
       stats.durationMs = Date.now() - startTime;
       return stats;
+    } finally {
+      // Always remove from indexing set when done (success or failure)
+      this.indexingCollections.delete(collectionName);
+    }
+  }
+
+  /**
+   * Store a completion marker point in the collection
+   */
+  private async storeCompletionMarker(collectionName: string): Promise<void> {
+    try {
+      // Create a dummy vector of zeros (required by Qdrant)
+      const vectorSize = this.embeddings.getDimensions();
+      const zeroVector = new Array(vectorSize).fill(0);
+
+      // Check if collection uses hybrid mode
+      const collectionInfo =
+        await this.qdrant.getCollectionInfo(collectionName);
+
+      if (collectionInfo.hybridEnabled) {
+        await this.qdrant.addPointsWithSparse(collectionName, [
+          {
+            id: INDEXING_METADATA_ID,
+            vector: zeroVector,
+            sparseVector: { indices: [], values: [] },
+            payload: {
+              _type: "indexing_metadata",
+              indexingComplete: true,
+              completedAt: new Date().toISOString(),
+            },
+          },
+        ]);
+      } else {
+        await this.qdrant.addPoints(collectionName, [
+          {
+            id: INDEXING_METADATA_ID,
+            vector: zeroVector,
+            payload: {
+              _type: "indexing_metadata",
+              indexingComplete: true,
+              completedAt: new Date().toISOString(),
+            },
+          },
+        ]);
+      }
+    } catch (error) {
+      // Non-fatal: log but don't fail the indexing
+      console.error("Failed to store completion marker:", error);
     }
   }
 
@@ -286,7 +371,7 @@ export class CodeIndexer {
   async searchCode(
     path: string,
     query: string,
-    options?: SearchOptions
+    options?: SearchOptions,
   ): Promise<CodeSearchResult[]> {
     const absolutePath = await this.validatePath(path);
     const collectionName = this.getCollectionName(absolutePath);
@@ -300,7 +385,8 @@ export class CodeIndexer {
     // Check if collection has hybrid search enabled
     const collectionInfo = await this.qdrant.getCollectionInfo(collectionName);
     const useHybrid =
-      (options?.useHybrid ?? this.config.enableHybridSearch) && collectionInfo.hybridEnabled;
+      (options?.useHybrid ?? this.config.enableHybridSearch) &&
+      collectionInfo.hybridEnabled;
 
     // Generate query embedding
     const { embedding } = await this.embeddings.embed(query);
@@ -342,14 +428,14 @@ export class CodeIndexer {
         embedding,
         sparseVector,
         options?.limit || this.config.defaultSearchLimit,
-        filter
+        filter,
       );
     } else {
       results = await this.qdrant.search(
         collectionName,
         embedding,
         options?.limit || this.config.defaultSearchLimit,
-        filter
+        filter,
       );
     }
 
@@ -379,24 +465,75 @@ export class CodeIndexer {
     const exists = await this.qdrant.collectionExists(collectionName);
 
     if (!exists) {
-      return { isIndexed: false };
+      return { isIndexed: false, status: "not_indexed" };
     }
 
-    const info = await this.qdrant.getCollectionInfo(collectionName);
+    // Check if currently indexing (in-memory tracking)
+    if (this.indexingCollections.has(collectionName)) {
+      const info = await this.qdrant.getCollectionInfo(collectionName);
+      return {
+        isIndexed: false,
+        status: "indexing",
+        collectionName,
+        // During indexing, completion marker hasn't been added yet, so all points are chunks
+        chunksCount: info.pointsCount,
+      };
+    }
 
-    return {
-      isIndexed: true,
+    // Check for completion marker
+    const completionMarker = await this.qdrant.getPoint(
       collectionName,
-      chunksCount: info.pointsCount,
-      // TODO: Extract unique languages and file count from collection
-      // This would require scrolling through points or maintaining separate metadata
+      INDEXING_METADATA_ID,
+    );
+    const info = await this.qdrant.getCollectionInfo(collectionName);
+    const hasCompletionMarker =
+      completionMarker?.payload?.indexingComplete === true;
+
+    // If completion marker exists, subtract 1 from points count (metadata point doesn't count as a chunk)
+    const actualChunksCount = hasCompletionMarker
+      ? Math.max(0, info.pointsCount - 1)
+      : info.pointsCount;
+
+    if (hasCompletionMarker) {
+      // Indexing completed - we have a completion marker
+      return {
+        isIndexed: true,
+        status: "indexed",
+        collectionName,
+        chunksCount: actualChunksCount,
+        lastUpdated: completionMarker.payload?.completedAt
+          ? new Date(completionMarker.payload.completedAt)
+          : undefined,
+      };
+    }
+
+    // Legacy collection (no completion marker) - check if it has content
+    // If it has chunks, assume it's indexed (backwards compatibility)
+    if (actualChunksCount > 0) {
+      return {
+        isIndexed: true,
+        status: "indexed",
+        collectionName,
+        chunksCount: actualChunksCount,
+      };
+    }
+
+    // Collection exists but no chunks and no completion marker - likely interrupted indexing
+    return {
+      isIndexed: false,
+      status: "not_indexed",
+      collectionName,
+      chunksCount: 0,
     };
   }
 
   /**
    * Incrementally re-index only changed files
    */
-  async reindexChanges(path: string, progressCallback?: ProgressCallback): Promise<ChangeStats> {
+  async reindexChanges(
+    path: string,
+    progressCallback?: ProgressCallback,
+  ): Promise<ChangeStats> {
     const startTime = Date.now();
     const stats: ChangeStats = {
       filesAdded: 0,
@@ -422,7 +559,9 @@ export class CodeIndexer {
       const hasSnapshot = await synchronizer.initialize();
 
       if (!hasSnapshot) {
-        throw new Error("No previous snapshot found. Use index_codebase for initial indexing.");
+        throw new Error(
+          "No previous snapshot found. Use index_codebase for initial indexing.",
+        );
       }
 
       // Scan current files
@@ -449,7 +588,11 @@ export class CodeIndexer {
       stats.filesModified = changes.modified.length;
       stats.filesDeleted = changes.deleted.length;
 
-      if (stats.filesAdded === 0 && stats.filesModified === 0 && stats.filesDeleted === 0) {
+      if (
+        stats.filesAdded === 0 &&
+        stats.filesModified === 0 &&
+        stats.filesDeleted === 0
+      ) {
         stats.durationMs = Date.now() - startTime;
         return stats;
       }
@@ -526,7 +669,8 @@ export class CodeIndexer {
           phase: "embedding",
           current: i + batch.length,
           total: allChunks.length,
-          percentage: 40 + Math.round(((i + batch.length) / allChunks.length) * 30),
+          percentage:
+            40 + Math.round(((i + batch.length) / allChunks.length) * 30),
           message: `Generating embeddings ${i + batch.length}/${allChunks.length}`,
         });
 
@@ -546,7 +690,9 @@ export class CodeIndexer {
             codebasePath: absolutePath,
             chunkIndex: b.chunk.metadata.chunkIndex,
             ...(b.chunk.metadata.name && { name: b.chunk.metadata.name }),
-            ...(b.chunk.metadata.chunkType && { chunkType: b.chunk.metadata.chunkType }),
+            ...(b.chunk.metadata.chunkType && {
+              chunkType: b.chunk.metadata.chunkType,
+            }),
           },
         }));
 
@@ -554,7 +700,8 @@ export class CodeIndexer {
           phase: "storing",
           current: i + batch.length,
           total: allChunks.length,
-          percentage: 70 + Math.round(((i + batch.length) / allChunks.length) * 30),
+          percentage:
+            70 + Math.round(((i + batch.length) / allChunks.length) * 30),
           message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
         });
 
@@ -562,7 +709,9 @@ export class CodeIndexer {
           const sparseGenerator = new BM25SparseVectorGenerator();
           const hybridPoints = points.map((point, idx) => ({
             ...point,
-            sparseVector: sparseGenerator.generate(allChunks[i + idx].chunk.content),
+            sparseVector: sparseGenerator.generate(
+              allChunks[i + idx].chunk.content,
+            ),
           }));
           await this.qdrant.addPointsWithSparse(collectionName, hybridPoints);
         } else {
@@ -576,7 +725,8 @@ export class CodeIndexer {
       stats.durationMs = Date.now() - startTime;
       return stats;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(`Incremental re-indexing failed: ${errorMessage}`);
     }
   }

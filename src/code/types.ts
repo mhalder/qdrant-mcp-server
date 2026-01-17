@@ -78,8 +78,13 @@ export interface SearchOptions {
   scoreThreshold?: number;
 }
 
+export type IndexingStatus = "not_indexed" | "indexing" | "indexed";
+
 export interface IndexStatus {
+  /** @deprecated Use `status` instead. True only when status is 'indexed'. */
   isIndexed: boolean;
+  /** Current indexing status: 'not_indexed', 'indexing', or 'indexed' */
+  status: IndexingStatus;
   collectionName?: string;
   filesCount?: number;
   chunksCount?: number;
