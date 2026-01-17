@@ -146,12 +146,23 @@ export function registerCodeTools(
     async ({ path }) => {
       const status = await codeIndexer.getIndexStatus(path);
 
-      if (!status.isIndexed) {
+      if (status.status === "not_indexed") {
         return {
           content: [
             {
               type: "text",
               text: `Codebase at "${path}" is not indexed. Use index_codebase to index it first.`,
+            },
+          ],
+        };
+      }
+
+      if (status.status === "indexing") {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Codebase at "${path}" is currently being indexed. ${status.chunksCount || 0} chunks processed so far.`,
             },
           ],
         };

@@ -37,7 +37,10 @@ class MockQdrantManager implements Partial<QdrantManager> {
 
   async addPoints(collectionName: string, points: any[]): Promise<void> {
     const existing = this.points.get(collectionName) || [];
-    this.points.set(collectionName, [...existing, ...points]);
+    // Upsert: remove existing points with same ID, then add new ones
+    const newIds = new Set(points.map((p) => p.id));
+    const filtered = existing.filter((p) => !newIds.has(p.id));
+    this.points.set(collectionName, [...filtered, ...points]);
   }
 
   async addPointsWithSparse(

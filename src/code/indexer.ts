@@ -28,9 +28,6 @@ import type {
 const INDEXING_METADATA_ID = "__indexing_metadata__";
 
 export class CodeIndexer {
-  /** Tracks collections currently being indexed (for real-time status) */
-  private indexingCollections: Set<string> = new Set();
-
   constructor(
     private qdrant: QdrantManager,
     private embeddings: EmbeddingProvider,
@@ -80,9 +77,6 @@ export class CodeIndexer {
     const absolutePath = await this.validatePath(path);
     const collectionName = this.getCollectionName(absolutePath);
 
-    // Mark this collection as currently indexing
-    this.indexingCollections.add(collectionName);
-
     try {
       // 1. Scan files
       progressCallback?.({
@@ -129,6 +123,9 @@ export class CodeIndexer {
           this.config.enableHybridSearch,
         );
       }
+
+      // Store "indexing in progress" marker immediately after collection is ready
+      await this.storeIndexingMarker(collectionName, false);
 
       // 3. Process files and create chunks
       const chunker = new TreeSitterChunker({
@@ -212,7 +209,7 @@ export class CodeIndexer {
 
       if (allChunks.length === 0) {
         // Still store completion marker even with no chunks
-        await this.storeCompletionMarker(collectionName);
+        await this.storeIndexingMarker(collectionName, true);
         stats.status = "completed";
         stats.durationMs = Date.now() - startTime;
         return stats;
@@ -303,7 +300,7 @@ export class CodeIndexer {
       }
 
       // Store completion marker to indicate indexing is complete
-      await this.storeCompletionMarker(collectionName);
+      await this.storeIndexingMarker(collectionName, true);
 
       stats.durationMs = Date.now() - startTime;
       return stats;
@@ -314,16 +311,17 @@ export class CodeIndexer {
       stats.errors?.push(`Indexing failed: ${errorMessage}`);
       stats.durationMs = Date.now() - startTime;
       return stats;
-    } finally {
-      // Always remove from indexing set when done (success or failure)
-      this.indexingCollections.delete(collectionName);
     }
   }
 
   /**
-   * Store a completion marker point in the collection
+   * Store an indexing status marker in the collection.
+   * Called at the start of indexing with complete=false, and at the end with complete=true.
    */
-  private async storeCompletionMarker(collectionName: string): Promise<void> {
+  private async storeIndexingMarker(
+    collectionName: string,
+    complete: boolean,
+  ): Promise<void> {
     try {
       // Create a dummy vector of zeros (required by Qdrant)
       const vectorSize = this.embeddings.getDimensions();
@@ -333,17 +331,21 @@ export class CodeIndexer {
       const collectionInfo =
         await this.qdrant.getCollectionInfo(collectionName);
 
+      const payload = {
+        _type: "indexing_metadata",
+        indexingComplete: complete,
+        ...(complete
+          ? { completedAt: new Date().toISOString() }
+          : { startedAt: new Date().toISOString() }),
+      };
+
       if (collectionInfo.hybridEnabled) {
         await this.qdrant.addPointsWithSparse(collectionName, [
           {
             id: INDEXING_METADATA_ID,
             vector: zeroVector,
             sparseVector: { indices: [], values: [] },
-            payload: {
-              _type: "indexing_metadata",
-              indexingComplete: true,
-              completedAt: new Date().toISOString(),
-            },
+            payload,
           },
         ]);
       } else {
@@ -351,17 +353,13 @@ export class CodeIndexer {
           {
             id: INDEXING_METADATA_ID,
             vector: zeroVector,
-            payload: {
-              _type: "indexing_metadata",
-              indexingComplete: true,
-              completedAt: new Date().toISOString(),
-            },
+            payload,
           },
         ]);
       }
     } catch (error) {
       // Non-fatal: log but don't fail the indexing
-      console.error("Failed to store completion marker:", error);
+      console.error("Failed to store indexing marker:", error);
     }
   }
 
@@ -468,46 +466,46 @@ export class CodeIndexer {
       return { isIndexed: false, status: "not_indexed" };
     }
 
-    // Check if currently indexing (in-memory tracking)
-    if (this.indexingCollections.has(collectionName)) {
-      const info = await this.qdrant.getCollectionInfo(collectionName);
-      return {
-        isIndexed: false,
-        status: "indexing",
-        collectionName,
-        // During indexing, completion marker hasn't been added yet, so all points are chunks
-        chunksCount: info.pointsCount,
-      };
-    }
-
-    // Check for completion marker
-    const completionMarker = await this.qdrant.getPoint(
+    // Check for indexing marker in Qdrant (persisted across instances)
+    const indexingMarker = await this.qdrant.getPoint(
       collectionName,
       INDEXING_METADATA_ID,
     );
     const info = await this.qdrant.getCollectionInfo(collectionName);
-    const hasCompletionMarker =
-      completionMarker?.payload?.indexingComplete === true;
 
-    // If completion marker exists, subtract 1 from points count (metadata point doesn't count as a chunk)
-    const actualChunksCount = hasCompletionMarker
+    // Check marker status
+    const isComplete = indexingMarker?.payload?.indexingComplete === true;
+    const isInProgress = indexingMarker?.payload?.indexingComplete === false;
+
+    // Subtract 1 from points count if marker exists (metadata point doesn't count as a chunk)
+    const actualChunksCount = indexingMarker
       ? Math.max(0, info.pointsCount - 1)
       : info.pointsCount;
 
-    if (hasCompletionMarker) {
-      // Indexing completed - we have a completion marker
+    if (isInProgress) {
+      // Indexing in progress - marker exists with indexingComplete=false
+      return {
+        isIndexed: false,
+        status: "indexing",
+        collectionName,
+        chunksCount: actualChunksCount,
+      };
+    }
+
+    if (isComplete) {
+      // Indexing completed - marker exists with indexingComplete=true
       return {
         isIndexed: true,
         status: "indexed",
         collectionName,
         chunksCount: actualChunksCount,
-        lastUpdated: completionMarker.payload?.completedAt
-          ? new Date(completionMarker.payload.completedAt)
+        lastUpdated: indexingMarker.payload?.completedAt
+          ? new Date(indexingMarker.payload.completedAt)
           : undefined,
       };
     }
 
-    // Legacy collection (no completion marker) - check if it has content
+    // Legacy collection (no marker) - check if it has content
     // If it has chunks, assume it's indexed (backwards compatibility)
     if (actualChunksCount > 0) {
       return {
@@ -518,7 +516,7 @@ export class CodeIndexer {
       };
     }
 
-    // Collection exists but no chunks and no completion marker - likely interrupted indexing
+    // Collection exists but no chunks and no marker - not indexed
     return {
       isIndexed: false,
       status: "not_indexed",
