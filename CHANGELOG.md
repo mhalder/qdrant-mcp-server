@@ -1,3 +1,9 @@
+## 2.1.0 (2026-01-17)
+
+* Merge pull request #42 from mhalder/feat/configurable-http-timeout ([15a5a5a](https://github.com/mhalder/qdrant-mcp-server/commit/15a5a5a)), closes [#42](https://github.com/mhalder/qdrant-mcp-server/issues/42)
+* fix: add validation for HTTP_REQUEST_TIMEOUT_MS environment variable ([fdc169f](https://github.com/mhalder/qdrant-mcp-server/commit/fdc169f))
+* feat: make HTTP request timeout configurable via environment variable ([09528e3](https://github.com/mhalder/qdrant-mcp-server/commit/09528e3))
+
 ## 2.0.0 (2026-01-17)
 
 * build!: update dependencies and migrate to Podman ([bef9119](https://github.com/mhalder/qdrant-mcp-server/commit/bef9119))
