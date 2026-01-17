@@ -1,3 +1,27 @@
+## 2.0.0 (2026-01-17)
+
+* build!: update dependencies and migrate to Podman ([bef9119](https://github.com/mhalder/qdrant-mcp-server/commit/bef9119))
+* Merge pull request #41 from mhalder/chore/full-update-2026 ([ccfbd97](https://github.com/mhalder/qdrant-mcp-server/commit/ccfbd97)), closes [#41](https://github.com/mhalder/qdrant-mcp-server/issues/41)
+* fix: add SELinux context labels to Podman volume mounts ([a9a0fb9](https://github.com/mhalder/qdrant-mcp-server/commit/a9a0fb9))
+
+
+### BREAKING CHANGE
+
+* Node.js minimum version changed from 20 to 22.
+
+- Update all dependencies to latest versions:
+  - @modelcontextprotocol/sdk 1.0.4 → 1.25.2
+  - @qdrant/js-client-rest 1.12.0 → 1.16.2
+  - vitest 2.1.8 → 4.0.17
+  - semantic-release 24.2.9 → 25.0.2
+  - openai, cohere-ai, zod, and others
+- Set Node.js minimum to 22.x (engines field + .nvmrc)
+- Migrate docker-compose.yml to compose.yaml with Podman support
+- Update tsconfig to ES2023/NodeNext
+- Simplify CI workflow to Node 22 only
+- Fix test mocking patterns for Vitest 4 compatibility
+- Update documentation with Podman commands and correct test counts
+
 ## 1.6.0 (2026-01-17)
 
 * Merge pull request #34 from No-Smoke/feature/add-qdrant-api-key-support ([c6af3ae](https://github.com/mhalder/qdrant-mcp-server/commit/c6af3ae)), closes [#34](https://github.com/mhalder/qdrant-mcp-server/issues/34)
