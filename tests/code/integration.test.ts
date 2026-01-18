@@ -113,6 +113,20 @@ class MockQdrantManager implements Partial<QdrantManager> {
       payload: point.payload,
     };
   }
+
+  async deletePointsByFilter(
+    collectionName: string,
+    filter: Record<string, any>,
+  ): Promise<void> {
+    const points = this.points.get(collectionName) || [];
+    const pathToDelete = filter?.must?.[0]?.match?.value;
+    if (pathToDelete) {
+      const filtered = points.filter(
+        (p) => p.payload?.relativePath !== pathToDelete,
+      );
+      this.points.set(collectionName, filtered);
+    }
+  }
 }
 
 class MockEmbeddingProvider implements EmbeddingProvider {

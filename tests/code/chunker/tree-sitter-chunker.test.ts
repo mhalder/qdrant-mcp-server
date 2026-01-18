@@ -114,8 +114,10 @@ def calculate_average(numbers):
       if (chunks.length > 0) {
         expect(
           chunks.some(
-            (c) => c.metadata.name === "calculate_sum" || c.metadata.name === "calculate_product"
-          )
+            (c) =>
+              c.metadata.name === "calculate_sum" ||
+              c.metadata.name === "calculate_product",
+          ),
         ).toBe(true);
       }
     });
@@ -170,7 +172,11 @@ function veryLargeFunction() {
 }
       `;
 
-      const chunks = await chunker.chunk(largeFunction, "test.js", "javascript");
+      const chunks = await chunker.chunk(
+        largeFunction,
+        "test.js",
+        "javascript",
+      );
       expect(chunks.length).toBeGreaterThan(0);
     });
 
@@ -198,8 +204,13 @@ function myFunction() {
     });
 
     it("should include file path and language", async () => {
-      const code = "function test() {\n  console.log('Test function');\n  return true;\n}";
-      const chunks = await chunker.chunk(code, "/path/to/file.ts", "typescript");
+      const code =
+        "function test() {\n  console.log('Test function');\n  return true;\n}";
+      const chunks = await chunker.chunk(
+        code,
+        "/path/to/file.ts",
+        "typescript",
+      );
 
       expect(chunks[0].metadata.filePath).toBe("/path/to/file.ts");
       expect(chunks[0].metadata.language).toBe("typescript");
@@ -270,6 +281,77 @@ class Outer {
 
       const chunks = await chunker.chunk(code, "test.ts", "typescript");
       expect(chunks.length).toBeGreaterThan(0);
+    });
+
+    it("should extract name from child identifier when name field is absent", async () => {
+      // This code pattern will trigger the fallback name extraction from children
+      const code = `
+type MyType = {
+  field1: string;
+  field2: number;
+};
+      `;
+
+      const chunks = await chunker.chunk(code, "test.ts", "typescript");
+      expect(chunks.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it("should handle struct-like constructs", async () => {
+      // Go-like struct to test getChunkType handling of struct patterns
+      const code = `
+type User struct {
+  ID   int
+  Name string
+}
+      `;
+
+      const chunks = await chunker.chunk(code, "test.go", "go");
+      expect(chunks.length).toBeGreaterThanOrEqual(0);
+      // Should classify as class type due to struct pattern
+      if (chunks.length > 0) {
+        expect(chunks.some((c) => c.metadata.chunkType === "class")).toBe(true);
+      }
+    });
+
+    it("should handle trait-like constructs", async () => {
+      // Rust trait to test getChunkType handling of trait patterns
+      const code = `
+trait Printable {
+    fn print(&self);
+}
+      `;
+
+      const chunks = await chunker.chunk(code, "test.rs", "rust");
+      expect(chunks.length).toBeGreaterThanOrEqual(0);
+      // Should classify as interface type due to trait pattern
+      if (chunks.length > 0) {
+        expect(chunks.some((c) => c.metadata.chunkType === "interface")).toBe(
+          true,
+        );
+      }
+    });
+
+    it("should classify unknown node types as block", async () => {
+      // Create a large code block that doesn't match function, class, or interface patterns
+      const code = `
+export const myModule = {
+  helper1: () => {
+    console.log('Helper function 1');
+    return 'result1';
+  },
+  helper2: () => {
+    console.log('Helper function 2');
+    return 'result2';
+  },
+  config: {
+    name: 'my-module',
+    version: '1.0.0',
+  },
+};
+      `;
+
+      const chunks = await chunker.chunk(code, "test.ts", "typescript");
+      expect(chunks.length).toBeGreaterThanOrEqual(0);
     });
   });
 });

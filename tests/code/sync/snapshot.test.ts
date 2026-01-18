@@ -14,7 +14,7 @@ describe("SnapshotManager", () => {
     // Create a temporary directory for test snapshots
     tempDir = join(
       tmpdir(),
-      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`,
     );
     await fs.mkdir(tempDir, { recursive: true });
 
@@ -177,7 +177,11 @@ describe("SnapshotManager", () => {
 
     it("should handle missing fields in snapshot", async () => {
       const snapshotPath = join(tempDir, `${collectionName}.json`);
-      await fs.writeFile(snapshotPath, JSON.stringify({ codebasePath: "/test" }), "utf-8");
+      await fs.writeFile(
+        snapshotPath,
+        JSON.stringify({ codebasePath: "/test" }),
+        "utf-8",
+      );
 
       const loaded = await snapshotManager.load();
 
@@ -218,6 +222,47 @@ describe("SnapshotManager", () => {
 
       const exists = await snapshotManager.exists();
       expect(exists).toBe(true);
+    });
+  });
+
+  describe("validate", () => {
+    it("should return true for valid snapshot", async () => {
+      const fileHashes = new Map([
+        ["file1.ts", "hash1"],
+        ["file2.ts", "hash2"],
+      ]);
+
+      const tree = new MerkleTree();
+      tree.build(fileHashes);
+
+      await snapshotManager.save("/test/codebase", fileHashes, tree);
+
+      const isValid = await snapshotManager.validate();
+      expect(isValid).toBe(true);
+    });
+
+    it("should return false when snapshot doesn't exist", async () => {
+      const isValid = await snapshotManager.validate();
+      expect(isValid).toBe(false);
+    });
+
+    it("should return false for corrupted snapshot", async () => {
+      const snapshotPath = join(tempDir, `${collectionName}.json`);
+      await fs.writeFile(snapshotPath, "{ invalid json", "utf-8");
+
+      const isValid = await snapshotManager.validate();
+      expect(isValid).toBe(false);
+    });
+
+    it("should return true for empty file hashes", async () => {
+      const fileHashes = new Map<string, string>();
+      const tree = new MerkleTree();
+      tree.build(fileHashes);
+
+      await snapshotManager.save("/test/codebase", fileHashes, tree);
+
+      const isValid = await snapshotManager.validate();
+      expect(isValid).toBe(true);
     });
   });
 
@@ -331,7 +376,9 @@ describe("SnapshotManager", () => {
         const tree = new MerkleTree();
         tree.build(fileHashes);
 
-        promises.push(snapshotManager.save(`/test/codebase${i}`, fileHashes, tree));
+        promises.push(
+          snapshotManager.save(`/test/codebase${i}`, fileHashes, tree),
+        );
       }
 
       await Promise.all(promises);
@@ -348,7 +395,11 @@ describe("SnapshotManager", () => {
 
       await snapshotManager.save("/test/codebase", fileHashes, tree);
 
-      const promises = [snapshotManager.load(), snapshotManager.load(), snapshotManager.load()];
+      const promises = [
+        snapshotManager.load(),
+        snapshotManager.load(),
+        snapshotManager.load(),
+      ];
 
       const results = await Promise.all(promises);
 

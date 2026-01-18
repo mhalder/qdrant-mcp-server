@@ -241,6 +241,20 @@ export class QdrantManager {
   }
 
   /**
+   * Deletes points matching a filter condition.
+   * Useful for deleting all chunks associated with a specific file path.
+   */
+  async deletePointsByFilter(
+    collectionName: string,
+    filter: Record<string, any>,
+  ): Promise<void> {
+    await this.client.delete(collectionName, {
+      wait: true,
+      filter: filter,
+    });
+  }
+
+  /**
    * Performs hybrid search combining semantic vector search with sparse vector (keyword) search
    * using Reciprocal Rank Fusion (RRF) to combine results
    */

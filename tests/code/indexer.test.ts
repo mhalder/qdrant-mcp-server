@@ -97,6 +97,20 @@ class MockQdrantManager implements Partial<QdrantManager> {
       payload: point.payload,
     };
   }
+
+  async deletePointsByFilter(
+    collectionName: string,
+    filter: Record<string, any>,
+  ): Promise<void> {
+    const points = this.points.get(collectionName) || [];
+    const pathToDelete = filter?.must?.[0]?.match?.value;
+    if (pathToDelete) {
+      const filtered = points.filter(
+        (p) => p.payload?.relativePath !== pathToDelete,
+      );
+      this.points.set(collectionName, filtered);
+    }
+  }
 }
 
 class MockEmbeddingProvider implements EmbeddingProvider {
@@ -851,6 +865,113 @@ function helper(param: string): boolean {
       await indexer.reindexChanges(codebaseDir, progressCallback);
 
       expect(progressCallback).toHaveBeenCalled();
+    });
+
+    it("should delete old chunks when file is modified", async () => {
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const originalValue = 1;\nconsole.log('Original version');",
+      );
+      await indexer.indexCodebase(codebaseDir);
+
+      const deletePointsByFilterSpy = vi.spyOn(qdrant, "deletePointsByFilter");
+
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const modifiedValue = 2;\nconsole.log('Modified version');",
+      );
+
+      await indexer.reindexChanges(codebaseDir);
+
+      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(
+        expect.stringContaining("code_"),
+        {
+          must: [{ key: "relativePath", match: { value: "test.ts" } }],
+        },
+      );
+    });
+
+    it("should delete all chunks when file is deleted", async () => {
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const toDelete = 1;\nconsole.log('Will be deleted');",
+      );
+      await indexer.indexCodebase(codebaseDir);
+
+      const deletePointsByFilterSpy = vi.spyOn(qdrant, "deletePointsByFilter");
+
+      await fs.unlink(join(codebaseDir, "test.ts"));
+
+      await indexer.reindexChanges(codebaseDir);
+
+      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(
+        expect.stringContaining("code_"),
+        {
+          must: [{ key: "relativePath", match: { value: "test.ts" } }],
+        },
+      );
+    });
+
+    it("should not affect chunks from unchanged files", async () => {
+      await createTestFile(
+        codebaseDir,
+        "unchanged.ts",
+        "export const unchanged = 1;\nconsole.log('Unchanged');",
+      );
+      await createTestFile(
+        codebaseDir,
+        "changed.ts",
+        "export const original = 2;\nconsole.log('Original');",
+      );
+      await indexer.indexCodebase(codebaseDir);
+
+      const deletePointsByFilterSpy = vi.spyOn(qdrant, "deletePointsByFilter");
+
+      await createTestFile(
+        codebaseDir,
+        "changed.ts",
+        "export const modified = 3;\nconsole.log('Modified');",
+      );
+
+      await indexer.reindexChanges(codebaseDir);
+
+      // Should only delete chunks for changed.ts, not unchanged.ts
+      expect(deletePointsByFilterSpy).toHaveBeenCalledTimes(1);
+      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(
+        expect.stringContaining("code_"),
+        {
+          must: [{ key: "relativePath", match: { value: "changed.ts" } }],
+        },
+      );
+    });
+
+    it("should handle deletion errors gracefully", async () => {
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const original = 1;\nconsole.log('Original');",
+      );
+      await indexer.indexCodebase(codebaseDir);
+
+      // Mock deletePointsByFilter to throw an error
+      const deletePointsByFilterSpy = vi
+        .spyOn(qdrant, "deletePointsByFilter")
+        .mockRejectedValueOnce(new Error("Deletion failed"));
+
+      await createTestFile(
+        codebaseDir,
+        "test.ts",
+        "export const modified = 2;\nconsole.log('Modified');",
+      );
+
+      // Should not throw, should continue with reindexing
+      const stats = await indexer.reindexChanges(codebaseDir);
+
+      expect(deletePointsByFilterSpy).toHaveBeenCalled();
+      expect(stats.filesModified).toBe(1);
     });
   });
 
