@@ -634,6 +634,35 @@ describe("QdrantManager", () => {
     });
   });
 
+  describe("deletePointsByFilter", () => {
+    it("should delete points matching filter", async () => {
+      const filter = {
+        must: [{ key: "relativePath", match: { value: "src/test.ts" } }],
+      };
+      await manager.deletePointsByFilter("test-collection", filter);
+
+      expect(mockClient.delete).toHaveBeenCalledWith("test-collection", {
+        wait: true,
+        filter: filter,
+      });
+    });
+
+    it("should delete points with complex filter", async () => {
+      const filter = {
+        must: [
+          { key: "relativePath", match: { value: "src/utils.ts" } },
+          { key: "language", match: { value: "typescript" } },
+        ],
+      };
+      await manager.deletePointsByFilter("test-collection", filter);
+
+      expect(mockClient.delete).toHaveBeenCalledWith("test-collection", {
+        wait: true,
+        filter: filter,
+      });
+    });
+  });
+
   describe("hybridSearch", () => {
     beforeEach(() => {
       mockClient.query = vi.fn();

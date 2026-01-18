@@ -602,27 +602,34 @@ export class CodeIndexer {
       });
       const metadataExtractor = new MetadataExtractor();
 
-      // Process deleted and modified files - collect chunk IDs to delete
-      const _chunkIdsToDelete: string[] = [];
-      const filesToReprocess = [...changes.modified, ...changes.deleted];
+      // Delete chunks for modified and deleted files BEFORE adding new ones
+      const filesToDelete = [...changes.modified, ...changes.deleted];
 
-      for (const _filePath of filesToReprocess) {
-        try {
-          // Read old file content to generate chunk IDs for deletion
-          // We need to regenerate the chunks to get their IDs
-          // For now, we'll use a simpler approach: delete based on file path
-          // This requires keeping track of chunk IDs per file
-          // Since we don't have a direct way to query by file path,
-          // we'll mark these as needing deletion by filename pattern
-          // For simplicity in Phase 2, we'll re-index everything
-          // A future enhancement would be to maintain a chunk ID mapping
-        } catch (_error) {
-          // File might be deleted, skip
+      if (filesToDelete.length > 0) {
+        progressCallback?.({
+          phase: "scanning",
+          current: 0,
+          total: filesToDelete.length,
+          percentage: 5,
+          message: `Deleting old chunks for ${filesToDelete.length} files...`,
+        });
+
+        for (const relativePath of filesToDelete) {
+          try {
+            const filter = {
+              must: [{ key: "relativePath", match: { value: relativePath } }],
+            };
+            await this.qdrant.deletePointsByFilter(collectionName, filter);
+          } catch (error) {
+            // Log but don't fail - file might not have any chunks
+            console.error(
+              `Failed to delete chunks for ${relativePath}:`,
+              error,
+            );
+          }
         }
       }
 
-      // For Phase 2 MVP: Simply re-process all changed files
-      // TODO Phase 3: Implement proper chunk deletion by maintaining chunk ID mapping
       const filesToIndex = [...changes.added, ...changes.modified];
       const allChunks: Array<{ chunk: CodeChunk; id: string }> = [];
 
