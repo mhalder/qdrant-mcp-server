@@ -1,3 +1,8 @@
+## 2.2.0 (2026-01-18)
+
+* Merge pull request #45 from mhalder/feat/chunk-deletion-and-test-coverage ([ce37f56](https://github.com/mhalder/qdrant-mcp-server/commit/ce37f56)), closes [#45](https://github.com/mhalder/qdrant-mcp-server/issues/45)
+* feat(code): implement chunk deletion for incremental re-indexing ([0259397](https://github.com/mhalder/qdrant-mcp-server/commit/0259397)), closes [#33](https://github.com/mhalder/qdrant-mcp-server/issues/33)
+
 ## <small>2.1.2 (2026-01-17)</small>
 
 * Merge pull request #44 from mhalder/fix/index-status-bug ([350e2a5](https://github.com/mhalder/qdrant-mcp-server/commit/350e2a5)), closes [#44](https://github.com/mhalder/qdrant-mcp-server/issues/44)
