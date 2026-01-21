@@ -456,5 +456,465 @@ describe("GitHistoryIndexer", () => {
 
       await expect(indexer.clearIndex("/test/repo")).resolves.not.toThrow();
     });
+
+    it("should ignore snapshot deletion errors", async () => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+      mockSynchronizerInstance.deleteSnapshot.mockRejectedValue(
+        new Error("Snapshot deletion failed"),
+      );
+
+      await expect(indexer.clearIndex("/test/repo")).resolves.not.toThrow();
+      expect(mockQdrant.deleteCollection).toHaveBeenCalled();
+    });
+  });
+
+  describe("searchHistory - hybrid search", () => {
+    beforeEach(() => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+    });
+
+    it("should use hybrid search when collection supports it and option enabled", async () => {
+      mockQdrant.getCollectionInfo.mockResolvedValue({
+        pointsCount: 100,
+        hybridEnabled: true,
+      });
+      mockQdrant.hybridSearch.mockResolvedValue([
+        {
+          score: 0.95,
+          payload: {
+            content: "test",
+            commitHash: "abc123",
+            shortHash: "abc12",
+            author: "Test",
+            date: "2024-01-15",
+            subject: "test commit",
+            commitType: "feat",
+            files: [],
+          },
+        },
+      ]);
+
+      const results = await indexer.searchHistory("/test/repo", "query", {
+        useHybrid: true,
+      });
+
+      expect(mockQdrant.hybridSearch).toHaveBeenCalled();
+      expect(mockQdrant.search).not.toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+    });
+
+    it("should fall back to dense search when hybrid not enabled on collection", async () => {
+      mockQdrant.getCollectionInfo.mockResolvedValue({
+        pointsCount: 100,
+        hybridEnabled: false,
+      });
+      mockQdrant.search.mockResolvedValue([]);
+
+      await indexer.searchHistory("/test/repo", "query", {
+        useHybrid: true,
+      });
+
+      expect(mockQdrant.search).toHaveBeenCalled();
+      expect(mockQdrant.hybridSearch).not.toHaveBeenCalled();
+    });
+
+    it("should apply authors filter", async () => {
+      mockQdrant.search.mockResolvedValue([]);
+
+      await indexer.searchHistory("/test/repo", "query", {
+        authors: ["John Doe", "Jane Smith"],
+      });
+
+      expect(mockQdrant.search).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Array),
+        expect.any(Number),
+        expect.objectContaining({
+          must: expect.arrayContaining([
+            expect.objectContaining({
+              should: expect.arrayContaining([
+                expect.objectContaining({
+                  key: "author",
+                  match: { text: "John Doe" },
+                }),
+                expect.objectContaining({
+                  key: "author",
+                  match: { text: "Jane Smith" },
+                }),
+              ]),
+            }),
+          ]),
+        }),
+      );
+    });
+  });
+
+  describe("indexHistory - error handling", () => {
+    it("should handle commit processing errors gracefully", async () => {
+      const mockCommits = [
+        {
+          hash: "abc123",
+          shortHash: "abc12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "test",
+          body: "",
+          files: [],
+          insertions: 0,
+          deletions: 0,
+        },
+      ];
+
+      mockExtractorInstance.validateRepository.mockResolvedValue(true);
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
+      mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
+      mockExtractorInstance.getCommitDiff.mockRejectedValue(
+        new Error("Diff extraction failed"),
+      );
+
+      const stats = await indexer.indexHistory("/test/repo");
+
+      expect(stats.errors).toBeDefined();
+      expect(stats.errors?.some((e) => e.includes("abc12"))).toBe(true);
+    });
+
+    it("should handle batch embedding errors with partial status", async () => {
+      const mockCommits = [
+        {
+          hash: "abc123",
+          shortHash: "abc12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "test",
+          body: "",
+          files: [],
+          insertions: 0,
+          deletions: 0,
+        },
+      ];
+
+      mockExtractorInstance.validateRepository.mockResolvedValue(true);
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
+      mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
+      mockExtractorInstance.getCommitDiff.mockResolvedValue("");
+      mockEmbeddings.embedBatch.mockRejectedValue(
+        new Error("Embedding API error"),
+      );
+
+      const stats = await indexer.indexHistory("/test/repo");
+
+      expect(stats.status).toBe("partial");
+      expect(stats.errors?.some((e) => e.includes("batch"))).toBe(true);
+    });
+
+    it("should handle snapshot save failure gracefully", async () => {
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const mockCommits = [
+        {
+          hash: "abc123",
+          shortHash: "abc12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "test",
+          body: "",
+          files: [],
+          insertions: 0,
+          deletions: 0,
+        },
+      ];
+
+      mockExtractorInstance.validateRepository.mockResolvedValue(true);
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
+      mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
+      mockExtractorInstance.getCommitDiff.mockResolvedValue("");
+      mockSynchronizerInstance.updateSnapshot.mockRejectedValue(
+        new Error("Snapshot write failed"),
+      );
+
+      const stats = await indexer.indexHistory("/test/repo");
+
+      expect(stats.status).toBe("completed");
+      expect(stats.errors?.some((e) => e.includes("Snapshot"))).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should handle storeIndexingMarker errors silently", async () => {
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      mockExtractorInstance.validateRepository.mockResolvedValue(true);
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
+      mockExtractorInstance.getCommits.mockResolvedValue([]);
+      mockQdrant.addPoints.mockRejectedValueOnce(new Error("Marker failed"));
+
+      const stats = await indexer.indexHistory("/test/repo");
+
+      expect(stats.status).toBe("completed");
+      expect(consoleSpy).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should use hybrid search for indexing when enabled", async () => {
+      const hybridConfig: GitConfig = {
+        ...DEFAULT_GIT_CONFIG,
+        enableHybridSearch: true,
+      };
+      const hybridIndexer = new GitHistoryIndexer(
+        mockQdrant,
+        mockEmbeddings,
+        hybridConfig,
+      );
+
+      const mockCommits = [
+        {
+          hash: "abc123",
+          shortHash: "abc12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "test",
+          body: "",
+          files: [],
+          insertions: 0,
+          deletions: 0,
+        },
+      ];
+
+      mockExtractorInstance.validateRepository.mockResolvedValue(true);
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
+      mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
+      mockExtractorInstance.getCommitDiff.mockResolvedValue("");
+      mockQdrant.getCollectionInfo.mockResolvedValue({
+        pointsCount: 0,
+        hybridEnabled: true,
+      });
+
+      await hybridIndexer.indexHistory("/test/repo");
+
+      expect(mockQdrant.createCollection).toHaveBeenCalledWith(
+        expect.any(String),
+        768,
+        "Cosine",
+        true,
+      );
+      expect(mockQdrant.addPointsWithSparse).toHaveBeenCalled();
+    });
+
+    it("should handle chunks with no content after processing", async () => {
+      const mockCommits = [
+        {
+          hash: "abc123",
+          shortHash: "abc12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "test",
+          body: "",
+          files: [],
+          insertions: 0,
+          deletions: 0,
+        },
+      ];
+
+      mockExtractorInstance.validateRepository.mockResolvedValue(true);
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
+      mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
+      mockChunkerInstance.createChunks.mockReturnValue([]);
+
+      const stats = await indexer.indexHistory("/test/repo");
+
+      expect(stats.status).toBe("completed");
+      expect(stats.chunksCreated).toBe(0);
+    });
+  });
+
+  describe("indexNewCommits - additional coverage", () => {
+    it("should throw error when collection does not exist", async () => {
+      mockQdrant.collectionExists.mockResolvedValue(false);
+
+      await expect(indexer.indexNewCommits("/test/repo")).rejects.toThrow(
+        "Git history not indexed",
+      );
+    });
+
+    it("should throw error when lastCommitHash is null", async () => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+      mockSynchronizerInstance.initialize.mockResolvedValue(true);
+      mockSynchronizerInstance.getLastCommitHash.mockReturnValue(null);
+
+      await expect(indexer.indexNewCommits("/test/repo")).rejects.toThrow(
+        "Invalid snapshot: no last commit hash",
+      );
+    });
+
+    it("should call progress callback during incremental indexing", async () => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+
+      const mockNewCommits = [
+        {
+          hash: "new123",
+          shortHash: "new12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "new commit",
+          body: "",
+          files: [],
+          insertions: 5,
+          deletions: 2,
+        },
+      ];
+
+      mockExtractorInstance.getCommits.mockResolvedValue(mockNewCommits);
+      mockExtractorInstance.getCommitDiff.mockResolvedValue("");
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("new123");
+      mockSynchronizerInstance.initialize.mockResolvedValue(true);
+      mockSynchronizerInstance.getLastCommitHash.mockReturnValue("old123");
+      mockSynchronizerInstance.getCommitsIndexed.mockReturnValue(50);
+
+      const progressCallback = vi.fn();
+
+      await indexer.indexNewCommits("/test/repo", progressCallback);
+
+      expect(progressCallback).toHaveBeenCalled();
+      expect(progressCallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phase: expect.stringMatching(/extracting|chunking|embedding|storing/),
+        }),
+      );
+    });
+
+    it("should use hybrid search for incremental indexing when enabled", async () => {
+      const hybridConfig: GitConfig = {
+        ...DEFAULT_GIT_CONFIG,
+        enableHybridSearch: true,
+      };
+      const hybridIndexer = new GitHistoryIndexer(
+        mockQdrant,
+        mockEmbeddings,
+        hybridConfig,
+      );
+
+      mockQdrant.collectionExists.mockResolvedValue(true);
+
+      const mockNewCommits = [
+        {
+          hash: "new123",
+          shortHash: "new12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "new commit",
+          body: "",
+          files: [],
+          insertions: 5,
+          deletions: 2,
+        },
+      ];
+
+      mockExtractorInstance.getCommits.mockResolvedValue(mockNewCommits);
+      mockExtractorInstance.getCommitDiff.mockResolvedValue("");
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("new123");
+      mockSynchronizerInstance.initialize.mockResolvedValue(true);
+      mockSynchronizerInstance.getLastCommitHash.mockReturnValue("old123");
+      mockSynchronizerInstance.getCommitsIndexed.mockReturnValue(50);
+
+      await hybridIndexer.indexNewCommits("/test/repo");
+
+      expect(mockQdrant.addPointsWithSparse).toHaveBeenCalled();
+    });
+  });
+
+  describe("getIndexStatus - additional coverage", () => {
+    it("should return indexed for legacy collection without marker but with content", async () => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+      mockQdrant.getPoint.mockResolvedValue(null); // No marker
+      mockQdrant.getCollectionInfo.mockResolvedValue({
+        pointsCount: 50,
+        hybridEnabled: false,
+      });
+      mockSynchronizerInstance.initialize.mockResolvedValue(true);
+      mockSynchronizerInstance.getCommitsIndexed.mockReturnValue(25);
+      mockSynchronizerInstance.getLastCommitHash.mockReturnValue("abc123");
+
+      const status = await indexer.getIndexStatus("/test/repo");
+
+      expect(status.status).toBe("indexed");
+      expect(status.isIndexed).toBe(true);
+      expect(status.chunksCount).toBe(50);
+      expect(status.commitsCount).toBe(25);
+      expect(status.lastCommitHash).toBe("abc123");
+    });
+
+    it("should return not_indexed for empty legacy collection", async () => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+      mockQdrant.getPoint.mockResolvedValue(null); // No marker
+      mockQdrant.getCollectionInfo.mockResolvedValue({
+        pointsCount: 0,
+        hybridEnabled: false,
+      });
+
+      const status = await indexer.getIndexStatus("/test/repo");
+
+      expect(status.status).toBe("not_indexed");
+      expect(status.isIndexed).toBe(false);
+      expect(status.chunksCount).toBe(0);
+    });
+
+    it("should include snapshot data when available for indexed status", async () => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+      mockQdrant.getPoint.mockResolvedValue({
+        payload: {
+          indexingComplete: true,
+        },
+      });
+      mockQdrant.getCollectionInfo.mockResolvedValue({
+        pointsCount: 101,
+        hybridEnabled: false,
+      });
+      mockSynchronizerInstance.initialize.mockResolvedValue(true);
+      mockSynchronizerInstance.getCommitsIndexed.mockReturnValue(100);
+      mockSynchronizerInstance.getLastCommitHash.mockReturnValue("latest123");
+      mockSynchronizerInstance.getLastIndexedAt.mockReturnValue(
+        new Date("2024-01-15T10:00:00Z"),
+      );
+
+      const status = await indexer.getIndexStatus("/test/repo");
+
+      expect(status.isIndexed).toBe(true);
+      expect(status.commitsCount).toBe(100);
+      expect(status.lastCommitHash).toBe("latest123");
+      expect(status.lastIndexedAt).toEqual(new Date("2024-01-15T10:00:00Z"));
+    });
+
+    it("should fall back to marker completedAt when no snapshot", async () => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+      mockQdrant.getPoint.mockResolvedValue({
+        payload: {
+          indexingComplete: true,
+          completedAt: "2024-01-20T15:30:00Z",
+        },
+      });
+      mockQdrant.getCollectionInfo.mockResolvedValue({
+        pointsCount: 51,
+        hybridEnabled: false,
+      });
+      mockSynchronizerInstance.initialize.mockResolvedValue(false);
+
+      const status = await indexer.getIndexStatus("/test/repo");
+
+      expect(status.isIndexed).toBe(true);
+      expect(status.lastIndexedAt).toEqual(new Date("2024-01-20T15:30:00Z"));
+      expect(status.commitsCount).toBeUndefined();
+    });
   });
 });

@@ -164,13 +164,13 @@ See [Advanced Configuration](#advanced-configuration) section below for all opti
 
 ### Git History
 
-| Tool                   | Description                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------- |
-| `index_git_history`    | Index git commit history for semantic search over past changes and fixes        |
-| `search_git_history`   | Search indexed git history using natural language queries                       |
-| `index_new_commits`    | Incrementally index only new commits since last indexing                        |
-| `get_git_index_status` | Get indexing status and statistics for a repository's git history              |
-| `clear_git_index`      | Delete all indexed git history data for a repository                           |
+| Tool                   | Description                                                              |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `index_git_history`    | Index git commit history for semantic search over past changes and fixes |
+| `search_git_history`   | Search indexed git history using natural language queries                |
+| `index_new_commits`    | Incrementally index only new commits since last indexing                 |
+| `get_git_index_status` | Get indexing status and statistics for a repository's git history        |
+| `clear_git_index`      | Delete all indexed git history data for a repository                     |
 
 ### Resources
 
@@ -575,11 +575,11 @@ npm run test:coverage # Coverage report
 
 ### Testing
 
-**669 tests** across 25 test files with **97%+ coverage**:
+**687 tests** across 25 test files with **97%+ coverage**:
 
 - **Unit Tests**: QdrantManager (56), Ollama (41), OpenAI (25), Cohere (29), Voyage (31), Factory (43), Prompts (50), Transport (15), MCP Server (19)
 - **Integration Tests**: Code indexer (56), scanner (15), chunker (24), synchronizer (42), snapshot (26), merkle tree (28)
-- **Git History Tests**: Git extractor, chunker, indexer, synchronizer
+- **Git History Tests**: Git extractor (17), chunker (30), indexer (36), synchronizer (18)
 
 **CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22 LTS for every push/PR.
 
