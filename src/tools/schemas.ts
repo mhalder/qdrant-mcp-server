@@ -128,3 +128,78 @@ export const GetIndexStatusSchema = {
 export const ClearIndexSchema = {
   path: z.string().describe("Path to codebase"),
 };
+
+// Git history indexing schemas
+export const IndexGitHistorySchema = {
+  path: z.string().describe("Path to git repository"),
+  forceReindex: z
+    .boolean()
+    .optional()
+    .describe("Force full re-index even if already indexed (default: false)"),
+  sinceDate: z
+    .string()
+    .optional()
+    .describe(
+      "Only index commits after this date (ISO format, e.g., '2024-01-01')",
+    ),
+  maxCommits: z
+    .number()
+    .optional()
+    .describe("Maximum number of commits to index (default: 5000)"),
+};
+
+export const SearchGitHistorySchema = {
+  path: z.string().describe("Path to git repository (must be indexed first)"),
+  query: z
+    .string()
+    .describe(
+      "Natural language search query (e.g., 'fix null pointer in authentication')",
+    ),
+  limit: z
+    .number()
+    .optional()
+    .describe("Maximum number of results (default: 10, max: 100)"),
+  commitTypes: z
+    .array(
+      z.enum([
+        "feat",
+        "fix",
+        "refactor",
+        "docs",
+        "test",
+        "chore",
+        "style",
+        "perf",
+        "build",
+        "ci",
+        "revert",
+        "other",
+      ]),
+    )
+    .optional()
+    .describe("Filter by commit type (e.g., ['fix', 'feat'])"),
+  authors: z
+    .array(z.string())
+    .optional()
+    .describe("Filter by author name or email"),
+  dateFrom: z
+    .string()
+    .optional()
+    .describe("Only commits after this date (ISO format)"),
+  dateTo: z
+    .string()
+    .optional()
+    .describe("Only commits before this date (ISO format)"),
+};
+
+export const IndexNewCommitsSchema = {
+  path: z.string().describe("Path to git repository"),
+};
+
+export const GetGitIndexStatusSchema = {
+  path: z.string().describe("Path to git repository"),
+};
+
+export const ClearGitIndexSchema = {
+  path: z.string().describe("Path to git repository"),
+};

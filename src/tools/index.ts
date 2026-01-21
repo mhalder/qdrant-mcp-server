@@ -5,16 +5,19 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CodeIndexer } from "../code/indexer.js";
 import type { EmbeddingProvider } from "../embeddings/base.js";
+import type { GitHistoryIndexer } from "../git/indexer.js";
 import type { QdrantManager } from "../qdrant/client.js";
 import { registerCodeTools } from "./code.js";
 import { registerCollectionTools } from "./collection.js";
 import { registerDocumentTools } from "./document.js";
+import { registerGitHistoryTools } from "./git-history.js";
 import { registerSearchTools } from "./search.js";
 
 export interface ToolDependencies {
   qdrant: QdrantManager;
   embeddings: EmbeddingProvider;
   codeIndexer: CodeIndexer;
+  gitHistoryIndexer: GitHistoryIndexer;
 }
 
 /**
@@ -41,6 +44,10 @@ export function registerAllTools(
 
   registerCodeTools(server, {
     codeIndexer: deps.codeIndexer,
+  });
+
+  registerGitHistoryTools(server, {
+    gitHistoryIndexer: deps.gitHistoryIndexer,
   });
 }
 
