@@ -531,6 +531,21 @@ See [examples/](examples/) directory for detailed guides:
 | `CODE_CUSTOM_IGNORE`     | Additional ignore patterns (comma-separated) | -       |
 | `CODE_DEFAULT_LIMIT`     | Default search result limit                  | 5       |
 
+#### Git History Configuration
+
+| Variable                   | Description                                | Default |
+| -------------------------- | ------------------------------------------ | ------- |
+| `GIT_MAX_COMMITS`          | Maximum commits to index per run           | 5000    |
+| `GIT_INCLUDE_FILES`        | Include changed file list in chunks        | true    |
+| `GIT_INCLUDE_DIFF`         | Include truncated diff in chunks           | true    |
+| `GIT_MAX_DIFF_SIZE`        | Maximum diff size in bytes per commit      | 5000    |
+| `GIT_TIMEOUT`              | Timeout for git commands (ms)              | 300000  |
+| `GIT_MAX_CHUNK_SIZE`       | Maximum characters per chunk               | 3000    |
+| `GIT_BATCH_SIZE`           | Number of chunks to embed in one batch     | 100     |
+| `GIT_BATCH_RETRY_ATTEMPTS` | Retry attempts for failed batches          | 3       |
+| `GIT_SEARCH_LIMIT`         | Default search result limit                | 10      |
+| `GIT_ENABLE_HYBRID`        | Enable hybrid search with sparse vectors   | true    |
+
 ### Provider Comparison
 
 | Provider   | Models                                                          | Dimensions     | Rate Limit | Notes                |
@@ -575,11 +590,11 @@ npm run test:coverage # Coverage report
 
 ### Testing
 
-**709 tests** across 26 test files with **97%+ coverage**:
+**715 tests** across 26 test files with **97%+ coverage**:
 
 - **Unit Tests**: QdrantManager (56), Ollama (41), OpenAI (25), Cohere (29), Voyage (31), Factory (43), Prompts (50), Transport (15), MCP Server (19)
 - **Integration Tests**: Code indexer (56), scanner (15), chunker (24), synchronizer (42), snapshot (26), merkle tree (28)
-- **Git History Tests**: Git extractor (28), extractor integration (11), chunker (30), indexer (36), synchronizer (18)
+- **Git History Tests**: Git extractor (28), extractor integration (11), chunker (30), indexer (42), synchronizer (18)
 
 **CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22 LTS for every push/PR.
 

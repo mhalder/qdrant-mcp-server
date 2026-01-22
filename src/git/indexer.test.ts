@@ -929,4 +929,161 @@ describe("GitHistoryIndexer", () => {
       expect(status.commitsCount).toBeUndefined();
     });
   });
+
+  describe("searchHistory - date range validation", () => {
+    beforeEach(() => {
+      mockQdrant.collectionExists.mockResolvedValue(true);
+      mockQdrant.search.mockResolvedValue([]);
+    });
+
+    it("should throw error when dateFrom is after dateTo", async () => {
+      await expect(
+        indexer.searchHistory("/test/repo", "query", {
+          dateFrom: "2024-12-31",
+          dateTo: "2024-01-01",
+        }),
+      ).rejects.toThrow(
+        "Invalid date range: dateFrom (2024-12-31) must be before dateTo (2024-01-01)",
+      );
+    });
+
+    it("should allow valid date range", async () => {
+      await indexer.searchHistory("/test/repo", "query", {
+        dateFrom: "2024-01-01",
+        dateTo: "2024-12-31",
+      });
+
+      expect(mockQdrant.search).toHaveBeenCalled();
+    });
+
+    it("should allow only dateFrom without dateTo", async () => {
+      await indexer.searchHistory("/test/repo", "query", {
+        dateFrom: "2024-01-01",
+      });
+
+      expect(mockQdrant.search).toHaveBeenCalled();
+    });
+
+    it("should allow only dateTo without dateFrom", async () => {
+      await indexer.searchHistory("/test/repo", "query", {
+        dateTo: "2024-12-31",
+      });
+
+      expect(mockQdrant.search).toHaveBeenCalled();
+    });
+  });
+
+  describe("indexHistory - batch retry logic", () => {
+    it("should retry failed batches with exponential backoff", async () => {
+      const mockCommits = [
+        {
+          hash: "abc123",
+          shortHash: "abc12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "test",
+          body: "",
+          files: [],
+          insertions: 0,
+          deletions: 0,
+        },
+      ];
+
+      mockExtractorInstance.validateRepository.mockResolvedValue(true);
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
+      mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
+      mockExtractorInstance.getCommitDiff.mockResolvedValue("diff content");
+
+      mockChunkerInstance.createChunks.mockReturnValue([
+        {
+          content: "test content",
+          metadata: {
+            commitHash: "abc123",
+            shortHash: "abc12",
+            author: "Test",
+            authorEmail: "test@example.com",
+            date: new Date().toISOString(),
+            subject: "test",
+            commitType: "feat",
+            files: [],
+            insertions: 0,
+            deletions: 0,
+            repoPath: "/test/repo",
+          },
+        },
+      ]);
+      mockChunkerInstance.generateChunkId.mockReturnValue("chunk-1");
+
+      // Fail first two attempts, succeed on third
+      mockEmbeddings.embedBatch
+        .mockRejectedValueOnce(new Error("Rate limit"))
+        .mockRejectedValueOnce(new Error("Rate limit"))
+        .mockResolvedValueOnce([{ embedding: [0.1, 0.2, 0.3] }]);
+
+      mockQdrant.collectionExists.mockResolvedValue(false);
+      mockQdrant.getCollectionInfo.mockResolvedValue({ hybridEnabled: false });
+
+      const stats = await indexer.indexHistory("/test/repo");
+
+      expect(stats.status).toBe("completed");
+      expect(mockEmbeddings.embedBatch).toHaveBeenCalledTimes(3);
+    });
+
+    it("should mark as partial after exhausting retries", async () => {
+      const mockCommits = [
+        {
+          hash: "abc123",
+          shortHash: "abc12",
+          author: "Test",
+          authorEmail: "test@example.com",
+          date: new Date(),
+          subject: "test",
+          body: "",
+          files: [],
+          insertions: 0,
+          deletions: 0,
+        },
+      ];
+
+      mockExtractorInstance.validateRepository.mockResolvedValue(true);
+      mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
+      mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
+      mockExtractorInstance.getCommitDiff.mockResolvedValue("diff content");
+
+      mockChunkerInstance.createChunks.mockReturnValue([
+        {
+          content: "test content",
+          metadata: {
+            commitHash: "abc123",
+            shortHash: "abc12",
+            author: "Test",
+            authorEmail: "test@example.com",
+            date: new Date().toISOString(),
+            subject: "test",
+            commitType: "feat",
+            files: [],
+            insertions: 0,
+            deletions: 0,
+            repoPath: "/test/repo",
+          },
+        },
+      ]);
+      mockChunkerInstance.generateChunkId.mockReturnValue("chunk-1");
+
+      // All retries fail
+      mockEmbeddings.embedBatch.mockRejectedValue(new Error("Persistent error"));
+
+      mockQdrant.collectionExists.mockResolvedValue(false);
+      mockQdrant.getCollectionInfo.mockResolvedValue({ hybridEnabled: false });
+
+      const stats = await indexer.indexHistory("/test/repo");
+
+      expect(stats.status).toBe("partial");
+      expect(stats.errors).toBeDefined();
+      expect(
+        stats.errors?.some((e) => e.includes("after 3 attempts")),
+      ).toBe(true);
+    });
+  });
 });

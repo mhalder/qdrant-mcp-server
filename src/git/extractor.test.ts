@@ -301,7 +301,7 @@ diff --git a/file.ts b/file.ts
       const result = await customExtractor.getCommitDiff("abc123");
 
       expect(result.length).toBeLessThan(largeDiff.length);
-      expect(result).toContain("[diff truncated...]");
+      expect(result).toContain("[diff truncated: showing 100 of 10000 bytes]");
     });
 
     it("should return empty string on error", async () => {

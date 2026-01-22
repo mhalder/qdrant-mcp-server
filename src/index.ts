@@ -197,12 +197,21 @@ const gitConfig: GitConfig = {
     process.env.GIT_MAX_DIFF_SIZE || String(DEFAULT_GIT_CONFIG.maxDiffSize),
     10,
   ),
+  gitTimeout: parseInt(
+    process.env.GIT_TIMEOUT || String(DEFAULT_GIT_CONFIG.gitTimeout),
+    10,
+  ),
   maxChunkSize: parseInt(
     process.env.GIT_MAX_CHUNK_SIZE || String(DEFAULT_GIT_CONFIG.maxChunkSize),
     10,
   ),
   batchSize: parseInt(
     process.env.GIT_BATCH_SIZE || String(DEFAULT_GIT_CONFIG.batchSize),
+    10,
+  ),
+  batchRetryAttempts: parseInt(
+    process.env.GIT_BATCH_RETRY_ATTEMPTS ||
+      String(DEFAULT_GIT_CONFIG.batchRetryAttempts),
     10,
   ),
   defaultSearchLimit: parseInt(

@@ -28,12 +28,14 @@ export interface GitConfig {
   includeFileList: boolean; // Include changed file list in chunks
   includeDiff: boolean; // Include truncated diff in chunks
   maxDiffSize: number; // Max bytes of diff per commit
+  gitTimeout: number; // Timeout for git commands in milliseconds
 
   // Chunking
   maxChunkSize: number; // Max characters per chunk
 
   // Indexing
   batchSize: number; // Embeddings per batch
+  batchRetryAttempts: number; // Number of retry attempts for failed batches
 
   // Search
   defaultSearchLimit: number; // Default search results

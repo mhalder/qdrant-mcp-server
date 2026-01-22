@@ -5,6 +5,8 @@ export default defineConfig({
     globals: true,
     environment: "node",
     exclude: ["**/node_modules/**", "**/build/**", "**/dist/**"],
+    // Run tests sequentially to avoid snapshot conflicts in code indexer tests
+    fileParallelism: false,
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

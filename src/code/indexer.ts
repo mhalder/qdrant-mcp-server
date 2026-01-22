@@ -772,10 +772,17 @@ export class CodeIndexer {
     // Try git remote URL for consistent naming
     // Check if THIS directory is the git root (not just inside a git repo)
     try {
+      // Clear git environment variables that may be set during pre-commit hooks
+      // These variables cause git commands to use the wrong repository
+      const cleanEnv = { ...process.env };
+      delete cleanEnv.GIT_DIR;
+      delete cleanEnv.GIT_WORK_TREE;
+      delete cleanEnv.GIT_INDEX_FILE;
+
       const { stdout: gitRootResult } = await execFileAsync(
         "git",
         ["rev-parse", "--show-toplevel"],
-        { cwd: absolutePath },
+        { cwd: absolutePath, env: cleanEnv },
       );
       const gitRoot = gitRootResult.trim();
 
@@ -784,7 +791,7 @@ export class CodeIndexer {
         const { stdout } = await execFileAsync(
           "git",
           ["remote", "get-url", "origin"],
-          { cwd: absolutePath },
+          { cwd: absolutePath, env: cleanEnv },
         );
         const normalized = normalizeRemoteUrl(stdout.trim());
         if (normalized) {

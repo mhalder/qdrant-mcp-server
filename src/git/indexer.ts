@@ -187,53 +187,76 @@ export class GitHistoryIndexer {
           message: `Generating embeddings ${i + batch.length}/${allChunks.length}`,
         });
 
-        try {
-          const texts = batch.map((b) => b.chunk.content);
-          const embeddings = await this.embeddings.embedBatch(texts);
+        // Retry logic for batch processing
+        let lastError: Error | null = null;
+        let success = false;
 
-          progressCallback?.({
-            phase: "storing",
-            current: i + batch.length,
-            total: allChunks.length,
-            percentage:
-              70 + Math.round(((i + batch.length) / allChunks.length) * 30),
-            message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
-          });
+        for (
+          let attempt = 1;
+          attempt <= this.config.batchRetryAttempts;
+          attempt++
+        ) {
+          try {
+            const texts = batch.map((b) => b.chunk.content);
+            const embeddings = await this.embeddings.embedBatch(texts);
 
-          const points = batch.map((b, idx) => ({
-            id: b.id,
-            vector: embeddings[idx].embedding,
-            payload: {
-              content: b.chunk.content,
-              commitHash: b.chunk.metadata.commitHash,
-              shortHash: b.chunk.metadata.shortHash,
-              author: b.chunk.metadata.author,
-              authorEmail: b.chunk.metadata.authorEmail,
-              date: b.chunk.metadata.date,
-              subject: b.chunk.metadata.subject,
-              commitType: b.chunk.metadata.commitType,
-              files: b.chunk.metadata.files,
-              insertions: b.chunk.metadata.insertions,
-              deletions: b.chunk.metadata.deletions,
-              repoPath: absolutePath,
-            },
-          }));
+            progressCallback?.({
+              phase: "storing",
+              current: i + batch.length,
+              total: allChunks.length,
+              percentage:
+                70 + Math.round(((i + batch.length) / allChunks.length) * 30),
+              message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
+            });
 
-          if (this.config.enableHybridSearch) {
-            const sparseGenerator = new BM25SparseVectorGenerator();
-            const hybridPoints = points.map((point, idx) => ({
-              ...point,
-              sparseVector: sparseGenerator.generate(batch[idx].chunk.content),
+            const points = batch.map((b, idx) => ({
+              id: b.id,
+              vector: embeddings[idx].embedding,
+              payload: {
+                content: b.chunk.content,
+                commitHash: b.chunk.metadata.commitHash,
+                shortHash: b.chunk.metadata.shortHash,
+                author: b.chunk.metadata.author,
+                authorEmail: b.chunk.metadata.authorEmail,
+                date: b.chunk.metadata.date,
+                subject: b.chunk.metadata.subject,
+                commitType: b.chunk.metadata.commitType,
+                files: b.chunk.metadata.files,
+                insertions: b.chunk.metadata.insertions,
+                deletions: b.chunk.metadata.deletions,
+                repoPath: absolutePath,
+              },
             }));
-            await this.qdrant.addPointsWithSparse(collectionName, hybridPoints);
-          } else {
-            await this.qdrant.addPoints(collectionName, points);
+
+            if (this.config.enableHybridSearch) {
+              const sparseGenerator = new BM25SparseVectorGenerator();
+              const hybridPoints = points.map((point, idx) => ({
+                ...point,
+                sparseVector: sparseGenerator.generate(batch[idx].chunk.content),
+              }));
+              await this.qdrant.addPointsWithSparse(
+                collectionName,
+                hybridPoints,
+              );
+            } else {
+              await this.qdrant.addPoints(collectionName, points);
+            }
+
+            success = true;
+            break;
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            if (attempt < this.config.batchRetryAttempts) {
+              // Exponential backoff: 1s, 2s, 4s...
+              const delay = Math.pow(2, attempt - 1) * 1000;
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
           }
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
+        }
+
+        if (!success && lastError) {
           stats.errors?.push(
-            `Failed to process batch at index ${i}: ${errorMessage}`,
+            `Failed to process batch at index ${i} after ${this.config.batchRetryAttempts} attempts: ${lastError.message}`,
           );
           stats.status = "partial";
         }
@@ -274,6 +297,17 @@ export class GitHistoryIndexer {
     query: string,
     options?: GitSearchOptions,
   ): Promise<GitSearchResult[]> {
+    // Validate date range if both dates are provided
+    if (options?.dateFrom && options?.dateTo) {
+      const fromDate = new Date(options.dateFrom);
+      const toDate = new Date(options.dateTo);
+      if (fromDate > toDate) {
+        throw new Error(
+          `Invalid date range: dateFrom (${options.dateFrom}) must be before dateTo (${options.dateTo})`,
+        );
+      }
+    }
+
     const absolutePath = await this.validatePath(path);
     const collectionName = await this.getCollectionName(absolutePath);
 

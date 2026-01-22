@@ -12,8 +12,10 @@ export const DEFAULT_GIT_CONFIG: GitConfig = {
   includeFileList: true,
   includeDiff: true,
   maxDiffSize: 5000, // 5KB max diff per commit
+  gitTimeout: 300000, // 5 minutes timeout for git commands
   maxChunkSize: 3000,
   batchSize: 100,
+  batchRetryAttempts: 3, // Retry failed batches up to 3 times
   defaultSearchLimit: 10,
   enableHybridSearch: true,
 };

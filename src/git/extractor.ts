@@ -45,6 +45,7 @@ export class GitExtractor {
       await execFileAsync("git", ["rev-parse", "--git-dir"], {
         cwd: this.repoPath,
         maxBuffer: GIT_MAX_BUFFER,
+        timeout: this.config.gitTimeout,
       });
       return true;
     } catch {
@@ -59,6 +60,7 @@ export class GitExtractor {
     const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], {
       cwd: this.repoPath,
       maxBuffer: GIT_MAX_BUFFER,
+      timeout: this.config.gitTimeout,
     });
     return stdout.trim();
   }
@@ -74,6 +76,7 @@ export class GitExtractor {
         {
           cwd: this.repoPath,
           maxBuffer: GIT_MAX_BUFFER,
+          timeout: this.config.gitTimeout,
         },
       );
       return stdout.trim();
@@ -97,6 +100,7 @@ export class GitExtractor {
     const { stdout } = await execFileAsync("git", args, {
       cwd: this.repoPath,
       maxBuffer: GIT_MAX_BUFFER,
+      timeout: this.config.gitTimeout,
     });
 
     return parseInt(stdout.trim(), 10);
@@ -129,6 +133,7 @@ export class GitExtractor {
     const { stdout } = await execFileAsync("git", args, {
       cwd: this.repoPath,
       maxBuffer: GIT_MAX_BUFFER,
+      timeout: this.config.gitTimeout,
     });
 
     return this.parseGitLog(stdout);
@@ -145,6 +150,7 @@ export class GitExtractor {
         {
           cwd: this.repoPath,
           maxBuffer: GIT_MAX_BUFFER,
+          timeout: this.config.gitTimeout,
         },
       );
 
@@ -152,7 +158,7 @@ export class GitExtractor {
       if (stdout.length > this.config.maxDiffSize) {
         return (
           stdout.substring(0, this.config.maxDiffSize) +
-          "\n\n[diff truncated...]"
+          `\n\n[diff truncated: showing ${this.config.maxDiffSize} of ${stdout.length} bytes]`
         );
       }
 
