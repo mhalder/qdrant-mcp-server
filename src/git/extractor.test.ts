@@ -97,6 +97,7 @@ describe("GitExtractor", () => {
   describe("getCommits", () => {
     it("should parse commits from git log output", async () => {
       const gitLogOutput = [
+        GIT_LOG_COMMIT_DELIMITER,
         "abc123def|abc123d|John Doe|john@example.com|2024-01-15T10:30:00Z|feat: add new feature|This is the body",
         "",
         "10\t5\tsrc/feature.ts",
@@ -105,7 +106,6 @@ describe("GitExtractor", () => {
         "xyz789ghi|xyz789g|Jane Smith|jane@example.com|2024-01-14T09:00:00Z|fix: resolve bug|Bug fix description",
         "",
         "2\t8\tsrc/bug.ts",
-        GIT_LOG_COMMIT_DELIMITER,
       ].join("\n");
 
       mockExecFile.mockResolvedValue({
@@ -138,8 +138,8 @@ describe("GitExtractor", () => {
 
     it("should handle commits with no files", async () => {
       const gitLogOutput = [
-        "abc123|abc12|Author|author@example.com|2024-01-15T10:00:00Z|chore: empty commit|",
         GIT_LOG_COMMIT_DELIMITER,
+        "abc123|abc12|Author|author@example.com|2024-01-15T10:00:00Z|chore: empty commit|",
       ].join("\n");
 
       mockExecFile.mockResolvedValue({
@@ -157,11 +157,11 @@ describe("GitExtractor", () => {
 
     it("should handle binary files in numstat", async () => {
       const gitLogOutput = [
+        GIT_LOG_COMMIT_DELIMITER,
         "abc123|abc12|Author|author@example.com|2024-01-15T10:00:00Z|feat: add image|",
         "",
         "-\t-\tassets/image.png",
         "5\t2\tsrc/component.ts",
-        GIT_LOG_COMMIT_DELIMITER,
       ].join("\n");
 
       mockExecFile.mockResolvedValue({
@@ -178,10 +178,10 @@ describe("GitExtractor", () => {
 
     it("should handle renamed files", async () => {
       const gitLogOutput = [
+        GIT_LOG_COMMIT_DELIMITER,
         "abc123|abc12|Author|author@example.com|2024-01-15T10:00:00Z|refactor: rename file|",
         "",
         "0\t0\tsrc/{old.ts => new.ts}",
-        GIT_LOG_COMMIT_DELIMITER,
       ].join("\n");
 
       mockExecFile.mockResolvedValue({
@@ -232,8 +232,8 @@ describe("GitExtractor", () => {
 
     it("should handle commits with pipes in body", async () => {
       const gitLogOutput = [
-        "abc123|abc12|Author|author@example.com|2024-01-15T10:00:00Z|feat: add feature|Body with | pipes | characters",
         GIT_LOG_COMMIT_DELIMITER,
+        "abc123|abc12|Author|author@example.com|2024-01-15T10:00:00Z|feat: add feature|Body with | pipes | characters",
       ].join("\n");
 
       mockExecFile.mockResolvedValue({
@@ -248,10 +248,10 @@ describe("GitExtractor", () => {
 
     it("should handle simple rename format", async () => {
       const gitLogOutput = [
+        GIT_LOG_COMMIT_DELIMITER,
         "abc123|abc12|Author|author@example.com|2024-01-15T10:00:00Z|refactor: move|",
         "",
         "0\t0\told-name.ts => new-name.ts",
-        GIT_LOG_COMMIT_DELIMITER,
       ].join("\n");
 
       mockExecFile.mockResolvedValue({

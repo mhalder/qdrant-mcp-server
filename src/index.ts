@@ -210,7 +210,7 @@ const gitConfig: GitConfig = {
       String(DEFAULT_GIT_CONFIG.defaultSearchLimit),
     10,
   ),
-  enableHybridSearch: process.env.GIT_ENABLE_HYBRID === "true",
+  enableHybridSearch: process.env.GIT_ENABLE_HYBRID !== "false",
 };
 
 const gitHistoryIndexer = new GitHistoryIndexer(qdrant, embeddings, gitConfig);

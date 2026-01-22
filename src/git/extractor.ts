@@ -75,7 +75,7 @@ export class GitExtractor {
     // Build git log arguments
     const args = [
       "log",
-      `--pretty=format:${GIT_LOG_FORMAT}${GIT_LOG_COMMIT_DELIMITER}`,
+      `--pretty=format:${GIT_LOG_COMMIT_DELIMITER}${GIT_LOG_FORMAT}`,
       "--numstat", // Include insertions/deletions per file
       `-n${maxCommits}`,
     ];

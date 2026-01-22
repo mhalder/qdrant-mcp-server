@@ -15,7 +15,7 @@ export const DEFAULT_GIT_CONFIG: GitConfig = {
   maxChunkSize: 3000,
   batchSize: 100,
   defaultSearchLimit: 10,
-  enableHybridSearch: false,
+  enableHybridSearch: true,
 };
 
 /**

@@ -575,11 +575,11 @@ npm run test:coverage # Coverage report
 
 ### Testing
 
-**687 tests** across 25 test files with **97%+ coverage**:
+**698 tests** across 26 test files with **97%+ coverage**:
 
 - **Unit Tests**: QdrantManager (56), Ollama (41), OpenAI (25), Cohere (29), Voyage (31), Factory (43), Prompts (50), Transport (15), MCP Server (19)
 - **Integration Tests**: Code indexer (56), scanner (15), chunker (24), synchronizer (42), snapshot (26), merkle tree (28)
-- **Git History Tests**: Git extractor (17), chunker (30), indexer (36), synchronizer (18)
+- **Git History Tests**: Git extractor (17), extractor integration (11), chunker (30), indexer (36), synchronizer (18)
 
 **CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22 LTS for every push/PR.
 
