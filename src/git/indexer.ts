@@ -10,7 +10,7 @@ import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
 import type { QdrantManager } from "../qdrant/client.js";
 import { CommitChunker } from "./chunker.js";
 import { GIT_INDEXING_METADATA_ID } from "./config.js";
-import { GitExtractor } from "./extractor.js";
+import { GitExtractor, normalizeRemoteUrl } from "./extractor.js";
 import { GitSynchronizer } from "./sync/synchronizer.js";
 import type {
   CommitChunk,
@@ -64,7 +64,7 @@ export class GitHistoryIndexer {
     };
 
     const absolutePath = await this.validatePath(path);
-    const collectionName = this.getCollectionName(absolutePath);
+    const collectionName = await this.getCollectionName(absolutePath);
 
     try {
       // 1. Validate repository
@@ -275,7 +275,7 @@ export class GitHistoryIndexer {
     options?: GitSearchOptions,
   ): Promise<GitSearchResult[]> {
     const absolutePath = await this.validatePath(path);
-    const collectionName = this.getCollectionName(absolutePath);
+    const collectionName = await this.getCollectionName(absolutePath);
 
     // Check if collection exists
     const exists = await this.qdrant.collectionExists(collectionName);
@@ -340,7 +340,7 @@ export class GitHistoryIndexer {
    */
   async getIndexStatus(path: string): Promise<GitIndexStatus> {
     const absolutePath = await this.validatePath(path);
-    const collectionName = this.getCollectionName(absolutePath);
+    const collectionName = await this.getCollectionName(absolutePath);
     const exists = await this.qdrant.collectionExists(collectionName);
 
     if (!exists) {
@@ -434,7 +434,7 @@ export class GitHistoryIndexer {
     };
 
     const absolutePath = await this.validatePath(path);
-    const collectionName = this.getCollectionName(absolutePath);
+    const collectionName = await this.getCollectionName(absolutePath);
 
     // Check if collection exists
     const exists = await this.qdrant.collectionExists(collectionName);
@@ -579,7 +579,7 @@ export class GitHistoryIndexer {
    */
   async clearIndex(path: string): Promise<void> {
     const absolutePath = await this.validatePath(path);
-    const collectionName = this.getCollectionName(absolutePath);
+    const collectionName = await this.getCollectionName(absolutePath);
     const exists = await this.qdrant.collectionExists(collectionName);
 
     if (exists) {
@@ -692,11 +692,20 @@ export class GitHistoryIndexer {
   }
 
   /**
-   * Generate deterministic collection name from repository path
+   * Generate deterministic collection name from repository path.
+   * Uses git remote URL for consistent naming across machines, with fallback to full path.
    */
-  private getCollectionName(path: string): string {
+  private async getCollectionName(path: string): Promise<string> {
     const absolutePath = resolve(path);
-    const hash = createHash("md5").update(absolutePath).digest("hex");
+    const extractor = new GitExtractor(absolutePath, this.config);
+
+    // Try to get remote URL for consistent naming across machines
+    const remoteUrl = await extractor.getRemoteUrl();
+    const normalized = normalizeRemoteUrl(remoteUrl);
+
+    // Use normalized remote URL if available, otherwise fall back to full absolute path
+    const identifier = normalized || absolutePath;
+    const hash = createHash("md5").update(identifier).digest("hex");
     return `git_${hash.substring(0, 8)}`;
   }
 }

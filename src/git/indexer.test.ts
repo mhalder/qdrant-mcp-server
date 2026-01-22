@@ -7,6 +7,7 @@ import type { GitConfig } from "./types.js";
 const mockExtractorInstance = {
   validateRepository: vi.fn(),
   getLatestCommitHash: vi.fn(),
+  getRemoteUrl: vi.fn(),
   getCommits: vi.fn(),
   getCommitDiff: vi.fn(),
 };
@@ -32,8 +33,16 @@ vi.mock("./extractor.js", () => {
     GitExtractor: class MockGitExtractor {
       validateRepository = mockExtractorInstance.validateRepository;
       getLatestCommitHash = mockExtractorInstance.getLatestCommitHash;
+      getRemoteUrl = mockExtractorInstance.getRemoteUrl;
       getCommits = mockExtractorInstance.getCommits;
       getCommitDiff = mockExtractorInstance.getCommitDiff;
+    },
+    normalizeRemoteUrl: (url: string) => {
+      if (!url) return "";
+      return url
+        .replace(/^git@[^:]+:/, "")
+        .replace(/^https?:\/\/[^/]+\//, "")
+        .replace(/\.git$/, "");
     },
   };
 });
@@ -79,6 +88,9 @@ describe("GitHistoryIndexer", () => {
     // Reset mock instances
     mockExtractorInstance.validateRepository.mockResolvedValue(true);
     mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123def456");
+    mockExtractorInstance.getRemoteUrl.mockResolvedValue(
+      "git@github.com:test/repo.git",
+    );
     mockExtractorInstance.getCommits.mockResolvedValue([]);
     mockExtractorInstance.getCommitDiff.mockResolvedValue("");
 

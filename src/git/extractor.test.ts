@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GitExtractor } from "./extractor.js";
+import { GitExtractor, normalizeRemoteUrl } from "./extractor.js";
 import { DEFAULT_GIT_CONFIG, GIT_LOG_COMMIT_DELIMITER } from "./config.js";
 import type { GitConfig } from "./types.js";
 
@@ -311,5 +311,93 @@ diff --git a/file.ts b/file.ts
 
       expect(result).toBe("");
     });
+  });
+
+  describe("getRemoteUrl", () => {
+    it("should return remote origin URL", async () => {
+      mockExecFile.mockResolvedValue({
+        stdout: "git@github.com:user/repo.git\n",
+        stderr: "",
+      } as any);
+
+      const result = await extractor.getRemoteUrl();
+
+      expect(result).toBe("git@github.com:user/repo.git");
+      expect(mockExecFile).toHaveBeenCalledWith(
+        "git",
+        ["remote", "get-url", "origin"],
+        expect.objectContaining({ cwd: "/test/repo" }),
+      );
+    });
+
+    it("should return empty string when no remote configured", async () => {
+      mockExecFile.mockRejectedValue(
+        new Error("fatal: No such remote 'origin'"),
+      );
+
+      const result = await extractor.getRemoteUrl();
+
+      expect(result).toBe("");
+    });
+
+    it("should return HTTPS URL", async () => {
+      mockExecFile.mockResolvedValue({
+        stdout: "https://github.com/user/repo.git\n",
+        stderr: "",
+      } as any);
+
+      const result = await extractor.getRemoteUrl();
+
+      expect(result).toBe("https://github.com/user/repo.git");
+    });
+  });
+});
+
+describe("normalizeRemoteUrl", () => {
+  it("should normalize SSH URL", () => {
+    expect(normalizeRemoteUrl("git@github.com:user/repo.git")).toBe(
+      "user/repo",
+    );
+  });
+
+  it("should normalize HTTPS URL", () => {
+    expect(normalizeRemoteUrl("https://github.com/user/repo.git")).toBe(
+      "user/repo",
+    );
+  });
+
+  it("should handle URL without .git suffix", () => {
+    expect(normalizeRemoteUrl("git@github.com:user/repo")).toBe("user/repo");
+    expect(normalizeRemoteUrl("https://github.com/user/repo")).toBe(
+      "user/repo",
+    );
+  });
+
+  it("should return empty string for empty input", () => {
+    expect(normalizeRemoteUrl("")).toBe("");
+  });
+
+  it("should handle GitLab SSH URL", () => {
+    expect(normalizeRemoteUrl("git@gitlab.com:group/project.git")).toBe(
+      "group/project",
+    );
+  });
+
+  it("should handle Bitbucket SSH URL", () => {
+    expect(normalizeRemoteUrl("git@bitbucket.org:team/repo.git")).toBe(
+      "team/repo",
+    );
+  });
+
+  it("should handle HTTP URL (not HTTPS)", () => {
+    expect(normalizeRemoteUrl("http://github.com/user/repo.git")).toBe(
+      "user/repo",
+    );
+  });
+
+  it("should handle nested paths", () => {
+    expect(
+      normalizeRemoteUrl("https://github.com/org/group/subgroup/repo.git"),
+    ).toBe("org/group/subgroup/repo");
   });
 });

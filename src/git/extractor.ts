@@ -14,6 +14,23 @@ import type { GitConfig, GitExtractOptions, RawCommit } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * Normalize git remote URL to consistent format for hashing.
+ * Handles both SSH and HTTPS URL formats.
+ *
+ * @example
+ * normalizeRemoteUrl("git@github.com:user/repo.git") // → "user/repo"
+ * normalizeRemoteUrl("https://github.com/user/repo.git") // → "user/repo"
+ * normalizeRemoteUrl("") // → ""
+ */
+export function normalizeRemoteUrl(url: string): string {
+  if (!url) return "";
+  return url
+    .replace(/^git@[^:]+:/, "") // git@github.com:user/repo → user/repo
+    .replace(/^https?:\/\/[^/]+\//, "") // https://github.com/user/repo → user/repo
+    .replace(/\.git$/, ""); // user/repo.git → user/repo
+}
+
 export class GitExtractor {
   constructor(
     private repoPath: string,
@@ -44,6 +61,25 @@ export class GitExtractor {
       maxBuffer: GIT_MAX_BUFFER,
     });
     return stdout.trim();
+  }
+
+  /**
+   * Get the remote origin URL, or empty string if not configured
+   */
+  async getRemoteUrl(): Promise<string> {
+    try {
+      const { stdout } = await execFileAsync(
+        "git",
+        ["remote", "get-url", "origin"],
+        {
+          cwd: this.repoPath,
+          maxBuffer: GIT_MAX_BUFFER,
+        },
+      );
+      return stdout.trim();
+    } catch {
+      return ""; // No remote configured
+    }
   }
 
   /**
