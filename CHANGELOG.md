@@ -1,3 +1,9 @@
+## 3.1.0 (2026-01-22)
+
+* Merge pull request #48 from mhalder/feat/node-24-support ([d6b57ae](https://github.com/mhalder/qdrant-mcp-server/commit/d6b57ae)), closes [#48](https://github.com/mhalder/qdrant-mcp-server/issues/48)
+* fix(ci): enable C++20 for Node 24 native module builds ([8fca70e](https://github.com/mhalder/qdrant-mcp-server/commit/8fca70e))
+* feat: add Node.js 24 support ([bf39405](https://github.com/mhalder/qdrant-mcp-server/commit/bf39405)), closes [#47](https://github.com/mhalder/qdrant-mcp-server/issues/47)
+
 ## 3.0.0 (2026-01-22)
 
 * feat!(indexer): use git remote URL for consistent collection naming ([f51f82d](https://github.com/mhalder/qdrant-mcp-server/commit/f51f82d))
