@@ -25,7 +25,7 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 
 ### Prerequisites
 
-- Node.js 22+
+- Node.js 22.x or 24.x
 - Podman or Docker with Compose support
 
 ### Installation
@@ -596,7 +596,7 @@ npm run test:coverage # Coverage report
 - **Integration Tests**: Code indexer (56), scanner (15), chunker (24), synchronizer (42), snapshot (26), merkle tree (28)
 - **Git History Tests**: Git extractor (28), extractor integration (11), chunker (30), indexer (42), synchronizer (18)
 
-**CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22 LTS for every push/PR.
+**CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22.x and 24.x for every push/PR.
 
 ## Contributing
 
