@@ -1,3 +1,7 @@
+## <small>3.1.1 (2026-01-22)</small>
+
+* docs: add Node 24 installation instructions ([edb27cc](https://github.com/mhalder/qdrant-mcp-server/commit/edb27cc)), closes [#49](https://github.com/mhalder/qdrant-mcp-server/issues/49)
+
 ## 3.1.0 (2026-01-22)
 
 * Merge pull request #48 from mhalder/feat/node-24-support ([d6b57ae](https://github.com/mhalder/qdrant-mcp-server/commit/d6b57ae)), closes [#48](https://github.com/mhalder/qdrant-mcp-server/issues/48)
