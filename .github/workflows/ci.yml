@@ -27,6 +27,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        env:
+          # Node 24 requires C++20 for native modules
+          CXXFLAGS: ${{ matrix.node-version == '24.x' && '-std=c++20' || '' }}
 
       - name: Type check
         run: npm run type-check
