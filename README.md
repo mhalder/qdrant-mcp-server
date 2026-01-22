@@ -34,7 +34,12 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 # Clone and install
 git clone https://github.com/mhalder/qdrant-mcp-server.git
 cd qdrant-mcp-server
+
+# Node 22.x
 npm install
+
+# Node 24.x (requires C++20 flag for native module compilation)
+CXXFLAGS='-std=c++20' npm install
 
 # Start services (choose one)
 podman compose up -d   # Using Podman
@@ -533,18 +538,18 @@ See [examples/](examples/) directory for detailed guides:
 
 #### Git History Configuration
 
-| Variable                   | Description                                | Default |
-| -------------------------- | ------------------------------------------ | ------- |
-| `GIT_MAX_COMMITS`          | Maximum commits to index per run           | 5000    |
-| `GIT_INCLUDE_FILES`        | Include changed file list in chunks        | true    |
-| `GIT_INCLUDE_DIFF`         | Include truncated diff in chunks           | true    |
-| `GIT_MAX_DIFF_SIZE`        | Maximum diff size in bytes per commit      | 5000    |
-| `GIT_TIMEOUT`              | Timeout for git commands (ms)              | 300000  |
-| `GIT_MAX_CHUNK_SIZE`       | Maximum characters per chunk               | 3000    |
-| `GIT_BATCH_SIZE`           | Number of chunks to embed in one batch     | 100     |
-| `GIT_BATCH_RETRY_ATTEMPTS` | Retry attempts for failed batches          | 3       |
-| `GIT_SEARCH_LIMIT`         | Default search result limit                | 10      |
-| `GIT_ENABLE_HYBRID`        | Enable hybrid search with sparse vectors   | true    |
+| Variable                   | Description                              | Default |
+| -------------------------- | ---------------------------------------- | ------- |
+| `GIT_MAX_COMMITS`          | Maximum commits to index per run         | 5000    |
+| `GIT_INCLUDE_FILES`        | Include changed file list in chunks      | true    |
+| `GIT_INCLUDE_DIFF`         | Include truncated diff in chunks         | true    |
+| `GIT_MAX_DIFF_SIZE`        | Maximum diff size in bytes per commit    | 5000    |
+| `GIT_TIMEOUT`              | Timeout for git commands (ms)            | 300000  |
+| `GIT_MAX_CHUNK_SIZE`       | Maximum characters per chunk             | 3000    |
+| `GIT_BATCH_SIZE`           | Number of chunks to embed in one batch   | 100     |
+| `GIT_BATCH_RETRY_ATTEMPTS` | Retry attempts for failed batches        | 3       |
+| `GIT_SEARCH_LIMIT`         | Default search result limit              | 10      |
+| `GIT_ENABLE_HYBRID`        | Enable hybrid search with sparse vectors | true    |
 
 ### Provider Comparison
 
@@ -577,6 +582,7 @@ See [examples/](examples/) directory for detailed guides:
 | **Files not found**            | Check `.gitignore` and `.contextignore` patterns                                          |
 | **Search returns no results**  | Try broader queries, check if codebase is indexed with `get_index_status`                 |
 | **Out of memory during index** | Reduce `CODE_CHUNK_SIZE` or `CODE_BATCH_SIZE`                                             |
+| **Node 24 tree-sitter error**  | Run `CXXFLAGS='-std=c++20' npm install` - Node 24 requires C++20 for native modules       |
 
 ## Development
 
