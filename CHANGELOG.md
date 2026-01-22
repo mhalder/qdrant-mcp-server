@@ -1,3 +1,19 @@
+## 3.0.0 (2026-01-22)
+
+* feat!(indexer): use git remote URL for consistent collection naming ([f51f82d](https://github.com/mhalder/qdrant-mcp-server/commit/f51f82d))
+* Merge pull request #46 from mhalder/feat/git-indexer ([42fba77](https://github.com/mhalder/qdrant-mcp-server/commit/42fba77)), closes [#46](https://github.com/mhalder/qdrant-mcp-server/issues/46)
+* feat(git): add git history indexing for semantic commit search ([e8cd930](https://github.com/mhalder/qdrant-mcp-server/commit/e8cd930))
+* feat(git): add resilience features for git indexer ([40e4776](https://github.com/mhalder/qdrant-mcp-server/commit/40e4776))
+* fix(git): correct extractor delimiter position and enable hybrid search ([2dd1b0e](https://github.com/mhalder/qdrant-mcp-server/commit/2dd1b0e))
+* test(git): improve indexer test coverage to 99.5% ([3d80c92](https://github.com/mhalder/qdrant-mcp-server/commit/3d80c92))
+
+
+### BREAKING CHANGE
+
+* existing indexes may have different collection names
+after this change if they have a git remote configured. Users need to
+re-index their repositories.
+
 ## 2.2.0 (2026-01-18)
 
 * Merge pull request #45 from mhalder/feat/chunk-deletion-and-test-coverage ([ce37f56](https://github.com/mhalder/qdrant-mcp-server/commit/ce37f56)), closes [#45](https://github.com/mhalder/qdrant-mcp-server/issues/45)
