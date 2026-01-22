@@ -10,6 +10,7 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 - **Zero Setup**: Works out of the box with Ollama - no API keys required
 - **Privacy-First**: Local embeddings and vector storage - data never leaves your machine
 - **Code Vectorization**: Intelligent codebase indexing with AST-aware chunking and semantic code search
+- **Git History Search**: Index commit history for semantic search over past changes, fixes, and patterns
 - **Multiple Providers**: Ollama (default), OpenAI, Cohere, and Voyage AI
 - **Hybrid Search**: Combine semantic and keyword search for better results
 - **Semantic Search**: Natural language search with metadata filtering
@@ -160,6 +161,16 @@ See [Advanced Configuration](#advanced-configuration) section below for all opti
 | `reindex_changes`  | Incrementally re-index only changed files (detects added/modified/deleted) |
 | `get_index_status` | Get indexing status and statistics for a codebase                          |
 | `clear_index`      | Delete all indexed data for a codebase                                     |
+
+### Git History
+
+| Tool                   | Description                                                              |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `index_git_history`    | Index git commit history for semantic search over past changes and fixes |
+| `search_git_history`   | Search indexed git history using natural language queries                |
+| `index_new_commits`    | Incrementally index only new commits since last indexing                 |
+| `get_git_index_status` | Get indexing status and statistics for a repository's git history        |
+| `clear_git_index`      | Delete all indexed git history data for a repository                     |
 
 ### Resources
 
@@ -420,6 +431,54 @@ Typical performance on a modern laptop (Apple M1/M2 or similar):
 
 **Note**: Indexing time varies based on embedding provider. Ollama (local) is fastest for initial indexing.
 
+## Git History Search
+
+Index and search your repository's git commit history using natural language. Perfect for finding past fixes, understanding change patterns, and learning from previous work.
+
+### Features
+
+- **Semantic Commit Search**: Find commits by describing what you're looking for in natural language
+- **Conventional Commit Classification**: Automatic classification of commits (feat, fix, refactor, etc.)
+- **Incremental Updates**: Only index new commits for efficient updates
+- **Rich Filtering**: Filter by commit type, author, or date range
+- **Metadata Extraction**: Includes files changed, insertions/deletions, and full commit context
+
+### Quick Start
+
+**1. Index your repository's git history:**
+
+```bash
+# Via Claude Code MCP tool
+/mcp__qdrant__index_git_history /path/to/your/repo
+```
+
+**2. Search for relevant commits:**
+
+```bash
+# Natural language search
+/mcp__qdrant__search_git_history /path/to/your/repo "fix authentication bug"
+
+# Filter by commit type
+/mcp__qdrant__search_git_history /path/to/your/repo "database optimization" --commitTypes fix,perf
+
+# Filter by author
+/mcp__qdrant__search_git_history /path/to/your/repo "API changes" --authors "john@example.com"
+```
+
+**3. Keep index up to date:**
+
+```bash
+# Incrementally index only new commits
+/mcp__qdrant__index_new_commits /path/to/your/repo
+```
+
+### Use Cases
+
+- **Finding Similar Fixes**: "How was the null pointer issue in auth fixed before?"
+- **Understanding Patterns**: "What refactoring was done to the database layer?"
+- **Learning from History**: "Show me examples of API endpoint implementations"
+- **Code Archaeology**: "What changes were made to the payment system last year?"
+
 ## Examples
 
 See [examples/](examples/) directory for detailed guides:
@@ -472,6 +531,21 @@ See [examples/](examples/) directory for detailed guides:
 | `CODE_CUSTOM_IGNORE`     | Additional ignore patterns (comma-separated) | -       |
 | `CODE_DEFAULT_LIMIT`     | Default search result limit                  | 5       |
 
+#### Git History Configuration
+
+| Variable                   | Description                                | Default |
+| -------------------------- | ------------------------------------------ | ------- |
+| `GIT_MAX_COMMITS`          | Maximum commits to index per run           | 5000    |
+| `GIT_INCLUDE_FILES`        | Include changed file list in chunks        | true    |
+| `GIT_INCLUDE_DIFF`         | Include truncated diff in chunks           | true    |
+| `GIT_MAX_DIFF_SIZE`        | Maximum diff size in bytes per commit      | 5000    |
+| `GIT_TIMEOUT`              | Timeout for git commands (ms)              | 300000  |
+| `GIT_MAX_CHUNK_SIZE`       | Maximum characters per chunk               | 3000    |
+| `GIT_BATCH_SIZE`           | Number of chunks to embed in one batch     | 100     |
+| `GIT_BATCH_RETRY_ATTEMPTS` | Retry attempts for failed batches          | 3       |
+| `GIT_SEARCH_LIMIT`         | Default search result limit                | 10      |
+| `GIT_ENABLE_HYBRID`        | Enable hybrid search with sparse vectors   | true    |
+
 ### Provider Comparison
 
 | Provider   | Models                                                          | Dimensions     | Rate Limit | Notes                |
@@ -516,10 +590,11 @@ npm run test:coverage # Coverage report
 
 ### Testing
 
-**586 tests** across 21 test files with **97%+ coverage**:
+**715 tests** across 26 test files with **97%+ coverage**:
 
 - **Unit Tests**: QdrantManager (56), Ollama (41), OpenAI (25), Cohere (29), Voyage (31), Factory (43), Prompts (50), Transport (15), MCP Server (19)
 - **Integration Tests**: Code indexer (56), scanner (15), chunker (24), synchronizer (42), snapshot (26), merkle tree (28)
+- **Git History Tests**: Git extractor (28), extractor integration (11), chunker (30), indexer (42), synchronizer (18)
 
 **CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22 LTS for every push/PR.
 

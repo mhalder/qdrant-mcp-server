@@ -18,6 +18,8 @@ import {
 } from "./code/config.js";
 import { CodeIndexer } from "./code/indexer.js";
 import type { CodeConfig } from "./code/types.js";
+import { DEFAULT_GIT_CONFIG, GitHistoryIndexer } from "./git/index.js";
+import type { GitConfig } from "./git/types.js";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { loadPromptsConfig, type PromptsConfig } from "./prompts/index.js";
 import { registerAllPrompts } from "./prompts/register.js";
@@ -183,6 +185,45 @@ const codeConfig: CodeConfig = {
 
 const codeIndexer = new CodeIndexer(qdrant, embeddings, codeConfig);
 
+// Initialize git history indexer
+const gitConfig: GitConfig = {
+  maxCommits: parseInt(
+    process.env.GIT_MAX_COMMITS || String(DEFAULT_GIT_CONFIG.maxCommits),
+    10,
+  ),
+  includeFileList: process.env.GIT_INCLUDE_FILES !== "false",
+  includeDiff: process.env.GIT_INCLUDE_DIFF !== "false",
+  maxDiffSize: parseInt(
+    process.env.GIT_MAX_DIFF_SIZE || String(DEFAULT_GIT_CONFIG.maxDiffSize),
+    10,
+  ),
+  gitTimeout: parseInt(
+    process.env.GIT_TIMEOUT || String(DEFAULT_GIT_CONFIG.gitTimeout),
+    10,
+  ),
+  maxChunkSize: parseInt(
+    process.env.GIT_MAX_CHUNK_SIZE || String(DEFAULT_GIT_CONFIG.maxChunkSize),
+    10,
+  ),
+  batchSize: parseInt(
+    process.env.GIT_BATCH_SIZE || String(DEFAULT_GIT_CONFIG.batchSize),
+    10,
+  ),
+  batchRetryAttempts: parseInt(
+    process.env.GIT_BATCH_RETRY_ATTEMPTS ||
+      String(DEFAULT_GIT_CONFIG.batchRetryAttempts),
+    10,
+  ),
+  defaultSearchLimit: parseInt(
+    process.env.GIT_SEARCH_LIMIT ||
+      String(DEFAULT_GIT_CONFIG.defaultSearchLimit),
+    10,
+  ),
+  enableHybridSearch: process.env.GIT_ENABLE_HYBRID !== "false",
+};
+
+const gitHistoryIndexer = new GitHistoryIndexer(qdrant, embeddings, gitConfig);
+
 // Load prompts configuration if file exists
 let promptsConfig: PromptsConfig | null = null;
 if (existsSync(PROMPTS_CONFIG_FILE)) {
@@ -213,6 +254,7 @@ function createAndConfigureServer(): McpServer {
       qdrant,
       embeddings,
       codeIndexer,
+      gitHistoryIndexer,
     });
 
     // Register all resources
