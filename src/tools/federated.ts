@@ -320,15 +320,29 @@ async function performFederatedSearch(
   const normalizedResults = [...normalizedCode, ...normalizedGit];
 
   // Apply RRF ranking
-  // First, sort each result type by normalized score and assign ranks
-  const rankedResults = normalizedResults.map((result, _idx) => {
-    // Find rank within result's type group
-    const sameTypeResults = normalizedResults.filter(
-      (r) => r.resultType === result.resultType,
-    );
-    sameTypeResults.sort((a, b) => b.score - a.score);
-    const rank = sameTypeResults.findIndex((r) => r === result) + 1;
+  // Rank within each repo+type group for fair cross-repo interleaving
+  // This ensures top results from each repo get similar RRF scores
+  const groupedResults = new Map<string, FederatedResult[]>();
+  for (const result of normalizedResults) {
+    const key = `${result.repoPath}:${result.resultType}`;
+    if (!groupedResults.has(key)) {
+      groupedResults.set(key, []);
+    }
+    groupedResults.get(key)!.push(result);
+  }
 
+  // Sort each group by score and create rank lookup
+  const rankLookup = new Map<FederatedResult, number>();
+  for (const group of groupedResults.values()) {
+    group.sort((a, b) => b.score - a.score);
+    group.forEach((result, index) => {
+      rankLookup.set(result, index + 1);
+    });
+  }
+
+  // Calculate RRF scores based on per-repo ranks
+  const rankedResults = normalizedResults.map((result) => {
+    const rank = rankLookup.get(result) ?? 1;
     return {
       result,
       rank,
