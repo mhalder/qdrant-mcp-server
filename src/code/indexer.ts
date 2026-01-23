@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
+import picomatch from "picomatch";
 import type { EmbeddingProvider } from "../embeddings/base.js";
 import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
 import { normalizeRemoteUrl } from "../git/extractor.js";
@@ -394,32 +395,29 @@ export class CodeIndexer {
     // Generate query embedding
     const { embedding } = await this.embeddings.embed(query);
 
-    // Build filter
+    // Build filter for Qdrant (only fileTypes - pathPattern uses post-filtering)
     let filter: any;
-    if (options?.fileTypes || options?.pathPattern) {
-      filter = { must: [] };
-
-      if (options.fileTypes && options.fileTypes.length > 0) {
-        filter.must.push({
-          key: "fileExtension",
-          match: { any: options.fileTypes },
-        });
-      }
-
-      if (options.pathPattern) {
-        // Convert glob pattern to regex (simplified)
-        const regex = options.pathPattern
-          .replace(/\./g, "\\.")
-          .replace(/\*\*/g, ".*")
-          .replace(/\*/g, "[^/]*")
-          .replace(/\?/g, ".");
-
-        filter.must.push({
-          key: "relativePath",
-          match: { text: regex },
-        });
-      }
+    if (options?.fileTypes && options.fileTypes.length > 0) {
+      filter = {
+        must: [
+          {
+            key: "fileExtension",
+            match: { any: options.fileTypes },
+          },
+        ],
+      };
     }
+
+    // Prepare pathPattern matcher for post-filtering
+    // Qdrant doesn't support regex/glob filtering, so we filter results in JS
+    const pathMatcher = options?.pathPattern
+      ? picomatch(options.pathPattern, { dot: true })
+      : null;
+
+    // When using pathPattern, fetch more results to account for filtering
+    const fetchLimit = pathMatcher
+      ? Math.min((options?.limit || this.config.defaultSearchLimit) * 5, 100)
+      : options?.limit || this.config.defaultSearchLimit;
 
     // Search with hybrid or standard search
     let results;
@@ -430,25 +428,40 @@ export class CodeIndexer {
         collectionName,
         embedding,
         sparseVector,
-        options?.limit || this.config.defaultSearchLimit,
+        fetchLimit,
         filter,
       );
     } else {
       results = await this.qdrant.search(
         collectionName,
         embedding,
-        options?.limit || this.config.defaultSearchLimit,
+        fetchLimit,
         filter,
       );
     }
 
+    // Apply pathPattern post-filtering if specified
+    let filteredResults = results;
+    if (pathMatcher) {
+      filteredResults = results.filter((r) => {
+        const relativePath = r.payload?.relativePath || "";
+        return pathMatcher(relativePath);
+      });
+    }
+
     // Apply score threshold if specified
-    const filteredResults = options?.scoreThreshold
-      ? results.filter((r) => r.score >= (options.scoreThreshold || 0))
-      : results;
+    if (options?.scoreThreshold) {
+      filteredResults = filteredResults.filter(
+        (r) => r.score >= (options.scoreThreshold || 0),
+      );
+    }
+
+    // Apply the requested limit after all filtering
+    const requestedLimit = options?.limit || this.config.defaultSearchLimit;
+    const finalResults = filteredResults.slice(0, requestedLimit);
 
     // Format results
-    return filteredResults.map((r) => ({
+    return finalResults.map((r) => ({
       content: r.payload?.content || "",
       filePath: r.payload?.relativePath || "",
       startLine: r.payload?.startLine || 0,

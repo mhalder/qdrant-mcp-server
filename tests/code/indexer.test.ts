@@ -467,6 +467,66 @@ function checkStatus(): boolean {
         expect(result).toHaveProperty("score");
       });
     });
+
+    it("should filter by pathPattern using glob matching", async () => {
+      // Create files in different directories
+      await fs.mkdir(join(codebaseDir, "src", "services"), { recursive: true });
+      await fs.mkdir(join(codebaseDir, "src", "utils"), { recursive: true });
+      await createTestFile(
+        join(codebaseDir, "src", "services"),
+        "auth.ts",
+        "export function authenticate() { return true; }",
+      );
+      await createTestFile(
+        join(codebaseDir, "src", "utils"),
+        "helpers.ts",
+        "export function authenticate() { return false; }",
+      );
+      await indexer.indexCodebase(codebaseDir, { forceReindex: true });
+
+      // Search with pathPattern that matches only services directory
+      const results = await indexer.searchCode(codebaseDir, "authenticate", {
+        pathPattern: "src/services/**",
+      });
+
+      // Results should only include files from src/services
+      expect(Array.isArray(results)).toBe(true);
+      results.forEach((result) => {
+        expect(result.filePath).toMatch(/^src\/services\//);
+      });
+    });
+
+    it("should handle pathPattern with no matches", async () => {
+      const results = await indexer.searchCode(codebaseDir, "hello", {
+        pathPattern: "nonexistent/**",
+      });
+
+      expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBe(0);
+    });
+
+    it("should combine pathPattern with fileTypes filter", async () => {
+      await fs.mkdir(join(codebaseDir, "src"), { recursive: true });
+      await createTestFile(
+        join(codebaseDir, "src"),
+        "code.ts",
+        "export const x = 1;",
+      );
+      await createTestFile(join(codebaseDir, "src"), "code.py", "x = 1");
+      await indexer.indexCodebase(codebaseDir, { forceReindex: true });
+
+      const results = await indexer.searchCode(codebaseDir, "code", {
+        pathPattern: "src/**",
+        fileTypes: [".ts"],
+      });
+
+      // Should match only .ts files in src/
+      expect(Array.isArray(results)).toBe(true);
+      results.forEach((result) => {
+        expect(result.filePath).toMatch(/^src\//);
+        expect(result.fileExtension).toBe(".ts");
+      });
+    });
   });
 
   describe("getIndexStatus", () => {

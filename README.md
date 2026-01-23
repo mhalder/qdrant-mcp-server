@@ -596,7 +596,7 @@ npm run test:coverage # Coverage report
 
 ### Testing
 
-**715 tests** across 26 test files with **97%+ coverage**:
+**718 tests** across 26 test files with **97%+ coverage**:
 
 - **Unit Tests**: QdrantManager (56), Ollama (41), OpenAI (25), Cohere (29), Voyage (31), Factory (43), Prompts (50), Transport (15), MCP Server (19)
 - **Integration Tests**: Code indexer (56), scanner (15), chunker (24), synchronizer (42), snapshot (26), merkle tree (28)
