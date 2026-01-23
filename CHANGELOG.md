@@ -1,3 +1,8 @@
+## <small>3.1.2 (2026-01-23)</small>
+
+* Merge pull request #50 from mhalder/fix/pathpattern-filter ([b12517f](https://github.com/mhalder/qdrant-mcp-server/commit/b12517f)), closes [#50](https://github.com/mhalder/qdrant-mcp-server/issues/50)
+* fix(code): use picomatch for pathPattern filtering in search_code ([06717a9](https://github.com/mhalder/qdrant-mcp-server/commit/06717a9))
+
 ## <small>3.1.1 (2026-01-22)</small>
 
 * docs: add Node 24 installation instructions ([edb27cc](https://github.com/mhalder/qdrant-mcp-server/commit/edb27cc)), closes [#49](https://github.com/mhalder/qdrant-mcp-server/issues/49)
