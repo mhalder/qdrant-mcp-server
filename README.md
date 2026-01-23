@@ -239,6 +239,8 @@ See [`prompts.example.json`](prompts.example.json) for ready-to-use prompts incl
 - `compare_search_methods` - Semantic vs hybrid search comparison
 - `collection_maintenance` - Maintenance and cleanup workflows
 - `migrate_to_hybrid` - Collection migration guide
+- `index_git_history` - Index repository commit history for semantic search
+- `search_project_history` - Search git history to understand feature implementations
 
 ### Template Syntax
 

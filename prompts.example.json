@@ -91,6 +91,35 @@
         }
       ],
       "template": "Build a structured knowledge base in '{{collection}}' for the {{domain}} domain:\n\n1. Create (or verify) the collection with hybrid search enabled for optimal retrieval\n2. Design a metadata schema appropriate for {{domain}}, such as:\n   - category/topic fields for filtering\n   - timestamps for temporal filtering\n   - source/author for provenance\n   - confidence/quality scores\n3. Provide guidance on document structure:\n   - Optimal chunk sizes (typically 200-500 tokens)\n   - How to maintain context across chunks\n   - Metadata to include with each document\n4. Show example documents with proper formatting\n5. Explain search strategies for this knowledge base:\n   - When to use metadata filters\n   - When hybrid search adds value\n   - How to handle multi-step queries"
+    },
+    {
+      "name": "index_git_history",
+      "description": "Index a repository's git commit history for semantic search",
+      "arguments": [
+        {
+          "name": "repoPath",
+          "description": "Path to the git repository to index",
+          "required": true
+        }
+      ],
+      "template": "Index the git commit history for the repository at '{{repoPath}}':\n\n1. First, check the current indexing status using get_git_index_status to see if any commits are already indexed\n2. Run index_git_history to index the repository's commit history:\n   - This will extract commit messages, authors, dates, and file changes\n   - Each commit is embedded for semantic search\n3. After indexing completes, show the status summary:\n   - Total commits indexed\n   - Date range covered\n   - Any errors or skipped commits\n4. Demonstrate a sample search to verify the index is working:\n   - Search for 'bug fix' or 'refactor' to show semantic matching\n5. Explain how to keep the index updated:\n   - Use index_new_commits for incremental updates\n   - Consider setting up periodic re-indexing for active repositories"
+    },
+    {
+      "name": "search_project_history",
+      "description": "Search git history to understand how a feature or fix was implemented",
+      "arguments": [
+        {
+          "name": "repoPath",
+          "description": "Path to the git repository",
+          "required": true
+        },
+        {
+          "name": "query",
+          "description": "What to search for in the commit history",
+          "required": true
+        }
+      ],
+      "template": "Search the git history of '{{repoPath}}' for '{{query}}':\n\n1. First, verify the repository is indexed using get_git_index_status\n   - If not indexed, run index_git_history first\n2. Perform a semantic search using search_git_history:\n   - Search for: '{{query}}'\n   - Return the top 10 most relevant commits\n3. For each relevant commit, analyze:\n   - The commit message and what it indicates about the change\n   - The author and date for context\n   - The files that were modified\n4. Summarize the findings:\n   - How was this feature/fix implemented over time?\n   - Who were the main contributors?\n   - Are there related commits that provide additional context?\n5. Suggest follow-up searches if the initial results need refinement"
     }
   ]
 }
