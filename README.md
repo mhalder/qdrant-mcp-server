@@ -58,12 +58,22 @@ npm run build
 
 #### Local Setup (stdio transport)
 
-Add to `~/.claude/claude_code_config.json`:
+**Option 1: Using `claude mcp add`**
+
+```bash
+claude mcp add --transport stdio \
+  --env QDRANT_URL=http://localhost:6333 \
+  --env EMBEDDING_BASE_URL=http://localhost:11434 \
+  qdrant -- node /path/to/qdrant-mcp-server/build/index.js
+```
+
+**Option 2: Add to `~/.claude.json`**
 
 ```json
 {
   "mcpServers": {
     "qdrant": {
+      "type": "stdio",
       "command": "node",
       "args": ["/path/to/qdrant-mcp-server/build/index.js"],
       "env": {
@@ -83,6 +93,7 @@ For Qdrant Cloud or self-hosted instances with API key authentication:
 {
   "mcpServers": {
     "qdrant": {
+      "type": "stdio",
       "command": "node",
       "args": ["/path/to/qdrant-mcp-server/build/index.js"],
       "env": {
@@ -112,12 +123,19 @@ For Qdrant Cloud or self-hosted instances with API key authentication:
 TRANSPORT_MODE=http HTTP_PORT=3000 node build/index.js
 ```
 
-**Configure client:**
+**Option 1: Using `claude mcp add`**
+
+```bash
+claude mcp add --transport http qdrant http://your-server:3000/mcp
+```
+
+**Option 2: Add to `~/.claude.json`**
 
 ```json
 {
   "mcpServers": {
     "qdrant": {
+      "type": "http",
       "url": "http://your-server:3000/mcp"
     }
   }
@@ -243,10 +261,10 @@ See [`prompts.example.json`](prompts.example.json) for ready-to-use prompts incl
 - `analyze_and_optimize` - Collection insights and recommendations
 - `compare_search_strategies` - Semantic vs hybrid search comparison
 - `migrate_to_hybrid` - Collection migration guide
-- `index_git_history` - Index repository commit history for semantic search
-- `search_project_history` - Search git history to understand feature implementations
 - `debug_search_quality` - Troubleshoot poor search results
 - `build_knowledge_base` - Structured documentation with metadata
+- `index_git_history` - Index repository commit history for semantic search
+- `search_project_history` - Search git history to understand feature implementations
 - `investigate_code_with_history` - Deep dive into code with contextual search
 - `cross_repo_search` - Search patterns across multiple repositories
 - `trace_feature_evolution` - Track how features evolved over time
@@ -498,135 +516,12 @@ Index and search your repository's git commit history using natural language. Pe
 
 ## Advanced Search
 
-Powerful search tools that combine code and git history search capabilities for deeper codebase understanding.
+Combine code and git history search for deeper codebase understanding. Requires repositories to be indexed with both `index_codebase` and `index_git_history` first.
 
-### Contextual Search
+- **Contextual Search**: Query code + git history together with automatic file-commit correlations
+- **Federated Search**: Search across multiple repositories with RRF ranking
 
-Search both code and git history simultaneously for a single repository, with automatic correlation between code chunks and the commits that modified them.
-
-**Features:**
-
-- **Combined Search**: Query both code content and git history in one request
-- **Automatic Correlation**: Links code chunks to commits that modified those files
-- **Parallel Execution**: Code and git searches run concurrently for fast results
-- **Flexible Limits**: Configure separate limits for code and git results
-
-**Quick Start:**
-
-```bash
-# Search with correlation (default)
-/mcp__qdrant__contextual_search /path/to/repo "authentication logic"
-
-# Adjust result limits
-/mcp__qdrant__contextual_search /path/to/repo "database queries" --codeLimit 10 --gitLimit 5
-
-# Disable correlation for faster results
-/mcp__qdrant__contextual_search /path/to/repo "error handling" --correlate false
-```
-
-**Example Output:**
-
-```
-## Code Results
-
-### 1. src/auth/middleware.ts:15-42 (score: 0.891)
-Language: typescript
-export async function authenticateUser(req: Request) { ... }
-
-## Git History Results
-
-### 1. abc123d - feat: add JWT authentication (score: 0.845)
-Author: John Doe | Date: 2024-01-15 | Type: feat
-Files: src/auth/middleware.ts, src/auth/jwt.ts
-
-## Correlations (Code ↔ Commits)
-
-**src/auth/middleware.ts:15** modified by:
-  - abc123d: feat: add JWT authentication
-  - def456a: fix: handle expired tokens
-
----
-Found 5 code result(s), 5 git result(s), 3 correlation(s).
-```
-
-**Use Cases:**
-
-- **Code Review Prep**: Understand both current code and its change history
-- **Bug Investigation**: Find related code and commits that may have introduced issues
-- **Onboarding**: Learn how code evolved over time
-- **Impact Analysis**: See which commits affected specific code areas
-
-### Federated Search
-
-Search across multiple indexed repositories simultaneously with intelligent result ranking using Reciprocal Rank Fusion (RRF).
-
-**Features:**
-
-- **Multi-Repository**: Search any number of indexed repositories at once
-- **Fail-Fast Validation**: Validates all repositories are indexed before searching
-- **RRF Ranking**: Fair cross-repository result ranking using Reciprocal Rank Fusion
-- **Search Modes**: Search code only, git only, or both
-- **Repository Attribution**: Each result shows which repository it came from
-
-**Quick Start:**
-
-```bash
-# Search across multiple repos (code + git)
-/mcp__qdrant__federated_search ["/path/to/repo1", "/path/to/repo2"] "authentication"
-
-# Code-only search
-/mcp__qdrant__federated_search ["/repo1", "/repo2", "/repo3"] "API endpoints" --searchType code
-
-# Git-only search
-/mcp__qdrant__federated_search ["/repo1", "/repo2"] "security fix" --searchType git
-
-# Limit total results
-/mcp__qdrant__federated_search ["/repo1", "/repo2"] "database schema" --limit 10
-```
-
-**Example Output:**
-
-```
-# Federated Search Results
-Query: "authentication" | Type: both | Repositories: 2
-
-## 1. [CODE] src/auth/jwt.ts:10-35
-Repository: /projects/api-server | Language: typescript | Score: 0.923
-export function verifyJWT(token: string) { ... }
-
-## 2. [GIT] def456a - fix: patch auth bypass vulnerability
-Repository: /projects/web-app | Author: Jane Smith | Date: 2024-02-20 | Score: 0.891
-Type: fix | Files: src/auth.js, src/middleware.js
-
-## 3. [CODE] lib/session/manager.py:45-78
-Repository: /projects/web-app | Language: python | Score: 0.867
-class SessionManager: ...
-
----
-Total: 10 result(s) from 2 repository(ies).
-```
-
-**Use Cases:**
-
-- **Cross-Project Search**: Find patterns across your entire codebase
-- **Microservices**: Search across related service repositories
-- **Monorepo Alternatives**: Search multiple repos as if they were one
-- **Best Practice Discovery**: Find implementations across different projects
-
-### Prerequisites
-
-Both advanced search tools require repositories to be indexed first:
-
-```bash
-# Index code for a repository
-/mcp__qdrant__index_codebase /path/to/repo
-
-# Index git history for a repository
-/mcp__qdrant__index_git_history /path/to/repo
-
-# Now use advanced search
-/mcp__qdrant__contextual_search /path/to/repo "your query"
-```
+See **[Advanced Search Examples](examples/advanced-search/)** for detailed usage, workflows, and scenarios.
 
 ## Examples
 
