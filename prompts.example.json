@@ -120,6 +120,79 @@
         }
       ],
       "template": "Search the git history of '{{repoPath}}' for '{{query}}':\n\n1. First, verify the repository is indexed using get_git_index_status\n   - If not indexed, run index_git_history first\n2. Perform a semantic search using search_git_history:\n   - Search for: '{{query}}'\n   - Return the top 10 most relevant commits\n3. For each relevant commit, analyze:\n   - The commit message and what it indicates about the change\n   - The author and date for context\n   - The files that were modified\n4. Summarize the findings:\n   - How was this feature/fix implemented over time?\n   - Who were the main contributors?\n   - Are there related commits that provide additional context?\n5. Suggest follow-up searches if the initial results need refinement"
+    },
+    {
+      "name": "investigate_code_with_history",
+      "description": "Deep dive into code with its change history using contextual search",
+      "arguments": [
+        {
+          "name": "repo",
+          "description": "Path to the repository (must be indexed for both code and git)",
+          "required": true
+        },
+        {
+          "name": "topic",
+          "description": "Topic or feature to investigate (e.g., 'authentication', 'payment processing')",
+          "required": true
+        }
+      ],
+      "template": "Investigate '{{topic}}' in the repository '{{repo}}' using contextual search:\n\n1. First, verify the repository is indexed for both code and git history:\n   - Check code index status\n   - Check git index status\n   - If either is missing, guide the user to index first\n\n2. Run contextual_search for '{{topic}}' with codeLimit=10 and gitLimit=10\n\n3. Analyze the results:\n   - Summarize the key code implementations found\n   - List the most relevant commits and their authors\n   - Highlight the correlations (which commits modified which code)\n\n4. Provide insights:\n   - How has this code evolved over time?\n   - Who are the main contributors to this area?\n   - Are there any patterns in the commit types (fixes, features, refactors)?\n\n5. Suggest next steps:\n   - Specific files to review in detail\n   - Related areas to investigate\n   - Potential issues or technical debt indicated by the history"
+    },
+    {
+      "name": "cross_repo_search",
+      "description": "Search for patterns or implementations across multiple repositories",
+      "arguments": [
+        {
+          "name": "repos",
+          "description": "Comma-separated list of repository paths",
+          "required": true
+        },
+        {
+          "name": "pattern",
+          "description": "Pattern or implementation to find (e.g., 'error handling', 'API authentication')",
+          "required": true
+        },
+        {
+          "name": "search_type",
+          "description": "Type of search: 'code', 'git', or 'both'",
+          "required": false
+        }
+      ],
+      "template": "Search for '{{pattern}}' across multiple repositories: {{repos}}\n\n1. Parse the repository list and verify each is indexed:\n   - For searchType='code' or 'both': verify code indexes\n   - For searchType='git' or 'both': verify git indexes\n   - Report any repositories that need indexing\n\n2. Run federated_search with:\n   - paths: [parsed from {{repos}}]\n   - query: '{{pattern}}'\n   - searchType: '{{search_type}}' (default: 'both')\n   - limit: 20\n\n3. Analyze the results:\n   - Group results by repository\n   - Identify common patterns across repos\n   - Note any differences in implementation approaches\n\n4. Provide a summary:\n   - Which repositories have the most relevant code?\n   - Are there consistent patterns or divergent approaches?\n   - Which implementations could serve as best practices?\n\n5. Recommendations:\n   - Suggest standardization opportunities\n   - Identify potential shared libraries or abstractions\n   - Highlight any concerning inconsistencies"
+    },
+    {
+      "name": "trace_feature_evolution",
+      "description": "Trace how a feature evolved over time using code and git history",
+      "arguments": [
+        {
+          "name": "repo",
+          "description": "Path to the repository",
+          "required": true
+        },
+        {
+          "name": "feature",
+          "description": "Feature name or description to trace",
+          "required": true
+        }
+      ],
+      "template": "Trace the evolution of '{{feature}}' in '{{repo}}':\n\n1. Run contextual_search for '{{feature}}' with:\n   - codeLimit: 5 (focus on current implementation)\n   - gitLimit: 15 (get more history)\n   - correlate: true\n\n2. Build a timeline:\n   - List commits chronologically that relate to this feature\n   - Identify the initial implementation commit\n   - Track major changes, refactors, and bug fixes\n\n3. Analyze the evolution:\n   - How has the code changed from initial to current?\n   - What problems were fixed along the way?\n   - Were there any major rewrites or refactors?\n\n4. Identify contributors:\n   - Who introduced the feature?\n   - Who has made significant contributions since?\n   - Is there a current owner/maintainer?\n\n5. Provide insights:\n   - Stability assessment (frequent fixes = potential issues)\n   - Technical debt indicators\n   - Recommendations for future development"
+    },
+    {
+      "name": "security_audit_search",
+      "description": "Search for security-related code and fixes across repositories",
+      "arguments": [
+        {
+          "name": "repos",
+          "description": "Comma-separated list of repository paths to audit",
+          "required": true
+        },
+        {
+          "name": "focus_area",
+          "description": "Security focus area (e.g., 'authentication', 'input validation', 'encryption')",
+          "required": false
+        }
+      ],
+      "template": "Perform a security-focused search across repositories: {{repos}}\n\n1. Search for security-related code:\n   - Run federated_search with searchType='code' for:\n     - '{{focus_area}} security' (if focus_area provided)\n     - Common security patterns: 'authentication', 'authorization', 'encryption', 'input validation', 'sanitization'\n\n2. Search for security fixes in history:\n   - Run federated_search with searchType='git' for:\n     - 'security fix vulnerability'\n     - 'CVE patch'\n     - 'authentication bypass'\n     - 'injection fix'\n\n3. Analyze findings:\n   - List security-critical code areas found\n   - Identify past security issues from git history\n   - Note patterns in security fixes (common vulnerabilities)\n\n4. Risk assessment:\n   - Which repositories have the most security-sensitive code?\n   - Are there areas with frequent security fixes (potential weaknesses)?\n   - Are security best practices consistently applied?\n\n5. Recommendations:\n   - Specific areas that need security review\n   - Patterns that should be standardized\n   - Potential vulnerabilities to investigate further"
     }
   ]
 }

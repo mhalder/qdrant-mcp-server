@@ -91,10 +91,42 @@ Complex search filters with boolean logic
 
 **Time:** 20-30 minutes | **Difficulty:** Intermediate to Advanced
 
+---
+
+### 💻 [Code Search](./code-search/)
+
+Semantic code search with AST-aware chunking
+
+- Indexing codebases with intelligent chunking
+- Natural language queries for code
+- Filtering by file type and path
+- Incremental re-indexing
+
+**Use cases:** Code exploration, onboarding, bug investigation, documentation
+
+**Time:** 15-20 minutes | **Difficulty:** Intermediate
+
+---
+
+### 🚀 [Advanced Search](./advanced-search/)
+
+Combined code + git search and multi-repository search
+
+- **Contextual Search**: Query code and git history together with correlations
+- **Federated Search**: Search across multiple repositories with RRF ranking
+- Tracing feature evolution through history
+- Cross-project pattern discovery
+
+**Use cases:** Code archaeology, security audits, microservices, onboarding
+
+**Time:** 20-30 minutes | **Difficulty:** Advanced
+
 ## Learning Path
 
 ```
 Basic → Hybrid Search → Rate Limiting → Knowledge Base → Advanced Filtering
+                                              ↓
+                                        Code Search → Advanced Search
 ```
 
 ## Common Patterns

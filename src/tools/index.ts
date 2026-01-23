@@ -10,6 +10,7 @@ import type { QdrantManager } from "../qdrant/client.js";
 import { registerCodeTools } from "./code.js";
 import { registerCollectionTools } from "./collection.js";
 import { registerDocumentTools } from "./document.js";
+import { registerFederatedTools } from "./federated.js";
 import { registerGitHistoryTools } from "./git-history.js";
 import { registerSearchTools } from "./search.js";
 
@@ -47,6 +48,11 @@ export function registerAllTools(
   });
 
   registerGitHistoryTools(server, {
+    gitHistoryIndexer: deps.gitHistoryIndexer,
+  });
+
+  registerFederatedTools(server, {
+    codeIndexer: deps.codeIndexer,
     gitHistoryIndexer: deps.gitHistoryIndexer,
   });
 }
