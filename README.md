@@ -58,16 +58,11 @@ npm run build
 
 #### Local Setup (stdio transport)
 
-**Option 1: Using `claude mcp add`**
-
 ```bash
-claude mcp add --transport stdio \
-  --env QDRANT_URL=http://localhost:6333 \
-  --env EMBEDDING_BASE_URL=http://localhost:11434 \
-  qdrant -- node /path/to/qdrant-mcp-server/build/index.js
+claude mcp add --transport stdio qdrant -- node /path/to/qdrant-mcp-server/build/index.js
 ```
 
-**Option 2: Add to `~/.claude.json`**
+Or add to `~/.claude.json`:
 
 ```json
 {
@@ -75,36 +70,21 @@ claude mcp add --transport stdio \
     "qdrant": {
       "type": "stdio",
       "command": "node",
-      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
-      "env": {
-        "QDRANT_URL": "http://localhost:6333",
-        "EMBEDDING_BASE_URL": "http://localhost:11434"
-      }
+      "args": ["/path/to/qdrant-mcp-server/build/index.js"]
     }
   }
 }
 ```
 
-#### Connecting to Secured Qdrant Instances
+For Qdrant Cloud or secured instances, add `--env QDRANT_API_KEY=your-key` or set in env config.
 
-For Qdrant Cloud or self-hosted instances with API key authentication:
+**Try it:**
 
-```json
-{
-  "mcpServers": {
-    "qdrant": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
-      "env": {
-        "QDRANT_URL": "https://your-cluster.qdrant.io:6333",
-        "QDRANT_API_KEY": "your-api-key-here",
-        "EMBEDDING_BASE_URL": "http://localhost:11434"
-      }
-    }
-  }
-}
 ```
+Create a collection called "notes" and add a document about machine learning
+```
+
+**Enable example prompts:** Copy `prompts.example.json` to `prompts.json` and restart. Use `/prompt` to list available prompts.
 
 #### Remote Setup (HTTP transport)
 
