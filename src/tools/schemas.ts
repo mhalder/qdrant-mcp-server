@@ -203,3 +203,42 @@ export const GetGitIndexStatusSchema = {
 export const ClearGitIndexSchema = {
   path: z.string().describe("Path to git repository"),
 };
+
+// Contextual Search - Combined git + code search
+export const ContextualSearchSchema = {
+  path: z
+    .string()
+    .describe(
+      "Path to git repository (must be indexed for both code and git history)",
+    ),
+  query: z.string().describe("Natural language search query"),
+  codeLimit: z
+    .number()
+    .optional()
+    .describe("Maximum number of code results (default: 5)"),
+  gitLimit: z
+    .number()
+    .optional()
+    .describe("Maximum number of git history results (default: 5)"),
+  correlate: z
+    .boolean()
+    .optional()
+    .describe("Link code chunks to commits that modified them (default: true)"),
+};
+
+// Federated Search - Multi-repository search
+export const FederatedSearchSchema = {
+  paths: z
+    .array(z.string())
+    .min(1)
+    .describe("Array of repository paths to search (must all be indexed)"),
+  query: z.string().describe("Natural language search query"),
+  searchType: z
+    .enum(["code", "git", "both"])
+    .optional()
+    .describe("Type of search (default: both)"),
+  limit: z
+    .number()
+    .optional()
+    .describe("Total maximum results across all repositories (default: 20)"),
+};

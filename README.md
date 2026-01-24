@@ -11,6 +11,7 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 - **Privacy-First**: Local embeddings and vector storage - data never leaves your machine
 - **Code Vectorization**: Intelligent codebase indexing with AST-aware chunking and semantic code search
 - **Git History Search**: Index commit history for semantic search over past changes, fixes, and patterns
+- **Advanced Search**: Contextual search (code + git with correlations) and federated search across multiple repositories
 - **Multiple Providers**: Ollama (default), OpenAI, Cohere, and Voyage AI
 - **Hybrid Search**: Combine semantic and keyword search for better results
 - **Semantic Search**: Natural language search with metadata filtering
@@ -57,42 +58,33 @@ npm run build
 
 #### Local Setup (stdio transport)
 
-Add to `~/.claude/claude_code_config.json`:
+```bash
+claude mcp add --transport stdio qdrant -- node /path/to/qdrant-mcp-server/build/index.js
+```
+
+Or add to `~/.claude.json`:
 
 ```json
 {
   "mcpServers": {
     "qdrant": {
+      "type": "stdio",
       "command": "node",
-      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
-      "env": {
-        "QDRANT_URL": "http://localhost:6333",
-        "EMBEDDING_BASE_URL": "http://localhost:11434"
-      }
+      "args": ["/path/to/qdrant-mcp-server/build/index.js"]
     }
   }
 }
 ```
 
-#### Connecting to Secured Qdrant Instances
+For Qdrant Cloud or secured instances, add `--env QDRANT_API_KEY=your-key` or set in env config.
 
-For Qdrant Cloud or self-hosted instances with API key authentication:
+**Try it:**
 
-```json
-{
-  "mcpServers": {
-    "qdrant": {
-      "command": "node",
-      "args": ["/path/to/qdrant-mcp-server/build/index.js"],
-      "env": {
-        "QDRANT_URL": "https://your-cluster.qdrant.io:6333",
-        "QDRANT_API_KEY": "your-api-key-here",
-        "EMBEDDING_BASE_URL": "http://localhost:11434"
-      }
-    }
-  }
-}
 ```
+Create a collection called "notes" and add a document about machine learning
+```
+
+**Enable example prompts:** Copy `prompts.example.json` to `prompts.json` and restart. Use `/prompt` to list available prompts.
 
 #### Remote Setup (HTTP transport)
 
@@ -111,12 +103,19 @@ For Qdrant Cloud or self-hosted instances with API key authentication:
 TRANSPORT_MODE=http HTTP_PORT=3000 node build/index.js
 ```
 
-**Configure client:**
+**Option 1: Using `claude mcp add`**
+
+```bash
+claude mcp add --transport http qdrant http://your-server:3000/mcp
+```
+
+**Option 2: Add to `~/.claude.json`**
 
 ```json
 {
   "mcpServers": {
     "qdrant": {
+      "type": "http",
       "url": "http://your-server:3000/mcp"
     }
   }
@@ -177,6 +176,13 @@ See [Advanced Configuration](#advanced-configuration) section below for all opti
 | `get_git_index_status` | Get indexing status and statistics for a repository's git history        |
 | `clear_git_index`      | Delete all indexed git history data for a repository                     |
 
+### Advanced Search
+
+| Tool                | Description                                                                   |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `contextual_search` | Combined code + git history search with file-commit correlations              |
+| `federated_search`  | Search across multiple repositories with Reciprocal Rank Fusion (RRF) ranking |
+
 ### Resources
 
 - `qdrant://collections` - List all collections
@@ -231,16 +237,18 @@ If you place `prompts.json` in the project root, no additional configuration is 
 
 See [`prompts.example.json`](prompts.example.json) for ready-to-use prompts including:
 
-- `find_similar_docs` - Semantic search with result explanation
 - `setup_rag_collection` - Create RAG-optimized collections
-- `analyze_collection` - Collection insights and recommendations
-- `bulk_add_documents` - Guided bulk document insertion
-- `search_with_filter` - Metadata filtering assistance
-- `compare_search_methods` - Semantic vs hybrid search comparison
-- `collection_maintenance` - Maintenance and cleanup workflows
+- `analyze_and_optimize` - Collection insights and recommendations
+- `compare_search_strategies` - Semantic vs hybrid search comparison
 - `migrate_to_hybrid` - Collection migration guide
+- `debug_search_quality` - Troubleshoot poor search results
+- `build_knowledge_base` - Structured documentation with metadata
 - `index_git_history` - Index repository commit history for semantic search
 - `search_project_history` - Search git history to understand feature implementations
+- `investigate_code_with_history` - Deep dive into code with contextual search
+- `cross_repo_search` - Search patterns across multiple repositories
+- `trace_feature_evolution` - Track how features evolved over time
+- `security_audit_search` - Find security-related code and fixes
 
 ### Template Syntax
 
@@ -486,6 +494,15 @@ Index and search your repository's git commit history using natural language. Pe
 - **Learning from History**: "Show me examples of API endpoint implementations"
 - **Code Archaeology**: "What changes were made to the payment system last year?"
 
+## Advanced Search
+
+Combine code and git history search for deeper codebase understanding. Requires repositories to be indexed with both `index_codebase` and `index_git_history` first.
+
+- **Contextual Search**: Query code + git history together with automatic file-commit correlations
+- **Federated Search**: Search across multiple repositories with RRF ranking
+
+See **[Advanced Search Examples](examples/advanced-search/)** for detailed usage, workflows, and scenarios.
+
 ## Examples
 
 See [examples/](examples/) directory for detailed guides:
@@ -496,6 +513,7 @@ See [examples/](examples/) directory for detailed guides:
 - **[Advanced Filtering](examples/filters/)** - Complex boolean filters
 - **[Rate Limiting](examples/rate-limiting/)** - Batch processing with cloud providers
 - **[Code Search](examples/code-search/)** - Index codebases and semantic code search
+- **[Advanced Search](examples/advanced-search/)** - Contextual and federated search across repositories
 
 ## Advanced Configuration
 
@@ -598,11 +616,12 @@ npm run test:coverage # Coverage report
 
 ### Testing
 
-**718 tests** across 26 test files with **97%+ coverage**:
+**748 tests** across 27 test files with **97%+ coverage**:
 
 - **Unit Tests**: QdrantManager (56), Ollama (41), OpenAI (25), Cohere (29), Voyage (31), Factory (43), Prompts (50), Transport (15), MCP Server (19)
 - **Integration Tests**: Code indexer (56), scanner (15), chunker (24), synchronizer (42), snapshot (26), merkle tree (28)
 - **Git History Tests**: Git extractor (28), extractor integration (11), chunker (30), indexer (42), synchronizer (18)
+- **Advanced Search Tests**: Federated tools (30) - normalizeScores, calculateRRFScore, buildCorrelations, contextual_search, federated_search
 
 **CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22.x and 24.x for every push/PR.
 

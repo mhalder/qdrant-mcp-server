@@ -2,171 +2,69 @@
 
 Thank you for your interest in contributing!
 
-## Getting Started
+## Quick Start
 
 ```bash
-# 1. Fork and clone
+# Fork and clone
 git clone https://github.com/YOUR_USERNAME/qdrant-mcp-server.git
 cd qdrant-mcp-server
 npm install
 
-# 2. Create feature branch
+# Create feature branch
 git checkout -b feat/your-feature-name
 
-# 3. Make changes, add tests
-
-# 4. Verify
+# Make changes, then verify
 npm test -- --run
 npm run type-check
 npm run build
 
-# 5. Commit with conventional format
+# Commit with conventional format
 git commit -m "feat: add new feature"
 ```
 
 ## Development Commands
 
-| Command                  | Purpose                      |
-| ------------------------ | ---------------------------- |
-| `npm run build`          | Build for production         |
-| `npm run dev`            | Development with auto-reload |
-| `npm test`               | Run test suite               |
-| `npm run test:ui`        | Tests with UI                |
-| `npm run test:coverage`  | Coverage report              |
-| `npm run test:providers` | Provider verification        |
-| `npm run type-check`     | TypeScript validation        |
+| Command                 | Purpose              |
+| ----------------------- | -------------------- |
+| `npm run build`         | Build for production |
+| `npm run dev`           | Dev with auto-reload |
+| `npm test`              | Run test suite       |
+| `npm run test:coverage` | Coverage report      |
+| `npm run type-check`    | TypeScript check     |
 
 ## Commit Convention
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated versioning and releases.
-
-### Format
+Use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 <type>(<scope>): <subject>
-
-<body>
-
-<footer>
 ```
 
-### Types
+**Types:** `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `chore`, `ci`
 
-| Type       | Description             | Version Bump  |
-| ---------- | ----------------------- | ------------- |
-| `feat`     | New feature             | Minor (1.x.0) |
-| `fix`      | Bug fix                 | Patch (1.0.x) |
-| `docs`     | Documentation           | Patch         |
-| `refactor` | Code refactoring        | Patch         |
-| `perf`     | Performance improvement | Patch         |
-| `test`     | Adding/updating tests   | None          |
-| `chore`    | Build/dependencies      | None          |
-| `ci`       | CI/CD changes           | None          |
-| `style`    | Code style/formatting   | None          |
-
-### Breaking Changes
-
-Add `BREAKING CHANGE:` in body/footer or append `!` after type:
+**Examples:**
 
 ```bash
-feat!: remove Node 16 support
-
-BREAKING CHANGE: Node 16 is no longer supported
+feat(embeddings): add new provider
+fix(search): correct score calculation
+docs: update installation guide
+feat!: breaking change (major version bump)
 ```
 
-This triggers a major version bump (x.0.0).
+## Pull Requests
 
-### Examples
+1. Add tests for changes
+2. Update docs if needed
+3. Pass CI checks (build, type-check, tests)
+4. Use conventional commit format for PR title
 
-```bash
-# Feature
-feat(embeddings): add support for new provider
+## Releases
 
-# Bug fix
-fix(search): correct similarity score calculation
-
-# Documentation
-docs: update installation instructions
-
-# Breaking change
-feat!: change collection schema format
-```
-
-### Validation
-
-Commitlint enforces:
-
-- Conventional commits format required
-- Valid type required
-- Subject must not be empty or end with period
-- Header max 100 characters
-- Subject must not start with uppercase
-
-## Pull Request Process
-
-1. **Update docs** if needed
-2. **Add tests** for changes
-3. **Pass CI checks** (build, type-check, tests)
-4. **Request review**
-5. **Merge** after approval
-
-### PR Title
-
-Use conventional commit format:
-
-```
-feat: add new search feature
-fix: resolve connection timeout
-docs: improve setup documentation
-```
-
-## Release Process
-
-Automated via [semantic-release](https://semantic-release.gitbook.io/):
-
-- Releases on merge to `main`
-- Version follows [Semantic Versioning](https://semver.org/)
-- Changelog auto-generated from commits
-- Packages published to npm
-
-### Version Bumps
+Automated via [semantic-release](https://semantic-release.gitbook.io/) on merge to `main`:
 
 - `feat` → minor (1.x.0)
-- `fix`, `perf`, `docs`, `refactor` → patch (1.0.x)
-- `BREAKING CHANGE` → major (x.0.0)
-
-## Testing
-
-- Write tests for all new features and bug fixes
-- Maintain or improve code coverage
-- Run full test suite before submitting PRs
-- Include both unit and integration tests
-
-## Project Structure
-
-```
-qdrant-mcp-server/
-├── src/              # Source code
-│   ├── code/         # Code indexing and vectorization
-│   │   ├── chunker/  # AST-aware code chunking
-│   │   └── sync/     # File synchronization with Merkle trees
-│   ├── embeddings/   # Embedding providers (Ollama, OpenAI, Cohere, Voyage)
-│   ├── prompts/      # MCP prompt templates and registration
-│   ├── qdrant/       # Qdrant vector database client
-│   ├── resources/    # MCP resource definitions
-│   └── tools/        # MCP tool implementations
-│       ├── code.ts       # Code indexing tools
-│       ├── collection.ts # Collection management
-│       ├── document.ts   # Document operations
-│       ├── search.ts     # Search tools (semantic + hybrid)
-│       ├── schemas.ts    # Zod validation schemas
-│       └── index.ts      # Tool registration orchestrator
-├── build/            # Compiled output
-├── examples/         # Usage examples
-├── scripts/          # Utility scripts
-├── .github/          # GitHub Actions workflows
-└── .husky/           # Git hooks
-```
+- `fix`, `docs`, `refactor`, `perf` → patch (1.0.x)
+- `BREAKING CHANGE` or `!` → major (x.0.0)
 
 ## Questions?
 
