@@ -1,3 +1,14 @@
+## 3.2.0 (2026-01-24)
+
+* Merge pull request #51 from mhalder/feat/advanced-search ([e99311b](https://github.com/mhalder/qdrant-mcp-server/commit/e99311b)), closes [#51](https://github.com/mhalder/qdrant-mcp-server/issues/51)
+* fix(federated): rank within repo+type groups for fair RRF interleaving ([958411a](https://github.com/mhalder/qdrant-mcp-server/commit/958411a))
+* fix(federated): use segment comparison for path matching ([9de2b85](https://github.com/mhalder/qdrant-mcp-server/commit/9de2b85))
+* docs(contributing): simplify and remove redundancy ([393a918](https://github.com/mhalder/qdrant-mcp-server/commit/393a918))
+* docs(readme): fix Claude Code MCP config path and format ([4c338f0](https://github.com/mhalder/qdrant-mcp-server/commit/4c338f0))
+* docs(readme): simplify quick start config and add usage examples ([e3a8978](https://github.com/mhalder/qdrant-mcp-server/commit/e3a8978))
+* feat(tools): add contextual and federated search tools ([48d880e](https://github.com/mhalder/qdrant-mcp-server/commit/48d880e))
+* chore(prompts): add git indexing prompt templates ([38607a8](https://github.com/mhalder/qdrant-mcp-server/commit/38607a8))
+
 ## <small>3.1.2 (2026-01-23)</small>
 
 * Merge pull request #50 from mhalder/fix/pathpattern-filter ([b12517f](https://github.com/mhalder/qdrant-mcp-server/commit/b12517f)), closes [#50](https://github.com/mhalder/qdrant-mcp-server/issues/50)
