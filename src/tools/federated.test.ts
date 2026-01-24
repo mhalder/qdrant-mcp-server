@@ -5,6 +5,7 @@ import {
   buildCorrelations,
   normalizeScores,
   calculateRRFScore,
+  pathsMatch,
 } from "./federated.js";
 
 // ============================================================================
@@ -103,6 +104,48 @@ describe("calculateRRFScore", () => {
     const score = calculateRRFScore([1000]);
     expect(score).toBeCloseTo(1 / 1060, 5);
     expect(Number.isFinite(score)).toBe(true);
+  });
+});
+
+describe("pathsMatch", () => {
+  it("should match identical paths", () => {
+    expect(pathsMatch("src/auth/user.ts", "src/auth/user.ts")).toBe(true);
+  });
+
+  it("should match when shorter path is suffix of longer path", () => {
+    expect(pathsMatch("app/models/user.ts", "models/user.ts")).toBe(true);
+    expect(pathsMatch("models/user.ts", "app/models/user.ts")).toBe(true);
+  });
+
+  it("should match filename only against full path", () => {
+    expect(pathsMatch("src/components/Button.tsx", "Button.tsx")).toBe(true);
+    expect(pathsMatch("Button.tsx", "src/components/Button.tsx")).toBe(true);
+  });
+
+  it("should NOT match paths with different parent directories", () => {
+    // This was the false positive case
+    expect(pathsMatch("app/models/user.ts", "lib/user.ts")).toBe(false);
+    expect(pathsMatch("src/auth/middleware.ts", "other/middleware.ts")).toBe(
+      false,
+    );
+  });
+
+  it("should NOT match completely different filenames", () => {
+    expect(pathsMatch("src/auth.ts", "src/user.ts")).toBe(false);
+  });
+
+  it("should handle Windows-style backslashes", () => {
+    expect(pathsMatch("src\\auth\\user.ts", "auth/user.ts")).toBe(true);
+  });
+
+  it("should be case-insensitive", () => {
+    expect(pathsMatch("src/Auth/User.ts", "auth/user.ts")).toBe(true);
+  });
+
+  it("should return false for empty paths", () => {
+    expect(pathsMatch("", "src/file.ts")).toBe(false);
+    expect(pathsMatch("src/file.ts", "")).toBe(false);
+    expect(pathsMatch("", "")).toBe(false);
   });
 });
 

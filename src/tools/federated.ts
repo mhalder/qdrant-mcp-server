@@ -91,15 +91,9 @@ export function buildCorrelations(
     // Find commits that modified this file
     for (const gitResult of gitResults) {
       // Check if any file in the commit matches the code result's file path
-      const normalizedCodePath = normalizePath(codeResult.filePath);
-      const matchesFile = gitResult.files.some((file) => {
-        const normalizedGitFile = normalizePath(file);
-        // Match if the paths end the same way (handles relative vs absolute paths)
-        return (
-          normalizedCodePath.endsWith(normalizedGitFile) ||
-          normalizedGitFile.endsWith(normalizedCodePath)
-        );
-      });
+      const matchesFile = gitResult.files.some((file) =>
+        pathsMatch(codeResult.filePath, file),
+      );
 
       if (matchesFile) {
         relatedCommits.push({
@@ -127,6 +121,33 @@ export function buildCorrelations(
  */
 function normalizePath(path: string): string {
   return path.replace(/\\/g, "/").toLowerCase();
+}
+
+/**
+ * Check if two paths refer to the same file by comparing path segments from the end.
+ * This handles relative vs absolute paths while avoiding false positives.
+ *
+ * Examples:
+ * - "app/models/user.ts" vs "models/user.ts" → true (suffix match)
+ * - "app/models/user.ts" vs "lib/user.ts" → false (different parent dir)
+ * - "src/user.ts" vs "user.ts" → true (suffix match)
+ */
+export function pathsMatch(path1: string, path2: string): boolean {
+  const segments1 = normalizePath(path1).split("/").filter(Boolean);
+  const segments2 = normalizePath(path2).split("/").filter(Boolean);
+
+  // Compare from the end - shorter path must be a suffix of longer path
+  const shorter = segments1.length <= segments2.length ? segments1 : segments2;
+  const longer = segments1.length <= segments2.length ? segments2 : segments1;
+
+  const offset = longer.length - shorter.length;
+  for (let i = 0; i < shorter.length; i++) {
+    if (shorter[i] !== longer[offset + i]) {
+      return false;
+    }
+  }
+
+  return shorter.length > 0;
 }
 
 /**
