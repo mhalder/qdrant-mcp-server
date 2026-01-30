@@ -18,32 +18,29 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      # Dagger gate: type-check + build validation
+      - name: Check via Dagger
+        uses: dagger/dagger-for-github@v7
         with:
-          node-version: '22.x'
-          cache: 'npm'
+          verb: call
+          args: check --source=. --node-version=22
+          version: "0.19.10"
 
-      - name: Install dependencies
-        run: npm ci
+      # Native release (needs OIDC token for npm provenance)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: "npm"
 
-      - name: Type check
-        run: npm run type-check
-
-      - name: Build project
-        run: npm run build
-
-      - name: Run tests
-        run: npm test -- --run
-
-      - name: Run provider verification tests
-        run: npm run test:providers
+      - run: npm ci
+      - run: npm run build
+      - run: npm test -- --run
+      - run: npm run test:providers
 
       - name: Release
         env:

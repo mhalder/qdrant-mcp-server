@@ -614,6 +614,17 @@ npm test             # Run test suite
 npm run test:coverage # Coverage report
 ```
 
+### Dagger (Portable CI)
+
+The CI pipeline is implemented as a [Dagger](https://dagger.io/) TypeScript module, making it runnable locally or in any CI system:
+
+```bash
+dagger call check --source=.                    # Type-check + build (Node 22)
+dagger call check --source=. --node-version=24  # Type-check + build (Node 24)
+dagger call test --source=.                     # Full test suite + coverage
+dagger call test-all --source=.                 # Test on Node 22 + 24 in parallel
+```
+
 ### Testing
 
 **748 tests** across 27 test files with **97%+ coverage**:
@@ -623,7 +634,7 @@ npm run test:coverage # Coverage report
 - **Git History Tests**: Git extractor (28), extractor integration (11), chunker (30), indexer (42), synchronizer (18)
 - **Advanced Search Tests**: Federated tools (30) - normalizeScores, calculateRRFScore, buildCorrelations, contextual_search, federated_search
 
-**CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22.x and 24.x for every push/PR.
+**CI/CD**: [Dagger](https://dagger.io/) module runs build, type-check, and tests on Node.js 22 and 24. GitHub Actions invokes Dagger for CI and uses native `semantic-release` for publishing.
 
 ## Contributing
 
