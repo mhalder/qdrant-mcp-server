@@ -1,3 +1,10 @@
+## <small>3.2.1 (2026-01-30)</small>
+
+* Merge pull request #52 from mhalder/feat/dagger ([da115bb](https://github.com/mhalder/qdrant-mcp-server/commit/da115bb)), closes [#52](https://github.com/mhalder/qdrant-mcp-server/issues/52)
+* fix(dagger): validate node version and pin engine version ([61625b9](https://github.com/mhalder/qdrant-mcp-server/commit/61625b9))
+* style(dagger): reformat package.json ([c22ca40](https://github.com/mhalder/qdrant-mcp-server/commit/c22ca40))
+* ci(dagger): replace GHA CI with Dagger TypeScript module ([d79a77e](https://github.com/mhalder/qdrant-mcp-server/commit/d79a77e))
+
 ## 3.2.0 (2026-01-24)
 
 * Merge pull request #51 from mhalder/feat/advanced-search ([e99311b](https://github.com/mhalder/qdrant-mcp-server/commit/e99311b)), closes [#51](https://github.com/mhalder/qdrant-mcp-server/issues/51)
