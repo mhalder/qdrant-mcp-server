@@ -7,43 +7,33 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  test:
+    name: Test (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
+        node-version: ["22", "24"]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Run tests via Dagger
+        uses: dagger/dagger-for-github@v7
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          verb: call
+          args: test --source=. --node-version=${{ matrix.node-version }}
+          version: "latest"
 
-      - name: Install dependencies
-        run: npm ci
-        env:
-          # Node 24 requires C++20 for native modules
-          CXXFLAGS: ${{ matrix.node-version == '24.x' && '-std=c++20' || '' }}
-
-      - name: Type check
-        run: npm run type-check
-
-      - name: Build project
-        run: npm run build
-
-      - name: Run tests with coverage
-        run: npm run test:coverage
-
-      - name: Run provider verification tests
-        run: npm run test:providers
+      - name: Export coverage
+        if: matrix.node-version == '22'
+        uses: dagger/dagger-for-github@v7
+        with:
+          verb: call
+          args: test --source=. --node-version=22 export --path=./coverage
+          version: "latest"
 
       - name: Upload coverage to Codecov
+        if: matrix.node-version == '22'
         uses: codecov/codecov-action@v4
         continue-on-error: true
         with:

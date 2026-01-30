@@ -34,6 +34,10 @@ qdrant_storage/
 # Ollama data (local)
 ollama_storage/
 
+# Dagger
+.dagger/sdk/
+bin/
+
 # Test artifacts and planning docs
 test-collection*
 collection-with-*
