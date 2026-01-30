@@ -7,9 +7,17 @@ import {
   argument,
 } from "@dagger.io/dagger"
 
+const SUPPORTED_NODE_VERSIONS = ["22", "24"]
+
 @object()
 export class Ci {
   private base(source: Directory, nodeVersion: string): Container {
+    if (!SUPPORTED_NODE_VERSIONS.includes(nodeVersion)) {
+      throw new Error(
+        `Unsupported Node version "${nodeVersion}". Must be one of: ${SUPPORTED_NODE_VERSIONS.join(", ")}`,
+      )
+    }
+
     let ctr = dag
       .container()
       .from(`node:${nodeVersion}-slim`)

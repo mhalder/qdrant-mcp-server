@@ -22,7 +22,7 @@ jobs:
         with:
           verb: call
           args: test --source=. --node-version=${{ matrix.node-version }}
-          version: "latest"
+          version: "0.19.10"
 
       - name: Export coverage
         if: matrix.node-version == '22'
@@ -30,7 +30,7 @@ jobs:
         with:
           verb: call
           args: test --source=. --node-version=22 export --path=./coverage
-          version: "latest"
+          version: "0.19.10"
 
       - name: Upload coverage to Codecov
         if: matrix.node-version == '22'
