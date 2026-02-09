@@ -1,4 +1,5 @@
 import Bottleneck from "bottleneck";
+import logger from "../logger.js";
 import { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
 
 interface OllamaError {
@@ -11,6 +12,7 @@ interface OllamaEmbedResponse {
 }
 
 export class OllamaEmbeddings implements EmbeddingProvider {
+  private log = logger.child({ component: "embeddings", provider: "ollama" });
   private model: string;
   private dimensions: number;
   private limiter: Bottleneck;
@@ -76,8 +78,13 @@ export class OllamaEmbeddings implements EmbeddingProvider {
       if (isRateLimitError && attempt < this.retryAttempts) {
         const delayMs = this.retryDelayMs * Math.pow(2, attempt);
         const waitTimeSeconds = (delayMs / 1000).toFixed(1);
-        console.error(
-          `Rate limit reached. Retrying in ${waitTimeSeconds}s (attempt ${attempt + 1}/${this.retryAttempts})...`,
+        this.log.warn(
+          {
+            waitTimeSeconds,
+            attempt: attempt + 1,
+            maxAttempts: this.retryAttempts,
+          },
+          "Rate limit reached, retrying",
         );
 
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -169,6 +176,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
   }
 
   async embedBatch(texts: string[]): Promise<EmbeddingResult[]> {
+    this.log.debug({ batchSize: texts.length }, "embedBatch");
     // Ollama doesn't support batch embeddings natively, so we process in parallel
     // Process in chunks to avoid overwhelming Ollama and prevent memory issues
     const CHUNK_SIZE = 50;

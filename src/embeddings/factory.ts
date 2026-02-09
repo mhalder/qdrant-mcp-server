@@ -1,3 +1,4 @@
+import logger from "../logger.js";
 import { EmbeddingProvider, ProviderConfig } from "./base.js";
 import { OpenAIEmbeddings } from "./openai.js";
 import { CohereEmbeddings } from "./cohere.js";
@@ -14,6 +15,8 @@ export class EmbeddingProviderFactory {
   static create(config: FactoryConfig): EmbeddingProvider {
     const { provider, model, dimensions, rateLimitConfig, apiKey, baseUrl } =
       config;
+
+    logger.info({ provider, model }, "Creating embedding provider");
 
     switch (provider) {
       case "openai":

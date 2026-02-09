@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { QdrantClient } from "@qdrant/js-client-rest";
+import logger from "../logger.js";
 
 export interface CollectionInfo {
   name: string;
@@ -21,6 +22,7 @@ export interface SparseVector {
 }
 
 export class QdrantManager {
+  private log = logger.child({ component: "qdrant" });
   private client: QdrantClient;
 
   constructor(url: string = "http://localhost:6333", apiKey?: string) {
@@ -54,6 +56,10 @@ export class QdrantManager {
     distance: "Cosine" | "Euclid" | "Dot" = "Cosine",
     enableSparse: boolean = false,
   ): Promise<void> {
+    this.log.debug(
+      { collection: name, vectorSize, distance, enableSparse },
+      "createCollection",
+    );
     const config: any = {};
 
     // When hybrid search is enabled, use named vectors
@@ -131,6 +137,7 @@ export class QdrantManager {
   }
 
   async deleteCollection(name: string): Promise<void> {
+    this.log.debug({ collection: name }, "deleteCollection");
     await this.client.deleteCollection(name);
   }
 
@@ -142,6 +149,10 @@ export class QdrantManager {
       payload?: Record<string, any>;
     }>,
   ): Promise<void> {
+    this.log.debug(
+      { collection: collectionName, count: points.length },
+      "addPoints",
+    );
     try {
       // Normalize all IDs to ensure string IDs are in UUID format
       const normalizedPoints = points.map((point) => ({
@@ -168,6 +179,7 @@ export class QdrantManager {
     limit: number = 5,
     filter?: Record<string, any>,
   ): Promise<SearchResult[]> {
+    this.log.debug({ collection: collectionName, limit }, "search");
     // Convert simple key-value filter to Qdrant filter format
     // Accepts either:
     // 1. Simple format: {"category": "database"}
@@ -231,6 +243,10 @@ export class QdrantManager {
     collectionName: string,
     ids: (string | number)[],
   ): Promise<void> {
+    this.log.debug(
+      { collection: collectionName, count: ids.length },
+      "deletePoints",
+    );
     // Normalize IDs to ensure string IDs are in UUID format
     const normalizedIds = ids.map((id) => this.normalizeId(id));
 
@@ -248,6 +264,7 @@ export class QdrantManager {
     collectionName: string,
     filter: Record<string, any>,
   ): Promise<void> {
+    this.log.debug({ collection: collectionName }, "deletePointsByFilter");
     await this.client.delete(collectionName, {
       wait: true,
       filter: filter,
@@ -266,6 +283,7 @@ export class QdrantManager {
     filter?: Record<string, any>,
     _semanticWeight: number = 0.7,
   ): Promise<SearchResult[]> {
+    this.log.debug({ collection: collectionName, limit }, "hybridSearch");
     // Convert simple key-value filter to Qdrant filter format
     let qdrantFilter;
     if (filter && Object.keys(filter).length > 0) {
@@ -334,6 +352,10 @@ export class QdrantManager {
       payload?: Record<string, any>;
     }>,
   ): Promise<void> {
+    this.log.debug(
+      { collection: collectionName, count: points.length },
+      "addPointsWithSparse",
+    );
     try {
       // Normalize all IDs to ensure string IDs are in UUID format
       const normalizedPoints = points.map((point) => ({

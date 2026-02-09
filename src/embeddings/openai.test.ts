@@ -14,6 +14,18 @@ vi.mock("openai", () => ({
   }),
 }));
 
+vi.mock("../logger.js", () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+    trace: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  },
+}));
+
 describe("OpenAIEmbeddings", () => {
   let embeddings: OpenAIEmbeddings;
 

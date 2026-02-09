@@ -41,7 +41,7 @@ export const AddDocumentsSchema = {
           .describe("Unique identifier for the document"),
         text: z.string().describe("Text content to embed and store"),
         metadata: z
-          .record(z.any())
+          .record(z.string(), z.any())
           .optional()
           .describe("Optional metadata to store with the document"),
       }),
@@ -64,7 +64,10 @@ export const SemanticSearchSchema = {
     .number()
     .optional()
     .describe("Maximum number of results (default: 5)"),
-  filter: z.record(z.any()).optional().describe("Optional metadata filter"),
+  filter: z
+    .record(z.string(), z.any())
+    .optional()
+    .describe("Optional metadata filter"),
 };
 
 export const HybridSearchSchema = {
@@ -74,7 +77,10 @@ export const HybridSearchSchema = {
     .number()
     .optional()
     .describe("Maximum number of results (default: 5)"),
-  filter: z.record(z.any()).optional().describe("Optional metadata filter"),
+  filter: z
+    .record(z.string(), z.any())
+    .optional()
+    .describe("Optional metadata filter"),
 };
 
 // Code indexing schemas

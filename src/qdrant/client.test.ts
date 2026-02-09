@@ -20,6 +20,18 @@ vi.mock("@qdrant/js-client-rest", () => ({
   }),
 }));
 
+vi.mock("../logger.js", () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+    trace: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  },
+}));
+
 describe("QdrantManager", () => {
   let manager: QdrantManager;
 

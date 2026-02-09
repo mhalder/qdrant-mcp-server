@@ -1,6 +1,18 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TreeSitterChunker } from "../../../src/code/chunker/tree-sitter-chunker.js";
 import type { ChunkerConfig } from "../../../src/code/types.js";
+
+vi.mock("../../logger.js", () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+    trace: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  },
+}));
 
 describe("TreeSitterChunker", () => {
   let chunker: TreeSitterChunker;

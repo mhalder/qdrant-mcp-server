@@ -3,8 +3,12 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import logger from "../logger.js";
 import type { GitHistoryIndexer } from "../git/indexer.js";
+import { withToolLogging } from "./logging.js";
 import * as schemas from "./schemas.js";
+
+const log = logger.child({ component: "tools" });
 
 export interface GitHistoryToolDependencies {
   gitHistoryIndexer: GitHistoryIndexer;
@@ -25,30 +29,51 @@ export function registerGitHistoryTools(
         "Index a repository's git commit history for semantic search. Extracts commit messages, metadata, and optionally diffs to enable finding relevant past commits. Useful for finding similar fixes, understanding change patterns, or learning from past work.",
       inputSchema: schemas.IndexGitHistorySchema,
     },
-    async ({ path, forceReindex, sinceDate, maxCommits }) => {
-      const stats = await gitHistoryIndexer.indexHistory(
-        path,
-        { forceReindex, sinceDate, maxCommits },
-        (progress) => {
-          console.error(
-            `[${progress.phase}] ${progress.percentage}% - ${progress.message}`,
-          );
-        },
-      );
+    withToolLogging(
+      "index_git_history",
+      async ({ path, forceReindex, sinceDate, maxCommits }, extra) => {
+        log.info(
+          { tool: "index_git_history", path, forceReindex },
+          "Tool called",
+        );
+        const progressToken = extra._meta?.progressToken;
 
-      let statusMessage = `Indexed ${stats.commitsIndexed}/${stats.commitsScanned} commits (${stats.chunksCreated} chunks) in ${(stats.durationMs / 1000).toFixed(1)}s`;
+        const stats = await gitHistoryIndexer.indexHistory(
+          path,
+          { forceReindex, sinceDate, maxCommits },
+          (progress) => {
+            log.debug(
+              { phase: progress.phase, percentage: progress.percentage },
+              progress.message,
+            );
+            if (progressToken !== undefined) {
+              extra.sendNotification({
+                method: "notifications/progress",
+                params: {
+                  progressToken,
+                  progress: progress.percentage,
+                  total: 100,
+                  message: `[${progress.phase}] ${progress.message}`,
+                },
+              });
+            }
+          },
+        );
 
-      if (stats.status === "partial") {
-        statusMessage += `\n\nWarnings:\n${stats.errors?.join("\n")}`;
-      } else if (stats.status === "failed") {
-        statusMessage = `Indexing failed:\n${stats.errors?.join("\n")}`;
-      }
+        let statusMessage = `Indexed ${stats.commitsIndexed}/${stats.commitsScanned} commits (${stats.chunksCreated} chunks) in ${(stats.durationMs / 1000).toFixed(1)}s`;
 
-      return {
-        content: [{ type: "text", text: statusMessage }],
-        isError: stats.status === "failed",
-      };
-    },
+        if (stats.status === "partial") {
+          statusMessage += `\n\nWarnings:\n${stats.errors?.join("\n")}`;
+        } else if (stats.status === "failed") {
+          statusMessage = `Indexing failed:\n${stats.errors?.join("\n")}`;
+        }
+
+        return {
+          content: [{ type: "text", text: statusMessage }],
+          isError: stats.status === "failed",
+        };
+      },
+    ),
   );
 
   // search_git_history
@@ -60,47 +85,62 @@ export function registerGitHistoryTools(
         "Search indexed git history using natural language queries. Returns semantically relevant commits with metadata. Useful for finding past fixes, similar changes, or understanding how problems were solved before.",
       inputSchema: schemas.SearchGitHistorySchema,
     },
-    async ({ path, query, limit, commitTypes, authors, dateFrom, dateTo }) => {
-      const results = await gitHistoryIndexer.searchHistory(path, query, {
+    withToolLogging(
+      "search_git_history",
+      async ({
+        path,
+        query,
         limit,
         commitTypes,
         authors,
         dateFrom,
         dateTo,
-      });
+      }) => {
+        log.info(
+          { tool: "search_git_history", path, query: query.substring(0, 80) },
+          "Tool called",
+        );
+        const results = await gitHistoryIndexer.searchHistory(path, query, {
+          limit,
+          commitTypes,
+          authors,
+          dateFrom,
+          dateTo,
+        });
 
-      if (results.length === 0) {
+        if (results.length === 0) {
+          return {
+            content: [
+              { type: "text", text: `No results found for query: "${query}"` },
+            ],
+          };
+        }
+
+        // Format results
+        const formattedResults = results
+          .map(
+            (r, idx) =>
+              `\n--- Result ${idx + 1} (score: ${r.score.toFixed(3)}) ---\n` +
+              `Commit: ${r.shortHash}\n` +
+              `Type: ${r.commitType}\n` +
+              `Author: ${r.author}\n` +
+              `Date: ${r.date.split("T")[0]}\n` +
+              `Subject: ${r.subject}\n` +
+              `Files: ${r.files.slice(0, 5).join(", ")}${r.files.length > 5 ? ` (+${r.files.length - 5} more)` : ""}\n\n` +
+              `${r.content.substring(0, 500)}${r.content.length > 500 ? "..." : ""}\n`,
+          )
+          .join("\n");
+
         return {
           content: [
-            { type: "text", text: `No results found for query: "${query}"` },
+            {
+              type: "text",
+              text: `Found ${results.length} result(s):\n${formattedResults}`,
+            },
           ],
         };
-      }
-
-      // Format results
-      const formattedResults = results
-        .map(
-          (r, idx) =>
-            `\n--- Result ${idx + 1} (score: ${r.score.toFixed(3)}) ---\n` +
-            `Commit: ${r.shortHash}\n` +
-            `Type: ${r.commitType}\n` +
-            `Author: ${r.author}\n` +
-            `Date: ${r.date.split("T")[0]}\n` +
-            `Subject: ${r.subject}\n` +
-            `Files: ${r.files.slice(0, 5).join(", ")}${r.files.length > 5 ? ` (+${r.files.length - 5} more)` : ""}\n\n` +
-            `${r.content.substring(0, 500)}${r.content.length > 500 ? "..." : ""}\n`,
-        )
-        .join("\n");
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Found ${results.length} result(s):\n${formattedResults}`,
-          },
-        ],
-      };
-    },
+      },
+    ),
   );
 
   // index_new_commits
@@ -112,13 +152,28 @@ export function registerGitHistoryTools(
         "Incrementally index only new commits since the last indexing. Much faster than full re-indexing when keeping the index up to date with recent changes.",
       inputSchema: schemas.IndexNewCommitsSchema,
     },
-    async ({ path }) => {
+    withToolLogging("index_new_commits", async ({ path }, extra) => {
+      log.info({ tool: "index_new_commits", path }, "Tool called");
+      const progressToken = extra._meta?.progressToken;
+
       const stats = await gitHistoryIndexer.indexNewCommits(
         path,
         (progress) => {
-          console.error(
-            `[${progress.phase}] ${progress.percentage}% - ${progress.message}`,
+          log.debug(
+            { phase: progress.phase, percentage: progress.percentage },
+            progress.message,
           );
+          if (progressToken !== undefined) {
+            extra.sendNotification({
+              method: "notifications/progress",
+              params: {
+                progressToken,
+                progress: progress.percentage,
+                total: 100,
+                message: `[${progress.phase}] ${progress.message}`,
+              },
+            });
+          }
         },
       );
 
@@ -134,7 +189,7 @@ export function registerGitHistoryTools(
       return {
         content: [{ type: "text", text: message }],
       };
-    },
+    }),
   );
 
   // get_git_index_status
@@ -146,7 +201,8 @@ export function registerGitHistoryTools(
         "Get the indexing status and statistics for a repository's git history index.",
       inputSchema: schemas.GetGitIndexStatusSchema,
     },
-    async ({ path }) => {
+    withToolLogging("get_git_index_status", async ({ path }) => {
+      log.info({ tool: "get_git_index_status", path }, "Tool called");
       const status = await gitHistoryIndexer.getIndexStatus(path);
 
       if (status.status === "not_indexed") {
@@ -184,7 +240,7 @@ export function registerGitHistoryTools(
       return {
         content: [{ type: "text", text: JSON.stringify(statusInfo, null, 2) }],
       };
-    },
+    }),
   );
 
   // clear_git_index
@@ -196,13 +252,14 @@ export function registerGitHistoryTools(
         "Delete all indexed git history data for a repository. This is irreversible and will remove the entire git history index.",
       inputSchema: schemas.ClearGitIndexSchema,
     },
-    async ({ path }) => {
+    withToolLogging("clear_git_index", async ({ path }) => {
+      log.info({ tool: "clear_git_index", path }, "Tool called");
       await gitHistoryIndexer.clearIndex(path);
       return {
         content: [
           { type: "text", text: `Git history index cleared for "${path}".` },
         ],
       };
-    },
+    }),
   );
 }

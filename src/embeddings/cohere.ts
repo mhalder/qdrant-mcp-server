@@ -1,5 +1,6 @@
 import { CohereClient } from "cohere-ai";
 import Bottleneck from "bottleneck";
+import logger from "../logger.js";
 import { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
 
 interface CohereError {
@@ -9,6 +10,7 @@ interface CohereError {
 }
 
 export class CohereEmbeddings implements EmbeddingProvider {
+  private log = logger.child({ component: "embeddings", provider: "cohere" });
   private client: CohereClient;
   private model: string;
   private dimensions: number;
@@ -76,8 +78,13 @@ export class CohereEmbeddings implements EmbeddingProvider {
       if (isRateLimitError && attempt < this.retryAttempts) {
         const delayMs = this.retryDelayMs * Math.pow(2, attempt);
         const waitTimeSeconds = (delayMs / 1000).toFixed(1);
-        console.error(
-          `Rate limit reached. Retrying in ${waitTimeSeconds}s (attempt ${attempt + 1}/${this.retryAttempts})...`,
+        this.log.warn(
+          {
+            waitTimeSeconds,
+            attempt: attempt + 1,
+            maxAttempts: this.retryAttempts,
+          },
+          "Rate limit reached, retrying",
         );
 
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -119,6 +126,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
   }
 
   async embedBatch(texts: string[]): Promise<EmbeddingResult[]> {
+    this.log.debug({ batchSize: texts.length }, "embedBatch");
     return this.limiter.schedule(() =>
       this.retryWithBackoff(async () => {
         const response = await this.client.embed({
