@@ -1,3 +1,9 @@
+## [3.3.1](https://github.com/mhalder/qdrant-mcp-server/compare/v3.3.0...v3.3.1) (2026-02-09)
+
+### Bug Fixes
+
+* **deps:** resolve npm audit vulnerabilities ([c32955d](https://github.com/mhalder/qdrant-mcp-server/commit/c32955d7e376024e90903097a8bc9563541757f2))
+
 ## [3.3.0](https://github.com/mhalder/qdrant-mcp-server/compare/v3.2.1...v3.3.0) (2026-02-09)
 
 ### Features
