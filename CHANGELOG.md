@@ -1,3 +1,9 @@
+## [3.3.0](https://github.com/mhalder/qdrant-mcp-server/compare/v3.2.1...v3.3.0) (2026-02-09)
+
+### Features
+
+* **logging:** add structured logging with pino ([1e85ba4](https://github.com/mhalder/qdrant-mcp-server/commit/1e85ba45e142beda3bfcd119fab13666328d2b6b))
+
 ## <small>3.2.1 (2026-01-30)</small>
 
 * Merge pull request #52 from mhalder/feat/dagger ([da115bb](https://github.com/mhalder/qdrant-mcp-server/commit/da115bb)), closes [#52](https://github.com/mhalder/qdrant-mcp-server/issues/52)
