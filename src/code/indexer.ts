@@ -8,6 +8,7 @@ import { promises as fs } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import picomatch from "picomatch";
+import logger from "../logger.js";
 import type { EmbeddingProvider } from "../embeddings/base.js";
 import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
 import { normalizeRemoteUrl } from "../git/extractor.js";
@@ -34,6 +35,8 @@ const execFileAsync = promisify(execFile);
 const INDEXING_METADATA_ID = "__indexing_metadata__";
 
 export class CodeIndexer {
+  private log = logger.child({ component: "code-indexer" });
+
   constructor(
     private qdrant: QdrantManager,
     private embeddings: EmbeddingProvider,
@@ -83,6 +86,8 @@ export class CodeIndexer {
     const absolutePath = await this.validatePath(path);
     const collectionName = await this.getCollectionName(absolutePath);
 
+    this.log.info({ path: absolutePath, collectionName }, "Indexing started");
+
     try {
       // 1. Scan files
       progressCallback?.({
@@ -105,6 +110,7 @@ export class CodeIndexer {
       const files = await scanner.scanDirectory(absolutePath);
 
       stats.filesScanned = files.length;
+      this.log.info({ filesFound: files.length }, "File scan complete");
 
       if (files.length === 0) {
         stats.status = "completed";
@@ -128,6 +134,7 @@ export class CodeIndexer {
           "Cosine",
           this.config.enableHybridSearch,
         );
+        this.log.debug({ collectionName, vectorSize }, "Collection created");
       }
 
       // Store "indexing in progress" marker immediately after collection is ready
@@ -209,7 +216,7 @@ export class CodeIndexer {
         // Snapshot failure shouldn't fail the entire indexing
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        console.error("Failed to save snapshot:", errorMessage);
+        this.log.error({ err: error }, "Failed to save snapshot");
         stats.errors?.push(`Snapshot save failed: ${errorMessage}`);
       }
 
@@ -223,6 +230,10 @@ export class CodeIndexer {
 
       // 4. Generate embeddings and store in batches
       const batchSize = this.config.batchSize;
+      this.log.debug(
+        { totalChunks: allChunks.length, batchSize },
+        "Starting embedding generation",
+      );
       for (let i = 0; i < allChunks.length; i += batchSize) {
         const batch = allChunks.slice(i, i + batchSize);
 
@@ -309,6 +320,14 @@ export class CodeIndexer {
       await this.storeIndexingMarker(collectionName, true);
 
       stats.durationMs = Date.now() - startTime;
+      this.log.info(
+        {
+          filesIndexed: stats.filesIndexed,
+          chunksCreated: stats.chunksCreated,
+          durationMs: stats.durationMs,
+        },
+        "Indexing complete",
+      );
       return stats;
     } catch (error) {
       const errorMessage =
@@ -365,7 +384,7 @@ export class CodeIndexer {
       }
     } catch (error) {
       // Non-fatal: log but don't fail the indexing
-      console.error("Failed to store indexing marker:", error);
+      this.log.error({ err: error }, "Failed to store indexing marker");
     }
   }
 
@@ -564,6 +583,8 @@ export class CodeIndexer {
       const absolutePath = await this.validatePath(path);
       const collectionName = await this.getCollectionName(absolutePath);
 
+      this.log.info({ path: absolutePath }, "Reindex started");
+
       // Check if collection exists
       const exists = await this.qdrant.collectionExists(collectionName);
       if (!exists) {
@@ -640,9 +661,9 @@ export class CodeIndexer {
             await this.qdrant.deletePointsByFilter(collectionName, filter);
           } catch (error) {
             // Log but don't fail - file might not have any chunks
-            console.error(
-              `Failed to delete chunks for ${relativePath}:`,
-              error,
+            this.log.error(
+              { relativePath, err: error },
+              "Failed to delete chunks during reindex",
             );
           }
         }
@@ -677,7 +698,10 @@ export class CodeIndexer {
             allChunks.push({ chunk, id });
           }
         } catch (error) {
-          console.error(`Failed to process ${filePath}:`, error);
+          this.log.error(
+            { filePath, err: error },
+            "Failed to process file during reindex",
+          );
         }
       }
 
@@ -746,6 +770,16 @@ export class CodeIndexer {
       await synchronizer.updateSnapshot(currentFiles);
 
       stats.durationMs = Date.now() - startTime;
+      this.log.info(
+        {
+          filesAdded: stats.filesAdded,
+          filesModified: stats.filesModified,
+          filesDeleted: stats.filesDeleted,
+          chunksAdded: stats.chunksAdded,
+          durationMs: stats.durationMs,
+        },
+        "Reindex complete",
+      );
       return stats;
     } catch (error) {
       const errorMessage =
@@ -758,6 +792,7 @@ export class CodeIndexer {
    * Clear all indexed data for a codebase
    */
   async clearIndex(path: string): Promise<void> {
+    this.log.info({ path }, "Clearing index");
     const absolutePath = await this.validatePath(path);
     const collectionName = await this.getCollectionName(absolutePath);
     const exists = await this.qdrant.collectionExists(collectionName);

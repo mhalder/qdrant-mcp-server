@@ -7,6 +7,18 @@ import type { CodeConfig } from "../../src/code/types.js";
 import type { EmbeddingProvider } from "../../src/embeddings/base.js";
 import type { QdrantManager } from "../../src/qdrant/client.js";
 
+vi.mock("../logger.js", () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+    trace: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  },
+}));
+
 // Mock implementations
 class MockQdrantManager implements Partial<QdrantManager> {
   private collections = new Map<string, any>();

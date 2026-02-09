@@ -5,6 +5,7 @@
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
+import logger from "../logger.js";
 import type { EmbeddingProvider } from "../embeddings/base.js";
 import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
 import type { QdrantManager } from "../qdrant/client.js";
@@ -25,6 +26,8 @@ import type {
 } from "./types.js";
 
 export class GitHistoryIndexer {
+  private log = logger.child({ component: "git-indexer" });
+
   constructor(
     private qdrant: QdrantManager,
     private embeddings: EmbeddingProvider,
@@ -65,6 +68,11 @@ export class GitHistoryIndexer {
 
     const absolutePath = await this.validatePath(path);
     const collectionName = await this.getCollectionName(absolutePath);
+
+    this.log.info(
+      { path: absolutePath, collectionName },
+      "Git indexing started",
+    );
 
     try {
       // 1. Validate repository
@@ -119,6 +127,7 @@ export class GitHistoryIndexer {
       });
 
       stats.commitsScanned = commits.length;
+      this.log.info({ commitsExtracted: commits.length }, "Commits extracted");
 
       if (commits.length === 0) {
         await this.storeIndexingMarker(collectionName, true);
@@ -175,6 +184,10 @@ export class GitHistoryIndexer {
 
       // 5. Generate embeddings and store in batches
       const batchSize = this.config.batchSize;
+      this.log.debug(
+        { totalChunks: allChunks.length, batchSize },
+        "Starting embedding generation",
+      );
       for (let i = 0; i < allChunks.length; i += batchSize) {
         const batch = allChunks.slice(i, i + batchSize);
 
@@ -232,7 +245,9 @@ export class GitHistoryIndexer {
               const sparseGenerator = new BM25SparseVectorGenerator();
               const hybridPoints = points.map((point, idx) => ({
                 ...point,
-                sparseVector: sparseGenerator.generate(batch[idx].chunk.content),
+                sparseVector: sparseGenerator.generate(
+                  batch[idx].chunk.content,
+                ),
               }));
               await this.qdrant.addPointsWithSparse(
                 collectionName,
@@ -245,7 +260,8 @@ export class GitHistoryIndexer {
             success = true;
             break;
           } catch (error) {
-            lastError = error instanceof Error ? error : new Error(String(error));
+            lastError =
+              error instanceof Error ? error : new Error(String(error));
             if (attempt < this.config.batchRetryAttempts) {
               // Exponential backoff: 1s, 2s, 4s...
               const delay = Math.pow(2, attempt - 1) * 1000;
@@ -270,7 +286,7 @@ export class GitHistoryIndexer {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        console.error("Failed to save snapshot:", errorMessage);
+        this.log.error({ err: error }, "Failed to save snapshot");
         stats.errors?.push(`Snapshot save failed: ${errorMessage}`);
       }
 
@@ -278,6 +294,14 @@ export class GitHistoryIndexer {
       await this.storeIndexingMarker(collectionName, true);
 
       stats.durationMs = Date.now() - startTime;
+      this.log.info(
+        {
+          commitsIndexed: stats.commitsIndexed,
+          chunksCreated: stats.chunksCreated,
+          durationMs: stats.durationMs,
+        },
+        "Git indexing complete",
+      );
       return stats;
     } catch (error) {
       const errorMessage =
@@ -509,6 +533,7 @@ export class GitHistoryIndexer {
     });
 
     stats.newCommits = newCommits.length;
+    this.log.info({ newCommits: newCommits.length }, "New commits found");
 
     if (newCommits.length === 0) {
       stats.durationMs = Date.now() - startTime;
@@ -612,6 +637,7 @@ export class GitHistoryIndexer {
    * Clear all indexed data for a repository
    */
   async clearIndex(path: string): Promise<void> {
+    this.log.info({ path }, "Clearing git index");
     const absolutePath = await this.validatePath(path);
     const collectionName = await this.getCollectionName(absolutePath);
     const exists = await this.qdrant.collectionExists(collectionName);
@@ -670,7 +696,7 @@ export class GitHistoryIndexer {
         ]);
       }
     } catch (error) {
-      console.error("Failed to store indexing marker:", error);
+      this.log.error({ err: error }, "Failed to store indexing marker");
     }
   }
 

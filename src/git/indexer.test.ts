@@ -76,6 +76,18 @@ vi.mock("node:fs", () => ({
   },
 }));
 
+vi.mock("../logger.js", () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+    trace: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  },
+}));
+
 describe("GitHistoryIndexer", () => {
   let indexer: GitHistoryIndexer;
   let mockQdrant: any;
@@ -622,10 +634,6 @@ describe("GitHistoryIndexer", () => {
     });
 
     it("should handle snapshot save failure gracefully", async () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
       const mockCommits = [
         {
           hash: "abc123",
@@ -653,14 +661,12 @@ describe("GitHistoryIndexer", () => {
 
       expect(stats.status).toBe("completed");
       expect(stats.errors?.some((e) => e.includes("Snapshot"))).toBe(true);
-
-      consoleSpy.mockRestore();
     });
 
     it("should handle storeIndexingMarker errors silently", async () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+      const loggerMod = await import("../logger.js");
+      const logError = loggerMod.default.error as ReturnType<typeof vi.fn>;
+      logError.mockClear();
 
       mockExtractorInstance.validateRepository.mockResolvedValue(true);
       mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
@@ -670,9 +676,7 @@ describe("GitHistoryIndexer", () => {
       const stats = await indexer.indexHistory("/test/repo");
 
       expect(stats.status).toBe("completed");
-      expect(consoleSpy).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
+      expect(logError).toHaveBeenCalled();
     });
 
     it("should use hybrid search for indexing when enabled", async () => {
@@ -1072,7 +1076,9 @@ describe("GitHistoryIndexer", () => {
       mockChunkerInstance.generateChunkId.mockReturnValue("chunk-1");
 
       // All retries fail
-      mockEmbeddings.embedBatch.mockRejectedValue(new Error("Persistent error"));
+      mockEmbeddings.embedBatch.mockRejectedValue(
+        new Error("Persistent error"),
+      );
 
       mockQdrant.collectionExists.mockResolvedValue(false);
       mockQdrant.getCollectionInfo.mockResolvedValue({ hybridEnabled: false });
@@ -1081,9 +1087,9 @@ describe("GitHistoryIndexer", () => {
 
       expect(stats.status).toBe("partial");
       expect(stats.errors).toBeDefined();
-      expect(
-        stats.errors?.some((e) => e.includes("after 3 attempts")),
-      ).toBe(true);
+      expect(stats.errors?.some((e) => e.includes("after 3 attempts"))).toBe(
+        true,
+      );
     });
   });
 });

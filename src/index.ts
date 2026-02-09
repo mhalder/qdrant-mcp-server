@@ -8,6 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import Bottleneck from "bottleneck";
 import express from "express";
+import logger from "./logger.js";
 import {
   DEFAULT_BATCH_SIZE,
   DEFAULT_CHUNK_OVERLAP,
@@ -47,8 +48,9 @@ const PROMPTS_CONFIG_FILE =
 // Validate HTTP_PORT when HTTP mode is selected
 if (TRANSPORT_MODE === "http") {
   if (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) {
-    console.error(
-      `Error: Invalid HTTP_PORT "${process.env.HTTP_PORT}". Must be a number between 1 and 65535.`,
+    logger.fatal(
+      { port: process.env.HTTP_PORT },
+      "Invalid HTTP_PORT. Must be a number between 1 and 65535",
     );
     process.exit(1);
   }
@@ -73,15 +75,17 @@ if (EMBEDDING_PROVIDER !== "ollama") {
       requiredKeyName = "VOYAGE_API_KEY";
       break;
     default:
-      console.error(
-        `Error: Unknown embedding provider "${EMBEDDING_PROVIDER}". Supported providers: openai, cohere, voyage, ollama.`,
+      logger.fatal(
+        { provider: EMBEDDING_PROVIDER },
+        "Unknown embedding provider. Supported providers: openai, cohere, voyage, ollama",
       );
       process.exit(1);
   }
 
   if (!apiKey) {
-    console.error(
-      `Error: ${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider.`,
+    logger.fatal(
+      { provider: EMBEDDING_PROVIDER, requiredKey: requiredKeyName },
+      `${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider`,
     );
     process.exit(1);
   }
@@ -123,14 +127,14 @@ async function checkOllamaAvailability() {
             `  ollama pull ${modelName}`;
         }
 
-        console.error(errorMessage);
+        logger.fatal({ model: modelName }, errorMessage);
         process.exit(1);
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error
-          ? `Error: ${error.message}`
-          : `Error: Ollama is not running at ${baseUrl}.\n`;
+          ? error.message
+          : `Ollama is not running at ${baseUrl}`;
 
       let helpText = "";
       if (isLocalhost) {
@@ -149,7 +153,7 @@ async function checkOllamaAvailability() {
           `  - The embedding model is available (e.g., nomic-embed-text)`;
       }
 
-      console.error(`${errorMessage}\n${helpText}`);
+      logger.fatal({ baseUrl, err: error }, `${errorMessage}\n${helpText}`);
       process.exit(1);
     }
   }
@@ -157,7 +161,17 @@ async function checkOllamaAvailability() {
 
 // Initialize clients
 const qdrant = new QdrantManager(QDRANT_URL, QDRANT_API_KEY);
+logger.info({ url: QDRANT_URL }, "Qdrant client initialized");
+
 const embeddings = EmbeddingProviderFactory.createFromEnv();
+logger.info(
+  {
+    provider: EMBEDDING_PROVIDER,
+    model: embeddings.getModel(),
+    dimensions: embeddings.getDimensions(),
+  },
+  "Embedding provider initialized",
+);
 
 // Initialize code indexer
 const codeConfig: CodeConfig = {
@@ -184,6 +198,7 @@ const codeConfig: CodeConfig = {
 };
 
 const codeIndexer = new CodeIndexer(qdrant, embeddings, codeConfig);
+logger.debug({ codeConfig }, "Code indexer configured");
 
 // Initialize git history indexer
 const gitConfig: GitConfig = {
@@ -223,19 +238,21 @@ const gitConfig: GitConfig = {
 };
 
 const gitHistoryIndexer = new GitHistoryIndexer(qdrant, embeddings, gitConfig);
+logger.debug({ gitConfig }, "Git history indexer configured");
 
 // Load prompts configuration if file exists
 let promptsConfig: PromptsConfig | null = null;
 if (existsSync(PROMPTS_CONFIG_FILE)) {
   try {
     promptsConfig = loadPromptsConfig(PROMPTS_CONFIG_FILE);
-    console.error(
-      `Loaded ${promptsConfig.prompts.length} prompts from ${PROMPTS_CONFIG_FILE}`,
+    logger.info(
+      { count: promptsConfig.prompts.length, file: PROMPTS_CONFIG_FILE },
+      "Loaded prompts config",
     );
   } catch (error) {
-    console.error(
-      `Failed to load prompts configuration from ${PROMPTS_CONFIG_FILE}:`,
-      error,
+    logger.fatal(
+      { file: PROMPTS_CONFIG_FILE, err: error },
+      "Failed to load prompts configuration",
     );
     process.exit(1);
   }
@@ -265,7 +282,7 @@ function createAndConfigureServer(): McpServer {
 
     return server;
   } catch (error) {
-    console.error("Failed to configure MCP server:", error);
+    logger.error({ err: error }, "Failed to configure MCP server");
     throw error;
   }
 }
@@ -278,7 +295,7 @@ async function startStdioServer() {
   await checkOllamaAvailability();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Qdrant MCP server running on stdio");
+  logger.info("Qdrant MCP server running on stdio");
 }
 
 // Constants for HTTP server configuration
@@ -294,8 +311,9 @@ const SHUTDOWN_GRACE_PERIOD_MS = 10 * 1000; // 10 seconds
 
 // Validate REQUEST_TIMEOUT_MS
 if (Number.isNaN(REQUEST_TIMEOUT_MS) || REQUEST_TIMEOUT_MS <= 0) {
-  console.error(
-    `Error: Invalid HTTP_REQUEST_TIMEOUT_MS "${process.env.HTTP_REQUEST_TIMEOUT_MS}". Must be a positive integer.`,
+  logger.fatal(
+    { value: process.env.HTTP_REQUEST_TIMEOUT_MS },
+    "Invalid HTTP_REQUEST_TIMEOUT_MS. Must be a positive integer",
   );
   process.exit(1);
 }
@@ -354,7 +372,10 @@ async function startHttpServer() {
     });
 
     if (keysToDelete.length > 0) {
-      console.error(`Cleaned up ${keysToDelete.length} inactive rate limiters`);
+      logger.debug(
+        { count: keysToDelete.length },
+        "Cleaned up inactive rate limiters",
+      );
     }
   }, RATE_LIMITER_CLEANUP_INTERVAL_MS);
 
@@ -377,9 +398,12 @@ async function startHttpServer() {
     } catch (error) {
       // Differentiate between rate limit errors and unexpected errors
       if (error instanceof Bottleneck.BottleneckError) {
-        console.error(`Rate limit exceeded for IP ${clientIp}:`, error.message);
+        logger.warn({ clientIp }, "Rate limit exceeded");
       } else {
-        console.error("Unexpected rate limiting error:", error);
+        logger.error(
+          { clientIp, err: error },
+          "Unexpected rate limiting error",
+        );
       }
       sendErrorResponse(res, -32000, "Too many requests", 429);
     }
@@ -418,7 +442,7 @@ async function startHttpServer() {
     const timeoutId = setTimeout(() => {
       sendErrorResponse(res, -32000, "Request timeout", 504);
       cleanup().catch((err) => {
-        console.error("Error during timeout cleanup:", err);
+        logger.error({ err }, "Error during timeout cleanup");
       });
     }, REQUEST_TIMEOUT_MS);
 
@@ -435,19 +459,19 @@ async function startHttpServer() {
       const cleanupHandler = () => {
         clearTimeout(timeoutId);
         cleanup().catch((err) => {
-          console.error("Error during response cleanup:", err);
+          logger.error({ err }, "Error during response cleanup");
         });
       };
 
       res.on("finish", cleanupHandler);
       res.on("close", cleanupHandler);
       res.on("error", (err) => {
-        console.error("Response stream error:", err);
+        logger.error({ err }, "Response stream error");
         cleanupHandler();
       });
     } catch (error) {
       clearTimeout(timeoutId);
-      console.error("Error handling MCP request:", error);
+      logger.error({ err: error }, "Error handling MCP request");
       sendErrorResponse(res, -32603, "Internal server error");
       await cleanup();
     }
@@ -455,12 +479,10 @@ async function startHttpServer() {
 
   const httpServer = app
     .listen(HTTP_PORT, () => {
-      console.error(
-        `Qdrant MCP server running on http://localhost:${HTTP_PORT}/mcp`,
-      );
+      logger.info({ port: HTTP_PORT }, "Qdrant MCP server running on HTTP");
     })
     .on("error", (error) => {
-      console.error("HTTP server error:", error);
+      logger.fatal({ err: error }, "HTTP server error");
       process.exit(1);
     });
 
@@ -471,22 +493,20 @@ async function startHttpServer() {
     if (isShuttingDown) return;
     isShuttingDown = true;
 
-    console.error(
-      "Shutdown signal received, closing HTTP server gracefully...",
-    );
+    logger.info("Shutdown signal received, closing HTTP server gracefully");
 
     // Clear the cleanup interval to allow graceful shutdown
     clearInterval(cleanupIntervalId);
 
     // Force shutdown after grace period
     const forceTimeout = setTimeout(() => {
-      console.error("Forcing shutdown after timeout");
+      logger.warn("Forcing shutdown after timeout");
       process.exit(1);
     }, SHUTDOWN_GRACE_PERIOD_MS);
 
     httpServer.close(() => {
       clearTimeout(forceTimeout);
-      console.error("HTTP server closed");
+      logger.info("HTTP server closed");
       process.exit(0);
     });
   };
@@ -502,14 +522,15 @@ async function main() {
   } else if (TRANSPORT_MODE === "stdio") {
     await startStdioServer();
   } else {
-    console.error(
-      `Error: Invalid TRANSPORT_MODE "${TRANSPORT_MODE}". Supported modes: stdio, http.`,
+    logger.fatal(
+      { mode: TRANSPORT_MODE },
+      "Invalid TRANSPORT_MODE. Supported modes: stdio, http",
     );
     process.exit(1);
   }
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  logger.fatal({ err: error }, "Fatal error");
   process.exit(1);
 });

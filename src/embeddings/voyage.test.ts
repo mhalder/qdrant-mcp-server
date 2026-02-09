@@ -4,6 +4,18 @@ import { VoyageEmbeddings } from "./voyage.js";
 // Mock fetch globally
 global.fetch = vi.fn();
 
+vi.mock("../logger.js", () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+    trace: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  },
+}));
+
 describe("VoyageEmbeddings", () => {
   let embeddings: VoyageEmbeddings;
   let mockFetch: any;

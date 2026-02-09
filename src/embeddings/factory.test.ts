@@ -1,9 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { EmbeddingProviderFactory, type FactoryConfig } from "./factory.js";
 import { OpenAIEmbeddings } from "./openai.js";
 import { CohereEmbeddings } from "./cohere.js";
 import { VoyageEmbeddings } from "./voyage.js";
 import { OllamaEmbeddings } from "./ollama.js";
+
+vi.mock("../logger.js", () => ({
+  default: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+    trace: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  },
+}));
 
 describe("EmbeddingProviderFactory", () => {
   let originalEnv: NodeJS.ProcessEnv;

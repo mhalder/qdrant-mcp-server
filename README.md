@@ -19,6 +19,7 @@ A Model Context Protocol (MCP) server providing semantic search capabilities usi
 - **Configurable Prompts**: Create custom prompts for guided workflows without code changes
 - **Rate Limiting**: Intelligent throttling with exponential backoff
 - **Full CRUD**: Create, search, and manage collections and documents
+- **Structured Logging**: JSON logging via Pino with configurable log levels
 - **Flexible Deployment**: Run locally (stdio) or as a remote HTTP server
 - **API Key Authentication**: Connect to secured Qdrant instances (Qdrant Cloud, self-hosted with API keys)
 
@@ -521,15 +522,16 @@ See [examples/](examples/) directory for detailed guides:
 
 #### Core Configuration
 
-| Variable                  | Description                             | Default               |
-| ------------------------- | --------------------------------------- | --------------------- |
-| `TRANSPORT_MODE`          | "stdio" or "http"                       | stdio                 |
-| `HTTP_PORT`               | Port for HTTP transport                 | 3000                  |
-| `HTTP_REQUEST_TIMEOUT_MS` | Request timeout for HTTP transport (ms) | 300000                |
-| `EMBEDDING_PROVIDER`      | "ollama", "openai", "cohere", "voyage"  | ollama                |
-| `QDRANT_URL`              | Qdrant server URL                       | http://localhost:6333 |
-| `QDRANT_API_KEY`          | API key for Qdrant authentication       | -                     |
-| `PROMPTS_CONFIG_FILE`     | Path to prompts configuration JSON      | prompts.json          |
+| Variable                  | Description                                              | Default               |
+| ------------------------- | -------------------------------------------------------- | --------------------- |
+| `TRANSPORT_MODE`          | "stdio" or "http"                                        | stdio                 |
+| `HTTP_PORT`               | Port for HTTP transport                                  | 3000                  |
+| `HTTP_REQUEST_TIMEOUT_MS` | Request timeout for HTTP transport (ms)                  | 300000                |
+| `EMBEDDING_PROVIDER`      | "ollama", "openai", "cohere", "voyage"                   | ollama                |
+| `QDRANT_URL`              | Qdrant server URL                                        | http://localhost:6333 |
+| `QDRANT_API_KEY`          | API key for Qdrant authentication                        | -                     |
+| `LOG_LEVEL`               | Logging level (fatal/error/warn/info/debug/trace/silent) | info                  |
+| `PROMPTS_CONFIG_FILE`     | Path to prompts configuration JSON                       | prompts.json          |
 
 #### Embedding Configuration
 
@@ -614,17 +616,6 @@ npm test             # Run test suite
 npm run test:coverage # Coverage report
 ```
 
-### Dagger (Portable CI)
-
-The CI pipeline is implemented as a [Dagger](https://dagger.io/) TypeScript module, making it runnable locally or in any CI system:
-
-```bash
-dagger call check --source=.                    # Type-check + build (Node 22)
-dagger call check --source=. --node-version=24  # Type-check + build (Node 24)
-dagger call test --source=.                     # Full test suite + coverage
-dagger call test-all --source=.                 # Test on Node 22 + 24 in parallel
-```
-
 ### Testing
 
 **748 tests** across 27 test files with **97%+ coverage**:
@@ -634,7 +625,7 @@ dagger call test-all --source=.                 # Test on Node 22 + 24 in parall
 - **Git History Tests**: Git extractor (28), extractor integration (11), chunker (30), indexer (42), synchronizer (18)
 - **Advanced Search Tests**: Federated tools (30) - normalizeScores, calculateRRFScore, buildCorrelations, contextual_search, federated_search
 
-**CI/CD**: [Dagger](https://dagger.io/) module runs build, type-check, and tests on Node.js 22 and 24. GitHub Actions invokes Dagger for CI and uses native `semantic-release` for publishing.
+**CI/CD**: GitHub Actions runs build, type-check, and tests on Node.js 22.x and 24.x for every push/PR.
 
 ## Contributing
 

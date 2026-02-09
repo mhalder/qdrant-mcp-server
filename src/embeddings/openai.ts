@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import Bottleneck from "bottleneck";
+import logger from "../logger.js";
 import {
   EmbeddingProvider,
   EmbeddingResult,
@@ -18,6 +19,7 @@ interface OpenAIError {
 }
 
 export class OpenAIEmbeddings implements EmbeddingProvider {
+  private log = logger.child({ component: "embeddings", provider: "openai" });
   private client: OpenAI;
   private model: string;
   private dimensions: number;
@@ -95,8 +97,13 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
         }
 
         const waitTimeSeconds = (delayMs / 1000).toFixed(1);
-        console.error(
-          `Rate limit reached. Retrying in ${waitTimeSeconds}s (attempt ${attempt + 1}/${this.retryAttempts})...`,
+        this.log.warn(
+          {
+            waitTimeSeconds,
+            attempt: attempt + 1,
+            maxAttempts: this.retryAttempts,
+          },
+          "Rate limit reached, retrying",
         );
 
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -132,6 +139,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
   }
 
   async embedBatch(texts: string[]): Promise<EmbeddingResult[]> {
+    this.log.debug({ batchSize: texts.length }, "embedBatch");
     return this.limiter.schedule(() =>
       this.retryWithBackoff(async () => {
         const response = await this.client.embeddings.create({

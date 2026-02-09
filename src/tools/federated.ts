@@ -7,11 +7,15 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import logger from "../logger.js";
 import type { CodeIndexer } from "../code/indexer.js";
 import type { CodeSearchResult } from "../code/types.js";
 import type { GitHistoryIndexer } from "../git/indexer.js";
 import type { GitSearchResult } from "../git/types.js";
+import { withToolLogging } from "./logging.js";
 import * as schemas from "./schemas.js";
+
+const log = logger.child({ component: "tools" });
 
 // ============================================================================
 // Types
@@ -412,81 +416,88 @@ export function registerFederatedTools(
         "modified which files. Useful for understanding code evolution and finding related changes.",
       inputSchema: schemas.ContextualSearchSchema,
     },
-    async ({ path, query, codeLimit, gitLimit, correlate }) => {
-      try {
-        const result = await performContextualSearch(
-          codeIndexer,
-          gitHistoryIndexer,
-          { path, query, codeLimit, gitLimit, correlate },
+    withToolLogging(
+      "contextual_search",
+      async ({ path, query, codeLimit, gitLimit, correlate }) => {
+        log.info(
+          { tool: "contextual_search", path, query: query.substring(0, 80) },
+          "Tool called",
         );
+        try {
+          const result = await performContextualSearch(
+            codeIndexer,
+            gitHistoryIndexer,
+            { path, query, codeLimit, gitLimit, correlate },
+          );
 
-        // Format output
-        const sections: string[] = [];
+          // Format output
+          const sections: string[] = [];
 
-        // Code results section
-        if (result.codeResults.length > 0) {
-          sections.push("## Code Results\n");
-          result.codeResults.forEach((r, idx) => {
-            sections.push(
-              `### ${idx + 1}. ${r.filePath}:${r.startLine}-${r.endLine} (score: ${r.score.toFixed(3)})\n` +
-                `Language: ${r.language}\n` +
-                "```" +
-                r.language +
-                "\n" +
-                r.content +
-                "\n```\n",
-            );
-          });
+          // Code results section
+          if (result.codeResults.length > 0) {
+            sections.push("## Code Results\n");
+            result.codeResults.forEach((r, idx) => {
+              sections.push(
+                `### ${idx + 1}. ${r.filePath}:${r.startLine}-${r.endLine} (score: ${r.score.toFixed(3)})\n` +
+                  `Language: ${r.language}\n` +
+                  "```" +
+                  r.language +
+                  "\n" +
+                  r.content +
+                  "\n```\n",
+              );
+            });
+          }
+
+          // Git results section
+          if (result.gitResults.length > 0) {
+            sections.push("\n## Git History Results\n");
+            result.gitResults.forEach((r, idx) => {
+              sections.push(
+                `### ${idx + 1}. ${r.shortHash} - ${r.subject} (score: ${r.score.toFixed(3)})\n` +
+                  `Author: ${r.author} | Date: ${r.date} | Type: ${r.commitType}\n` +
+                  `Files: ${r.files.slice(0, 5).join(", ")}${r.files.length > 5 ? ` (+${r.files.length - 5} more)` : ""}\n`,
+              );
+            });
+          }
+
+          // Correlations section
+          if (result.correlations.length > 0) {
+            sections.push("\n## Correlations (Code ↔ Commits)\n");
+            result.correlations.forEach((c) => {
+              const commits = c.relatedCommits
+                .slice(0, 3)
+                .map((commit) => `  - ${commit.shortHash}: ${commit.subject}`)
+                .join("\n");
+              sections.push(
+                `**${c.codeResult.filePath}:${c.codeResult.startLine}** modified by:\n${commits}\n`,
+              );
+            });
+          }
+
+          // Summary
+          const summary =
+            `\n---\nFound ${result.metadata.codeResultCount} code result(s), ` +
+            `${result.metadata.gitResultCount} git result(s), ` +
+            `${result.metadata.correlationCount} correlation(s).`;
+          sections.push(summary);
+
+          return {
+            content: [{ type: "text", text: sections.join("\n") }],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              },
+            ],
+            isError: true,
+          };
         }
-
-        // Git results section
-        if (result.gitResults.length > 0) {
-          sections.push("\n## Git History Results\n");
-          result.gitResults.forEach((r, idx) => {
-            sections.push(
-              `### ${idx + 1}. ${r.shortHash} - ${r.subject} (score: ${r.score.toFixed(3)})\n` +
-                `Author: ${r.author} | Date: ${r.date} | Type: ${r.commitType}\n` +
-                `Files: ${r.files.slice(0, 5).join(", ")}${r.files.length > 5 ? ` (+${r.files.length - 5} more)` : ""}\n`,
-            );
-          });
-        }
-
-        // Correlations section
-        if (result.correlations.length > 0) {
-          sections.push("\n## Correlations (Code ↔ Commits)\n");
-          result.correlations.forEach((c) => {
-            const commits = c.relatedCommits
-              .slice(0, 3)
-              .map((commit) => `  - ${commit.shortHash}: ${commit.subject}`)
-              .join("\n");
-            sections.push(
-              `**${c.codeResult.filePath}:${c.codeResult.startLine}** modified by:\n${commits}\n`,
-            );
-          });
-        }
-
-        // Summary
-        const summary =
-          `\n---\nFound ${result.metadata.codeResultCount} code result(s), ` +
-          `${result.metadata.gitResultCount} git result(s), ` +
-          `${result.metadata.correlationCount} correlation(s).`;
-        sections.push(summary);
-
-        return {
-          content: [{ type: "text", text: sections.join("\n") }],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    },
+      },
+    ),
   );
 
   // federated_search
@@ -500,70 +511,77 @@ export function registerFederatedTools(
         "Supports code-only, git-only, or combined search modes.",
       inputSchema: schemas.FederatedSearchSchema,
     },
-    async ({ paths, query, searchType, limit }) => {
-      try {
-        const response = await performFederatedSearch(
-          codeIndexer,
-          gitHistoryIndexer,
-          { paths, query, searchType, limit },
+    withToolLogging(
+      "federated_search",
+      async ({ paths, query, searchType, limit }) => {
+        log.info(
+          { tool: "federated_search", paths, query: query.substring(0, 80) },
+          "Tool called",
         );
+        try {
+          const response = await performFederatedSearch(
+            codeIndexer,
+            gitHistoryIndexer,
+            { paths, query, searchType, limit },
+          );
 
-        if (response.results.length === 0) {
+          if (response.results.length === 0) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `No results found for query "${query}" across ${paths.length} repository(ies).`,
+                },
+              ],
+            };
+          }
+
+          // Format results
+          const sections: string[] = [
+            `# Federated Search Results\n` +
+              `Query: "${query}" | Type: ${response.metadata.searchType} | ` +
+              `Repositories: ${response.metadata.repositoriesSearched.length}\n`,
+          ];
+
+          response.results.forEach((r, idx) => {
+            if (r.resultType === "code") {
+              sections.push(
+                `## ${idx + 1}. [CODE] ${r.filePath}:${r.startLine}-${r.endLine}\n` +
+                  `Repository: ${r.repoPath} | Language: ${r.language} | Score: ${r.score.toFixed(3)}\n` +
+                  "```" +
+                  r.language +
+                  "\n" +
+                  r.content +
+                  "\n```\n",
+              );
+            } else {
+              sections.push(
+                `## ${idx + 1}. [GIT] ${r.shortHash} - ${r.subject}\n` +
+                  `Repository: ${r.repoPath} | Author: ${r.author} | Date: ${r.date} | Score: ${r.score.toFixed(3)}\n` +
+                  `Type: ${r.commitType} | Files: ${r.files.slice(0, 3).join(", ")}${r.files.length > 3 ? ` (+${r.files.length - 3} more)` : ""}\n`,
+              );
+            }
+          });
+
+          sections.push(
+            `\n---\nTotal: ${response.metadata.totalResults} result(s) from ${response.metadata.repositoriesSearched.length} repository(ies).`,
+          );
+
+          return {
+            content: [{ type: "text", text: sections.join("\n") }],
+          };
+        } catch (error) {
           return {
             content: [
               {
                 type: "text",
-                text: `No results found for query "${query}" across ${paths.length} repository(ies).`,
+                text: `Error: ${error instanceof Error ? error.message : String(error)}`,
               },
             ],
+            isError: true,
           };
         }
-
-        // Format results
-        const sections: string[] = [
-          `# Federated Search Results\n` +
-            `Query: "${query}" | Type: ${response.metadata.searchType} | ` +
-            `Repositories: ${response.metadata.repositoriesSearched.length}\n`,
-        ];
-
-        response.results.forEach((r, idx) => {
-          if (r.resultType === "code") {
-            sections.push(
-              `## ${idx + 1}. [CODE] ${r.filePath}:${r.startLine}-${r.endLine}\n` +
-                `Repository: ${r.repoPath} | Language: ${r.language} | Score: ${r.score.toFixed(3)}\n` +
-                "```" +
-                r.language +
-                "\n" +
-                r.content +
-                "\n```\n",
-            );
-          } else {
-            sections.push(
-              `## ${idx + 1}. [GIT] ${r.shortHash} - ${r.subject}\n` +
-                `Repository: ${r.repoPath} | Author: ${r.author} | Date: ${r.date} | Score: ${r.score.toFixed(3)}\n` +
-                `Type: ${r.commitType} | Files: ${r.files.slice(0, 3).join(", ")}${r.files.length > 3 ? ` (+${r.files.length - 3} more)` : ""}\n`,
-            );
-          }
-        });
-
-        sections.push(
-          `\n---\nTotal: ${response.metadata.totalResults} result(s) from ${response.metadata.repositoriesSearched.length} repository(ies).`,
-        );
-
-        return {
-          content: [{ type: "text", text: sections.join("\n") }],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    },
+      },
+    ),
   );
 }
