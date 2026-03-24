@@ -2,6 +2,9 @@
  * BM25 Sparse Vector Generator
  *
  * This module provides a simple BM25-like sparse vector generation for keyword search.
+ * Uses deterministic hash-based vocabulary indices so that the same token always maps
+ * to the same index, regardless of when or where the generator is instantiated.
+ *
  * For production use, consider using a proper BM25 implementation or Qdrant's built-in
  * sparse vector generation via FastEmbed.
  */
@@ -12,19 +15,37 @@ interface TokenFrequency {
   [token: string]: number;
 }
 
+/**
+ * Size of the hash-based vocabulary space.
+ * Tokens are mapped to indices in [0, VOCAB_SIZE) via deterministic hashing.
+ * 30000 provides a good balance between sparsity and collision avoidance.
+ */
+const VOCAB_SIZE = 30000;
+
 export class BM25SparseVectorGenerator {
-  private vocabulary: Map<string, number>;
   private idfScores: Map<string, number>;
   private documentCount: number;
   private k1: number;
   private b: number;
 
   constructor(k1: number = 1.2, b: number = 0.75) {
-    this.vocabulary = new Map();
     this.idfScores = new Map();
     this.documentCount = 0;
     this.k1 = k1;
     this.b = b;
+  }
+
+  /**
+   * Deterministically hash a token to a fixed vocabulary index.
+   * The same token will always produce the same index, regardless of
+   * generator instance or document processing order.
+   */
+  private hashToken(token: string): number {
+    let hash = 0;
+    for (let i = 0; i < token.length; i++) {
+      hash = ((hash << 5) - hash + token.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) % VOCAB_SIZE;
   }
 
   /**
@@ -51,7 +72,7 @@ export class BM25SparseVectorGenerator {
 
   /**
    * Build vocabulary from training documents (optional pre-training step)
-   * In a simple implementation, we can skip this and use on-the-fly vocabulary
+   * Computes IDF scores for more accurate BM25 scoring.
    */
   train(documents: string[]): void {
     this.documentCount = documents.length;
@@ -63,9 +84,6 @@ export class BM25SparseVectorGenerator {
       const uniqueTokens = new Set(tokens);
 
       for (const token of uniqueTokens) {
-        if (!this.vocabulary.has(token)) {
-          this.vocabulary.set(token, this.vocabulary.size);
-        }
         documentFrequency.set(token, (documentFrequency.get(token) || 0) + 1);
       }
     }
@@ -86,18 +104,12 @@ export class BM25SparseVectorGenerator {
     const tf = this.getTermFrequency(tokens);
     const docLength = tokens.length;
 
-    const indices: number[] = [];
-    const values: number[] = [];
+    // Use a map to accumulate scores per index, handling potential hash collisions
+    const indexScores = new Map<number, number>();
 
     // Calculate BM25 score for each term
     for (const [token, freq] of Object.entries(tf)) {
-      // Ensure token is in vocabulary
-      if (!this.vocabulary.has(token)) {
-        // For unseen tokens, add them to vocabulary dynamically
-        this.vocabulary.set(token, this.vocabulary.size);
-      }
-
-      const index = this.vocabulary.get(token)!;
+      const index = this.hashToken(token);
 
       // Use a default IDF if not trained
       const idf = this.idfScores.get(token) || 1.0;
@@ -108,9 +120,16 @@ export class BM25SparseVectorGenerator {
       const score = idf * (numerator / denominator);
 
       if (score > 0) {
-        indices.push(index);
-        values.push(score);
+        // Sum scores for colliding hash indices
+        indexScores.set(index, (indexScores.get(index) || 0) + score);
       }
+    }
+
+    const indices: number[] = [];
+    const values: number[] = [];
+    for (const [index, score] of indexScores.entries()) {
+      indices.push(index);
+      values.push(score);
     }
 
     return { indices, values };
