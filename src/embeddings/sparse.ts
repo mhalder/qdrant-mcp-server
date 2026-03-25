@@ -18,9 +18,10 @@ interface TokenFrequency {
 /**
  * Size of the hash-based vocabulary space.
  * Tokens are mapped to indices in [0, VOCAB_SIZE) via deterministic hashing.
- * 30000 provides a good balance between sparsity and collision avoidance.
+ * 1M provides virtually zero hash collisions while adding no overhead
+ * since sparse vectors only store non-zero (index, value) pairs.
  */
-const VOCAB_SIZE = 30000;
+const VOCAB_SIZE = 1_000_000;
 
 export class BM25SparseVectorGenerator {
   private idfScores: Map<string, number>;

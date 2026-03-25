@@ -135,9 +135,8 @@ describe("BM25SparseVectorGenerator", () => {
       indices.add(result.indices[0]);
     }
 
-    // With 10 tokens and a 30000-size vocabulary space, collisions should be rare.
-    // Allow at most 1 collision.
-    expect(indices.size).toBeGreaterThanOrEqual(tokens.length - 1);
+    // With 10 tokens and a 1M-size vocabulary space, collisions should be essentially zero.
+    expect(indices.size).toBe(tokens.length);
   });
 
   it("should generate indices within valid vocabulary range", () => {
@@ -146,7 +145,7 @@ describe("BM25SparseVectorGenerator", () => {
 
     for (const index of result.indices) {
       expect(index).toBeGreaterThanOrEqual(0);
-      expect(index).toBeLessThan(30000);
+      expect(index).toBeLessThan(1_000_000);
     }
   });
 });
