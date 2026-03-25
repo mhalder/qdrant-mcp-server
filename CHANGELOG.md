@@ -1,3 +1,11 @@
+## [3.3.2](https://github.com/mhalder/qdrant-mcp-server/compare/v3.3.1...v3.3.2) (2026-03-25)
+
+### Bug Fixes
+
+* **sparse:** increase BM25 vocabulary size from 30k to 1M ([bc8fa2a](https://github.com/mhalder/qdrant-mcp-server/commit/bc8fa2a778461aad278339d069bad479aba46a6e))
+* **sparse:** use deterministic hash-based vocabulary indices for BM25 ([cb6fa0d](https://github.com/mhalder/qdrant-mcp-server/commit/cb6fa0d256f0e0bfd628bdfbe4e7e7340f5b56eb))
+* **test:** remove hardcoded commit counts in git extractor integration tests ([cae864f](https://github.com/mhalder/qdrant-mcp-server/commit/cae864f27ad642960966cb0f9ffbad0161ef25ae))
+
 ## [3.3.1](https://github.com/mhalder/qdrant-mcp-server/compare/v3.3.0...v3.3.1) (2026-02-09)
 
 ### Bug Fixes
