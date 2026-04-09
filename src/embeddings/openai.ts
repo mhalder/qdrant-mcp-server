@@ -1,11 +1,11 @@
-import OpenAI from "openai";
 import Bottleneck from "bottleneck";
+import OpenAI from "openai";
 import logger from "../logger.js";
 import {
-  EmbeddingProvider,
-  EmbeddingResult,
-  RateLimitConfig,
+  type EmbeddingProvider,
+  type EmbeddingResult,
   ProviderConfig,
+  type RateLimitConfig,
 } from "./base.js";
 
 interface OpenAIError {
@@ -32,8 +32,9 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
     model: string = "text-embedding-3-small",
     dimensions?: number,
     rateLimitConfig?: RateLimitConfig,
+    baseUrl?: string
   ) {
-    this.client = new OpenAI({ apiKey });
+    this.client = new OpenAI({ apiKey, baseURL: baseUrl });
     this.model = model;
 
     // Default dimensions for different models
@@ -64,10 +65,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
     });
   }
 
-  private async retryWithBackoff<T>(
-    fn: () => Promise<T>,
-    attempt: number = 0,
-  ): Promise<T> {
+  private async retryWithBackoff<T>(fn: () => Promise<T>, attempt: number = 0): Promise<T> {
     try {
       return await fn();
     } catch (error: unknown) {
@@ -80,20 +78,16 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
       if (isRateLimitError && attempt < this.retryAttempts) {
         // Check for Retry-After header (different HTTP clients may nest differently)
         const retryAfter =
-          apiError?.response?.headers?.["retry-after"] ||
-          apiError?.headers?.["retry-after"];
+          apiError?.response?.headers?.["retry-after"] || apiError?.headers?.["retry-after"];
         let delayMs: number;
 
         if (retryAfter) {
           // Use Retry-After header if available (in seconds)
           const parsed = parseInt(retryAfter, 10);
-          delayMs =
-            !isNaN(parsed) && parsed > 0
-              ? parsed * 1000
-              : this.retryDelayMs * Math.pow(2, attempt);
+          delayMs = !isNaN(parsed) && parsed > 0 ? parsed * 1000 : this.retryDelayMs * 2 ** attempt;
         } else {
           // Exponential backoff: 1s, 2s, 4s, 8s...
-          delayMs = this.retryDelayMs * Math.pow(2, attempt);
+          delayMs = this.retryDelayMs * 2 ** attempt;
         }
 
         const waitTimeSeconds = (delayMs / 1000).toFixed(1);
@@ -103,7 +97,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
             attempt: attempt + 1,
             maxAttempts: this.retryAttempts,
           },
-          "Rate limit reached, retrying",
+          "Rate limit reached, retrying"
         );
 
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -113,7 +107,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
       // If not a rate limit error or max retries exceeded, throw
       if (isRateLimitError) {
         throw new Error(
-          `OpenAI API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`,
+          `OpenAI API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`
         );
       }
 
@@ -124,17 +118,27 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
   async embed(text: string): Promise<EmbeddingResult> {
     return this.limiter.schedule(() =>
       this.retryWithBackoff(async () => {
+        this.log.debug(
+          { model: this.model, dimensions: this.dimensions },
+          "Calling OpenAI embeddings API"
+        );
         const response = await this.client.embeddings.create({
           model: this.model,
           input: text,
           dimensions: this.dimensions,
+          encoding_format: "float",
         });
+
+        this.log.debug(
+          { returnedDimensions: response.data[0].embedding.length },
+          "Received embedding from OpenAI API"
+        );
 
         return {
           embedding: response.data[0].embedding,
           dimensions: this.dimensions,
         };
-      }),
+      })
     );
   }
 
@@ -142,17 +146,33 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
     this.log.debug({ batchSize: texts.length }, "embedBatch");
     return this.limiter.schedule(() =>
       this.retryWithBackoff(async () => {
+        this.log.debug(
+          { model: this.model, dimensions: this.dimensions, baseUrl: this.client.baseURL },
+          "Sending embeddings request to OpenAI API"
+        );
+
         const response = await this.client.embeddings.create({
           model: this.model,
           input: texts,
           dimensions: this.dimensions,
+          encoding_format: "float",
         });
+
+        const actualDimensions = response.data[0]?.embedding.length;
+        this.log.debug(
+          {
+            actualDimensions,
+            expectedDimensions: this.dimensions,
+            responseModel: response.model,
+          },
+          "Received embeddings from OpenAI API"
+        );
 
         return response.data.map((item) => ({
           embedding: item.embedding,
-          dimensions: this.dimensions,
+          dimensions: item.embedding.length,
         }));
-      }),
+      })
     );
   }
 

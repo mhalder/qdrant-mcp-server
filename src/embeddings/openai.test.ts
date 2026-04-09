@@ -1,18 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { OpenAIEmbeddings } from "./openai.js";
 import OpenAI from "openai";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { OpenAIEmbeddings } from "./openai.js";
 
-const mockOpenAI = {
+const mockOpenAIInstance = {
   embeddings: {
     create: vi.fn().mockResolvedValue({ data: [{ embedding: [] }] }),
   },
 };
 
-vi.mock("openai", () => ({
-  default: vi.fn().mockImplementation(function () {
-    return mockOpenAI;
-  }),
-}));
+vi.mock("openai", () => {
+  const MockOpenAI = function (this: any, config: any) {
+    return mockOpenAIInstance;
+  };
+  return { default: vi.fn(MockOpenAI) };
+});
 
 vi.mock("../logger.js", () => ({
   default: {
@@ -30,10 +31,9 @@ describe("OpenAIEmbeddings", () => {
   let embeddings: OpenAIEmbeddings;
 
   beforeEach(() => {
-    mockOpenAI.embeddings.create
+    mockOpenAIInstance.embeddings.create
       .mockReset()
       .mockResolvedValue({ data: [{ embedding: [] }] });
-    vi.mocked(OpenAI).mockClear();
     embeddings = new OpenAIEmbeddings("test-api-key");
   });
 
@@ -44,29 +44,41 @@ describe("OpenAIEmbeddings", () => {
     });
 
     it("should use custom model", () => {
-      const customEmbeddings = new OpenAIEmbeddings(
-        "test-api-key",
-        "text-embedding-3-large",
-      );
+      const customEmbeddings = new OpenAIEmbeddings("test-api-key", "text-embedding-3-large");
       expect(customEmbeddings.getModel()).toBe("text-embedding-3-large");
       expect(customEmbeddings.getDimensions()).toBe(3072);
     });
 
     it("should use custom dimensions", () => {
-      const customEmbeddings = new OpenAIEmbeddings(
-        "test-api-key",
-        "text-embedding-3-small",
-        512,
-      );
+      const customEmbeddings = new OpenAIEmbeddings("test-api-key", "text-embedding-3-small", 512);
       expect(customEmbeddings.getDimensions()).toBe(512);
     });
 
     it("should use default dimensions for text-embedding-ada-002", () => {
-      const adaEmbeddings = new OpenAIEmbeddings(
-        "test-api-key",
-        "text-embedding-ada-002",
-      );
+      const adaEmbeddings = new OpenAIEmbeddings("test-api-key", "text-embedding-ada-002");
       expect(adaEmbeddings.getDimensions()).toBe(1536);
+    });
+
+    it("should pass baseUrl to OpenAI client", () => {
+      const customEmbeddings = new OpenAIEmbeddings(
+        "test-api-key",
+        "text-embedding-3-small",
+        undefined,
+        undefined,
+        "https://localhost:1234/v1"
+      );
+      expect(OpenAI).toHaveBeenCalledWith({
+        apiKey: "test-api-key",
+        baseURL: "https://localhost:1234/v1",
+      });
+    });
+
+    it("should not include baseURL when baseUrl is undefined", () => {
+      const embeddingsNoBaseUrl = new OpenAIEmbeddings("test-api-key");
+      expect(OpenAI).toHaveBeenCalledWith({
+        apiKey: "test-api-key",
+        baseURL: undefined,
+      });
     });
   });
 
@@ -75,7 +87,7 @@ describe("OpenAIEmbeddings", () => {
       const mockEmbedding = Array(1536)
         .fill(0)
         .map((_, i) => i * 0.001);
-      mockOpenAI.embeddings.create.mockResolvedValue({
+      mockOpenAIInstance.embeddings.create.mockResolvedValue({
         data: [{ embedding: mockEmbedding }],
       });
 
@@ -85,7 +97,7 @@ describe("OpenAIEmbeddings", () => {
         embedding: mockEmbedding,
         dimensions: 1536,
       });
-      expect(mockOpenAI.embeddings.create).toHaveBeenCalledWith({
+      expect(mockOpenAIInstance.embeddings.create).toHaveBeenCalledWith({
         model: "text-embedding-3-small",
         input: "test text",
         dimensions: 1536,
@@ -95,14 +107,14 @@ describe("OpenAIEmbeddings", () => {
     it("should handle long text", async () => {
       const longText = "word ".repeat(1000);
       const mockEmbedding = Array(1536).fill(0.5);
-      mockOpenAI.embeddings.create.mockResolvedValue({
+      mockOpenAIInstance.embeddings.create.mockResolvedValue({
         data: [{ embedding: mockEmbedding }],
       });
 
       const result = await embeddings.embed(longText);
 
       expect(result.embedding).toEqual(mockEmbedding);
-      expect(mockOpenAI.embeddings.create).toHaveBeenCalledWith({
+      expect(mockOpenAIInstance.embeddings.create).toHaveBeenCalledWith({
         model: "text-embedding-3-small",
         input: longText,
         dimensions: 1536,
@@ -110,19 +122,15 @@ describe("OpenAIEmbeddings", () => {
     });
 
     it("should use custom model configuration", async () => {
-      const customEmbeddings = new OpenAIEmbeddings(
-        "test-api-key",
-        "text-embedding-3-large",
-        3072,
-      );
+      const customEmbeddings = new OpenAIEmbeddings("test-api-key", "text-embedding-3-large", 3072);
       const mockEmbedding = Array(3072).fill(0.1);
-      mockOpenAI.embeddings.create.mockResolvedValue({
+      mockOpenAIInstance.embeddings.create.mockResolvedValue({
         data: [{ embedding: mockEmbedding }],
       });
 
       await customEmbeddings.embed("test");
 
-      expect(mockOpenAI.embeddings.create).toHaveBeenCalledWith({
+      expect(mockOpenAIInstance.embeddings.create).toHaveBeenCalledWith({
         model: "text-embedding-3-large",
         input: "test",
         dimensions: 3072,
@@ -130,7 +138,7 @@ describe("OpenAIEmbeddings", () => {
     });
 
     it("should propagate errors", async () => {
-      mockOpenAI.embeddings.create.mockRejectedValue(new Error("API Error"));
+      mockOpenAIInstance.embeddings.create.mockRejectedValue(new Error("API Error"));
 
       await expect(embeddings.embed("test")).rejects.toThrow("API Error");
     });
@@ -138,12 +146,8 @@ describe("OpenAIEmbeddings", () => {
 
   describe("embedBatch", () => {
     it("should generate embeddings for multiple texts", async () => {
-      const mockEmbeddings = [
-        Array(1536).fill(0.1),
-        Array(1536).fill(0.2),
-        Array(1536).fill(0.3),
-      ];
-      mockOpenAI.embeddings.create.mockResolvedValue({
+      const mockEmbeddings = [Array(1536).fill(0.1), Array(1536).fill(0.2), Array(1536).fill(0.3)];
+      mockOpenAIInstance.embeddings.create.mockResolvedValue({
         data: [
           { embedding: mockEmbeddings[0] },
           { embedding: mockEmbeddings[1] },
@@ -159,7 +163,7 @@ describe("OpenAIEmbeddings", () => {
         { embedding: mockEmbeddings[1], dimensions: 1536 },
         { embedding: mockEmbeddings[2], dimensions: 1536 },
       ]);
-      expect(mockOpenAI.embeddings.create).toHaveBeenCalledWith({
+      expect(mockOpenAIInstance.embeddings.create).toHaveBeenCalledWith({
         model: "text-embedding-3-small",
         input: texts,
         dimensions: 1536,
@@ -167,7 +171,7 @@ describe("OpenAIEmbeddings", () => {
     });
 
     it("should handle empty batch", async () => {
-      mockOpenAI.embeddings.create.mockResolvedValue({
+      mockOpenAIInstance.embeddings.create.mockResolvedValue({
         data: [],
       });
 
@@ -178,7 +182,7 @@ describe("OpenAIEmbeddings", () => {
 
     it("should handle single item in batch", async () => {
       const mockEmbedding = Array(1536).fill(0.5);
-      mockOpenAI.embeddings.create.mockResolvedValue({
+      mockOpenAIInstance.embeddings.create.mockResolvedValue({
         data: [{ embedding: mockEmbedding }],
       });
 
@@ -194,7 +198,7 @@ describe("OpenAIEmbeddings", () => {
         .fill(null)
         .map(() => Array(1536).fill(Math.random()));
 
-      mockOpenAI.embeddings.create.mockResolvedValue({
+      mockOpenAIInstance.embeddings.create.mockResolvedValue({
         data: mockEmbeddings.map((embedding) => ({ embedding })),
       });
 
@@ -207,13 +211,9 @@ describe("OpenAIEmbeddings", () => {
     });
 
     it("should propagate errors in batch", async () => {
-      mockOpenAI.embeddings.create.mockRejectedValue(
-        new Error("Batch API Error"),
-      );
+      mockOpenAIInstance.embeddings.create.mockRejectedValue(new Error("Batch API Error"));
 
-      await expect(embeddings.embedBatch(["text1", "text2"])).rejects.toThrow(
-        "Batch API Error",
-      );
+      await expect(embeddings.embedBatch(["text1", "text2"])).rejects.toThrow("Batch API Error");
     });
   });
 
@@ -223,11 +223,7 @@ describe("OpenAIEmbeddings", () => {
     });
 
     it("should return custom dimensions", () => {
-      const customEmbeddings = new OpenAIEmbeddings(
-        "test-api-key",
-        "text-embedding-3-small",
-        512,
-      );
+      const customEmbeddings = new OpenAIEmbeddings("test-api-key", "text-embedding-3-small", 512);
       expect(customEmbeddings.getDimensions()).toBe(512);
     });
   });
@@ -238,10 +234,7 @@ describe("OpenAIEmbeddings", () => {
     });
 
     it("should return custom model", () => {
-      const customEmbeddings = new OpenAIEmbeddings(
-        "test-api-key",
-        "text-embedding-3-large",
-      );
+      const customEmbeddings = new OpenAIEmbeddings("test-api-key", "text-embedding-3-large");
       expect(customEmbeddings.getModel()).toBe("text-embedding-3-large");
     });
   });
@@ -251,7 +244,7 @@ describe("OpenAIEmbeddings", () => {
       const mockEmbedding = Array(1536).fill(0.5);
 
       // Fail first two times with rate limit, succeed on third
-      mockOpenAI.embeddings.create
+      mockOpenAIInstance.embeddings.create
         .mockRejectedValueOnce({ status: 429, message: "Rate limit exceeded" })
         .mockRejectedValueOnce({ status: 429, message: "Rate limit exceeded" })
         .mockResolvedValue({ data: [{ embedding: mockEmbedding }] });
@@ -259,7 +252,7 @@ describe("OpenAIEmbeddings", () => {
       const result = await embeddings.embed("test text");
 
       expect(result.embedding).toEqual(mockEmbedding);
-      expect(mockOpenAI.embeddings.create).toHaveBeenCalledTimes(3);
+      expect(mockOpenAIInstance.embeddings.create).toHaveBeenCalledTimes(3);
     });
 
     it("should respect Retry-After header when present", async () => {
@@ -270,7 +263,7 @@ describe("OpenAIEmbeddings", () => {
         headers: { "retry-after": "2" },
       };
 
-      mockOpenAI.embeddings.create
+      mockOpenAIInstance.embeddings.create
         .mockRejectedValueOnce(rateLimitError)
         .mockResolvedValue({ data: [{ embedding: mockEmbedding }] });
 
@@ -290,7 +283,7 @@ describe("OpenAIEmbeddings", () => {
         {
           retryAttempts: 2,
           retryDelayMs: 100, // 100ms for faster tests
-        },
+        }
       );
 
       const mockEmbedding = Array(1536).fill(0.5);
@@ -302,7 +295,7 @@ describe("OpenAIEmbeddings", () => {
         headers: { "retry-after": "invalid" }, // Non-numeric value
       };
 
-      mockOpenAI.embeddings.create
+      mockOpenAIInstance.embeddings.create
         .mockRejectedValueOnce(invalidRetryAfterError)
         .mockResolvedValue({ data: [{ embedding: mockEmbedding }] });
 
@@ -323,7 +316,7 @@ describe("OpenAIEmbeddings", () => {
         {
           retryAttempts: 3,
           retryDelayMs: 100, // 100ms for faster tests
-        },
+        }
       );
 
       const mockEmbedding = Array(1536).fill(0.5);
@@ -332,7 +325,7 @@ describe("OpenAIEmbeddings", () => {
         message: "Rate limit exceeded",
       };
 
-      mockOpenAI.embeddings.create
+      mockOpenAIInstance.embeddings.create
         .mockRejectedValueOnce(rateLimitError)
         .mockRejectedValueOnce(rateLimitError)
         .mockResolvedValue({ data: [{ embedding: mockEmbedding }] });
@@ -353,7 +346,7 @@ describe("OpenAIEmbeddings", () => {
         {
           retryAttempts: 2,
           retryDelayMs: 100,
-        },
+        }
       );
 
       const rateLimitError = {
@@ -361,42 +354,37 @@ describe("OpenAIEmbeddings", () => {
         message: "Rate limit exceeded",
       };
 
-      mockOpenAI.embeddings.create.mockRejectedValue(rateLimitError);
+      mockOpenAIInstance.embeddings.create.mockRejectedValue(rateLimitError);
 
       await expect(rateLimitEmbeddings.embed("test text")).rejects.toThrow(
-        "OpenAI API rate limit exceeded after 2 retry attempts",
+        "OpenAI API rate limit exceeded after 2 retry attempts"
       );
 
       // Should try initial + 2 retries = 3 total attempts
-      expect(mockOpenAI.embeddings.create).toHaveBeenCalledTimes(3);
+      expect(mockOpenAIInstance.embeddings.create).toHaveBeenCalledTimes(3);
     });
 
     it("should handle rate limit errors in batch operations", async () => {
       const mockEmbeddings = [Array(1536).fill(0.1), Array(1536).fill(0.2)];
 
-      mockOpenAI.embeddings.create
+      mockOpenAIInstance.embeddings.create
         .mockRejectedValueOnce({ status: 429, message: "Rate limit exceeded" })
         .mockResolvedValue({
-          data: [
-            { embedding: mockEmbeddings[0] },
-            { embedding: mockEmbeddings[1] },
-          ],
+          data: [{ embedding: mockEmbeddings[0] }, { embedding: mockEmbeddings[1] }],
         });
 
       const results = await embeddings.embedBatch(["text1", "text2"]);
 
       expect(results).toHaveLength(2);
-      expect(mockOpenAI.embeddings.create).toHaveBeenCalledTimes(2);
+      expect(mockOpenAIInstance.embeddings.create).toHaveBeenCalledTimes(2);
     });
 
     it("should not retry on non-rate-limit errors", async () => {
       const apiError = new Error("Invalid API key");
-      mockOpenAI.embeddings.create.mockRejectedValue(apiError);
+      mockOpenAIInstance.embeddings.create.mockRejectedValue(apiError);
 
-      await expect(embeddings.embed("test text")).rejects.toThrow(
-        "Invalid API key",
-      );
-      expect(mockOpenAI.embeddings.create).toHaveBeenCalledTimes(1);
+      await expect(embeddings.embed("test text")).rejects.toThrow("Invalid API key");
+      expect(mockOpenAIInstance.embeddings.create).toHaveBeenCalledTimes(1);
     });
 
     it("should accept custom rate limit configuration", () => {
@@ -408,7 +396,7 @@ describe("OpenAIEmbeddings", () => {
           maxRequestsPerMinute: 1000,
           retryAttempts: 5,
           retryDelayMs: 2000,
-        },
+        }
       );
 
       expect(customEmbeddings).toBeDefined();
