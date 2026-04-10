@@ -5,9 +5,9 @@
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
-import logger from "../logger.js";
 import type { EmbeddingProvider } from "../embeddings/base.js";
 import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
+import logger from "../logger.js";
 import type { QdrantManager } from "../qdrant/client.js";
 import { CommitChunker } from "./chunker.js";
 import { GIT_INDEXING_METADATA_ID } from "./config.js";
@@ -31,7 +31,7 @@ export class GitHistoryIndexer {
   constructor(
     private qdrant: QdrantManager,
     private embeddings: EmbeddingProvider,
-    private config: GitConfig,
+    private config: GitConfig
   ) {}
 
   /**
@@ -54,7 +54,7 @@ export class GitHistoryIndexer {
   async indexHistory(
     path: string,
     options?: GitIndexOptions,
-    progressCallback?: GitProgressCallback,
+    progressCallback?: GitProgressCallback
   ): Promise<GitIndexStats> {
     const startTime = Date.now();
     const stats: GitIndexStats = {
@@ -69,10 +69,7 @@ export class GitHistoryIndexer {
     const absolutePath = await this.validatePath(path);
     const collectionName = await this.getCollectionName(absolutePath);
 
-    this.log.info(
-      { path: absolutePath, collectionName },
-      "Git indexing started",
-    );
+    this.log.info({ path: absolutePath, collectionName }, "Git indexing started");
 
     try {
       // 1. Validate repository
@@ -92,8 +89,7 @@ export class GitHistoryIndexer {
       }
 
       // 2. Create or verify collection
-      const collectionExists =
-        await this.qdrant.collectionExists(collectionName);
+      const collectionExists = await this.qdrant.collectionExists(collectionName);
 
       if (options?.forceReindex && collectionExists) {
         await this.qdrant.deleteCollection(collectionName);
@@ -105,7 +101,7 @@ export class GitHistoryIndexer {
           collectionName,
           vectorSize,
           "Cosine",
-          this.config.enableHybridSearch,
+          this.config.enableHybridSearch
         );
       }
 
@@ -165,11 +161,8 @@ export class GitHistoryIndexer {
 
           stats.commitsIndexed++;
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          stats.errors?.push(
-            `Failed to process commit ${commit.shortHash}: ${errorMessage}`,
-          );
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          stats.errors?.push(`Failed to process commit ${commit.shortHash}: ${errorMessage}`);
         }
       }
 
@@ -184,10 +177,7 @@ export class GitHistoryIndexer {
 
       // 5. Generate embeddings and store in batches
       const batchSize = this.config.batchSize;
-      this.log.debug(
-        { totalChunks: allChunks.length, batchSize },
-        "Starting embedding generation",
-      );
+      this.log.debug({ totalChunks: allChunks.length, batchSize }, "Starting embedding generation");
       for (let i = 0; i < allChunks.length; i += batchSize) {
         const batch = allChunks.slice(i, i + batchSize);
 
@@ -195,8 +185,7 @@ export class GitHistoryIndexer {
           phase: "embedding",
           current: i + batch.length,
           total: allChunks.length,
-          percentage:
-            40 + Math.round(((i + batch.length) / allChunks.length) * 30),
+          percentage: 40 + Math.round(((i + batch.length) / allChunks.length) * 30),
           message: `Generating embeddings ${i + batch.length}/${allChunks.length}`,
         });
 
@@ -204,11 +193,7 @@ export class GitHistoryIndexer {
         let lastError: Error | null = null;
         let success = false;
 
-        for (
-          let attempt = 1;
-          attempt <= this.config.batchRetryAttempts;
-          attempt++
-        ) {
+        for (let attempt = 1; attempt <= this.config.batchRetryAttempts; attempt++) {
           try {
             const texts = batch.map((b) => b.chunk.content);
             const embeddings = await this.embeddings.embedBatch(texts);
@@ -217,8 +202,7 @@ export class GitHistoryIndexer {
               phase: "storing",
               current: i + batch.length,
               total: allChunks.length,
-              percentage:
-                70 + Math.round(((i + batch.length) / allChunks.length) * 30),
+              percentage: 70 + Math.round(((i + batch.length) / allChunks.length) * 30),
               message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
             });
 
@@ -245,14 +229,9 @@ export class GitHistoryIndexer {
               const sparseGenerator = new BM25SparseVectorGenerator();
               const hybridPoints = points.map((point, idx) => ({
                 ...point,
-                sparseVector: sparseGenerator.generate(
-                  batch[idx].chunk.content,
-                ),
+                sparseVector: sparseGenerator.generate(batch[idx].chunk.content),
               }));
-              await this.qdrant.addPointsWithSparse(
-                collectionName,
-                hybridPoints,
-              );
+              await this.qdrant.addPointsWithSparse(collectionName, hybridPoints);
             } else {
               await this.qdrant.addPoints(collectionName, points);
             }
@@ -260,11 +239,10 @@ export class GitHistoryIndexer {
             success = true;
             break;
           } catch (error) {
-            lastError =
-              error instanceof Error ? error : new Error(String(error));
+            lastError = error instanceof Error ? error : new Error(String(error));
             if (attempt < this.config.batchRetryAttempts) {
               // Exponential backoff: 1s, 2s, 4s...
-              const delay = Math.pow(2, attempt - 1) * 1000;
+              const delay = 2 ** (attempt - 1) * 1000;
               await new Promise((resolve) => setTimeout(resolve, delay));
             }
           }
@@ -272,7 +250,7 @@ export class GitHistoryIndexer {
 
         if (!success && lastError) {
           stats.errors?.push(
-            `Failed to process batch at index ${i} after ${this.config.batchRetryAttempts} attempts: ${lastError.message}`,
+            `Failed to process batch at index ${i} after ${this.config.batchRetryAttempts} attempts: ${lastError.message}`
           );
           stats.status = "partial";
         }
@@ -284,8 +262,7 @@ export class GitHistoryIndexer {
         const synchronizer = new GitSynchronizer(absolutePath, collectionName);
         await synchronizer.updateSnapshot(latestHash, stats.commitsIndexed);
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         this.log.error({ err: error }, "Failed to save snapshot");
         stats.errors?.push(`Snapshot save failed: ${errorMessage}`);
       }
@@ -300,12 +277,11 @@ export class GitHistoryIndexer {
           chunksCreated: stats.chunksCreated,
           durationMs: stats.durationMs,
         },
-        "Git indexing complete",
+        "Git indexing complete"
       );
       return stats;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       stats.status = "failed";
       stats.errors?.push(`Indexing failed: ${errorMessage}`);
       stats.durationMs = Date.now() - startTime;
@@ -319,7 +295,7 @@ export class GitHistoryIndexer {
   async searchHistory(
     path: string,
     query: string,
-    options?: GitSearchOptions,
+    options?: GitSearchOptions
   ): Promise<GitSearchResult[]> {
     // Validate date range if both dates are provided
     if (options?.dateFrom && options?.dateTo) {
@@ -327,7 +303,7 @@ export class GitHistoryIndexer {
       const toDate = new Date(options.dateTo);
       if (fromDate > toDate) {
         throw new Error(
-          `Invalid date range: dateFrom (${options.dateFrom}) must be before dateTo (${options.dateTo})`,
+          `Invalid date range: dateFrom (${options.dateFrom}) must be before dateTo (${options.dateTo})`
         );
       }
     }
@@ -344,8 +320,7 @@ export class GitHistoryIndexer {
     // Check if collection has hybrid search enabled
     const collectionInfo = await this.qdrant.getCollectionInfo(collectionName);
     const useHybrid =
-      (options?.useHybrid ?? this.config.enableHybridSearch) &&
-      collectionInfo.hybridEnabled;
+      (options?.useHybrid ?? this.config.enableHybridSearch) && collectionInfo.hybridEnabled;
 
     // Generate query embedding
     const { embedding } = await this.embeddings.embed(query);
@@ -363,14 +338,14 @@ export class GitHistoryIndexer {
         embedding,
         sparseVector,
         options?.limit || this.config.defaultSearchLimit,
-        filter,
+        filter
       );
     } else {
       results = await this.qdrant.search(
         collectionName,
         embedding,
         options?.limit || this.config.defaultSearchLimit,
-        filter,
+        filter
       );
     }
 
@@ -406,19 +381,14 @@ export class GitHistoryIndexer {
     }
 
     // Check for indexing marker
-    const indexingMarker = await this.qdrant.getPoint(
-      collectionName,
-      GIT_INDEXING_METADATA_ID,
-    );
+    const indexingMarker = await this.qdrant.getPoint(collectionName, GIT_INDEXING_METADATA_ID);
     const info = await this.qdrant.getCollectionInfo(collectionName);
 
     const isComplete = indexingMarker?.payload?.indexingComplete === true;
     const isInProgress = indexingMarker?.payload?.indexingComplete === false;
 
     // Subtract 1 from points count if marker exists
-    const actualChunksCount = indexingMarker
-      ? Math.max(0, info.pointsCount - 1)
-      : info.pointsCount;
+    const actualChunksCount = indexingMarker ? Math.max(0, info.pointsCount - 1) : info.pointsCount;
 
     // Load snapshot for additional info
     const synchronizer = new GitSynchronizer(absolutePath, collectionName);
@@ -439,12 +409,8 @@ export class GitHistoryIndexer {
         status: "indexed",
         collectionName,
         chunksCount: actualChunksCount,
-        commitsCount: hasSnapshot
-          ? synchronizer.getCommitsIndexed()
-          : undefined,
-        lastCommitHash: hasSnapshot
-          ? (synchronizer.getLastCommitHash() ?? undefined)
-          : undefined,
+        commitsCount: hasSnapshot ? synchronizer.getCommitsIndexed() : undefined,
+        lastCommitHash: hasSnapshot ? (synchronizer.getLastCommitHash() ?? undefined) : undefined,
         lastIndexedAt: hasSnapshot
           ? (synchronizer.getLastIndexedAt() ?? undefined)
           : indexingMarker?.payload?.completedAt
@@ -460,12 +426,8 @@ export class GitHistoryIndexer {
         status: "indexed",
         collectionName,
         chunksCount: actualChunksCount,
-        commitsCount: hasSnapshot
-          ? synchronizer.getCommitsIndexed()
-          : undefined,
-        lastCommitHash: hasSnapshot
-          ? (synchronizer.getLastCommitHash() ?? undefined)
-          : undefined,
+        commitsCount: hasSnapshot ? synchronizer.getCommitsIndexed() : undefined,
+        lastCommitHash: hasSnapshot ? (synchronizer.getLastCommitHash() ?? undefined) : undefined,
       };
     }
 
@@ -482,7 +444,7 @@ export class GitHistoryIndexer {
    */
   async indexNewCommits(
     path: string,
-    progressCallback?: GitProgressCallback,
+    progressCallback?: GitProgressCallback
   ): Promise<GitChangeStats> {
     const startTime = Date.now();
     const stats: GitChangeStats = {
@@ -497,9 +459,7 @@ export class GitHistoryIndexer {
     // Check if collection exists
     const exists = await this.qdrant.collectionExists(collectionName);
     if (!exists) {
-      throw new Error(
-        `Git history not indexed: ${path}. Use index_git_history first.`,
-      );
+      throw new Error(`Git history not indexed: ${path}. Use index_git_history first.`);
     }
 
     // Initialize synchronizer
@@ -507,9 +467,7 @@ export class GitHistoryIndexer {
     const hasSnapshot = await synchronizer.initialize();
 
     if (!hasSnapshot) {
-      throw new Error(
-        "No previous snapshot found. Use index_git_history for initial indexing.",
-      );
+      throw new Error("No previous snapshot found. Use index_git_history for initial indexing.");
     }
 
     const lastCommitHash = synchronizer.getLastCommitHash();
@@ -576,8 +534,7 @@ export class GitHistoryIndexer {
         phase: "embedding",
         current: i + batch.length,
         total: allChunks.length,
-        percentage:
-          40 + Math.round(((i + batch.length) / allChunks.length) * 30),
+        percentage: 40 + Math.round(((i + batch.length) / allChunks.length) * 30),
         message: `Generating embeddings ${i + batch.length}/${allChunks.length}`,
       });
 
@@ -588,8 +545,7 @@ export class GitHistoryIndexer {
         phase: "storing",
         current: i + batch.length,
         total: allChunks.length,
-        percentage:
-          70 + Math.round(((i + batch.length) / allChunks.length) * 30),
+        percentage: 70 + Math.round(((i + batch.length) / allChunks.length) * 30),
         message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
       });
 
@@ -658,16 +614,12 @@ export class GitHistoryIndexer {
   /**
    * Store indexing status marker in the collection
    */
-  private async storeIndexingMarker(
-    collectionName: string,
-    complete: boolean,
-  ): Promise<void> {
+  private async storeIndexingMarker(collectionName: string, complete: boolean): Promise<void> {
     try {
       const vectorSize = this.embeddings.getDimensions();
       const zeroVector = new Array(vectorSize).fill(0);
 
-      const collectionInfo =
-        await this.qdrant.getCollectionInfo(collectionName);
+      const collectionInfo = await this.qdrant.getCollectionInfo(collectionName);
 
       const payload = {
         _type: "git_indexing_metadata",

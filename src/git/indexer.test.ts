@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GitHistoryIndexer } from "./indexer.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_GIT_CONFIG } from "./config.js";
+import { GitHistoryIndexer } from "./indexer.js";
 import type { GitConfig } from "./types.js";
 
 // Create mock instances
@@ -100,9 +100,7 @@ describe("GitHistoryIndexer", () => {
     // Reset mock instances
     mockExtractorInstance.validateRepository.mockResolvedValue(true);
     mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123def456");
-    mockExtractorInstance.getRemoteUrl.mockResolvedValue(
-      "git@github.com:test/repo.git",
-    );
+    mockExtractorInstance.getRemoteUrl.mockResolvedValue("git@github.com:test/repo.git");
     mockExtractorInstance.getCommits.mockResolvedValue([]);
     mockExtractorInstance.getCommitDiff.mockResolvedValue("");
 
@@ -138,9 +136,7 @@ describe("GitHistoryIndexer", () => {
       collectionExists: vi.fn().mockResolvedValue(false),
       createCollection: vi.fn().mockResolvedValue(undefined),
       deleteCollection: vi.fn().mockResolvedValue(undefined),
-      getCollectionInfo: vi
-        .fn()
-        .mockResolvedValue({ pointsCount: 0, hybridEnabled: false }),
+      getCollectionInfo: vi.fn().mockResolvedValue({ pointsCount: 0, hybridEnabled: false }),
       addPoints: vi.fn().mockResolvedValue(undefined),
       addPointsWithSparse: vi.fn().mockResolvedValue(undefined),
       search: vi.fn().mockResolvedValue([]),
@@ -151,9 +147,7 @@ describe("GitHistoryIndexer", () => {
     mockEmbeddings = {
       getDimensions: vi.fn().mockReturnValue(768),
       embed: vi.fn().mockResolvedValue({ embedding: Array(768).fill(0.5) }),
-      embedBatch: vi
-        .fn()
-        .mockResolvedValue([{ embedding: Array(768).fill(0.5) }]),
+      embedBatch: vi.fn().mockResolvedValue([{ embedding: Array(768).fill(0.5) }]),
     };
 
     indexer = new GitHistoryIndexer(mockQdrant, mockEmbeddings, config);
@@ -196,9 +190,7 @@ describe("GitHistoryIndexer", () => {
       const stats = await indexer.indexHistory("/not/a/repo");
 
       expect(stats.status).toBe("failed");
-      expect(
-        stats.errors?.some((e) => e.includes("Not a valid git repository")),
-      ).toBe(true);
+      expect(stats.errors?.some((e) => e.includes("Not a valid git repository"))).toBe(true);
     });
 
     it("should handle empty repository", async () => {
@@ -253,7 +245,7 @@ describe("GitHistoryIndexer", () => {
       expect(progressCallback).toHaveBeenCalledWith(
         expect.objectContaining({
           phase: expect.stringMatching(/extracting|chunking|embedding|storing/),
-        }),
+        })
       );
     });
   });
@@ -291,9 +283,9 @@ describe("GitHistoryIndexer", () => {
     it("should throw error when history not indexed", async () => {
       mockQdrant.collectionExists.mockResolvedValue(false);
 
-      await expect(
-        indexer.searchHistory("/test/repo", "query"),
-      ).rejects.toThrow("Git history not indexed");
+      await expect(indexer.searchHistory("/test/repo", "query")).rejects.toThrow(
+        "Git history not indexed"
+      );
     });
 
     it("should apply commit type filter", async () => {
@@ -314,7 +306,7 @@ describe("GitHistoryIndexer", () => {
               match: { any: ["fix", "feat"] },
             }),
           ]),
-        }),
+        })
       );
     });
 
@@ -341,7 +333,7 @@ describe("GitHistoryIndexer", () => {
               range: { lte: "2024-12-31" },
             }),
           ]),
-        }),
+        })
       );
     });
 
@@ -448,7 +440,7 @@ describe("GitHistoryIndexer", () => {
       mockSynchronizerInstance.initialize.mockResolvedValue(false);
 
       await expect(indexer.indexNewCommits("/test/repo")).rejects.toThrow(
-        "No previous snapshot found",
+        "No previous snapshot found"
       );
     });
 
@@ -484,7 +476,7 @@ describe("GitHistoryIndexer", () => {
     it("should ignore snapshot deletion errors", async () => {
       mockQdrant.collectionExists.mockResolvedValue(true);
       mockSynchronizerInstance.deleteSnapshot.mockRejectedValue(
-        new Error("Snapshot deletion failed"),
+        new Error("Snapshot deletion failed")
       );
 
       await expect(indexer.clearIndex("/test/repo")).resolves.not.toThrow();
@@ -568,7 +560,7 @@ describe("GitHistoryIndexer", () => {
               ]),
             }),
           ]),
-        }),
+        })
       );
     });
   });
@@ -593,9 +585,7 @@ describe("GitHistoryIndexer", () => {
       mockExtractorInstance.validateRepository.mockResolvedValue(true);
       mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
       mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
-      mockExtractorInstance.getCommitDiff.mockRejectedValue(
-        new Error("Diff extraction failed"),
-      );
+      mockExtractorInstance.getCommitDiff.mockRejectedValue(new Error("Diff extraction failed"));
 
       const stats = await indexer.indexHistory("/test/repo");
 
@@ -623,9 +613,7 @@ describe("GitHistoryIndexer", () => {
       mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
       mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
       mockExtractorInstance.getCommitDiff.mockResolvedValue("");
-      mockEmbeddings.embedBatch.mockRejectedValue(
-        new Error("Embedding API error"),
-      );
+      mockEmbeddings.embedBatch.mockRejectedValue(new Error("Embedding API error"));
 
       const stats = await indexer.indexHistory("/test/repo");
 
@@ -653,9 +641,7 @@ describe("GitHistoryIndexer", () => {
       mockExtractorInstance.getLatestCommitHash.mockResolvedValue("abc123");
       mockExtractorInstance.getCommits.mockResolvedValue(mockCommits);
       mockExtractorInstance.getCommitDiff.mockResolvedValue("");
-      mockSynchronizerInstance.updateSnapshot.mockRejectedValue(
-        new Error("Snapshot write failed"),
-      );
+      mockSynchronizerInstance.updateSnapshot.mockRejectedValue(new Error("Snapshot write failed"));
 
       const stats = await indexer.indexHistory("/test/repo");
 
@@ -684,11 +670,7 @@ describe("GitHistoryIndexer", () => {
         ...DEFAULT_GIT_CONFIG,
         enableHybridSearch: true,
       };
-      const hybridIndexer = new GitHistoryIndexer(
-        mockQdrant,
-        mockEmbeddings,
-        hybridConfig,
-      );
+      const hybridIndexer = new GitHistoryIndexer(mockQdrant, mockEmbeddings, hybridConfig);
 
       const mockCommits = [
         {
@@ -720,7 +702,7 @@ describe("GitHistoryIndexer", () => {
         expect.any(String),
         768,
         "Cosine",
-        true,
+        true
       );
       expect(mockQdrant.addPointsWithSparse).toHaveBeenCalled();
     });
@@ -758,7 +740,7 @@ describe("GitHistoryIndexer", () => {
       mockQdrant.collectionExists.mockResolvedValue(false);
 
       await expect(indexer.indexNewCommits("/test/repo")).rejects.toThrow(
-        "Git history not indexed",
+        "Git history not indexed"
       );
     });
 
@@ -768,7 +750,7 @@ describe("GitHistoryIndexer", () => {
       mockSynchronizerInstance.getLastCommitHash.mockReturnValue(null);
 
       await expect(indexer.indexNewCommits("/test/repo")).rejects.toThrow(
-        "Invalid snapshot: no last commit hash",
+        "Invalid snapshot: no last commit hash"
       );
     });
 
@@ -805,7 +787,7 @@ describe("GitHistoryIndexer", () => {
       expect(progressCallback).toHaveBeenCalledWith(
         expect.objectContaining({
           phase: expect.stringMatching(/extracting|chunking|embedding|storing/),
-        }),
+        })
       );
     });
 
@@ -814,11 +796,7 @@ describe("GitHistoryIndexer", () => {
         ...DEFAULT_GIT_CONFIG,
         enableHybridSearch: true,
       };
-      const hybridIndexer = new GitHistoryIndexer(
-        mockQdrant,
-        mockEmbeddings,
-        hybridConfig,
-      );
+      const hybridIndexer = new GitHistoryIndexer(mockQdrant, mockEmbeddings, hybridConfig);
 
       mockQdrant.collectionExists.mockResolvedValue(true);
 
@@ -900,9 +878,7 @@ describe("GitHistoryIndexer", () => {
       mockSynchronizerInstance.initialize.mockResolvedValue(true);
       mockSynchronizerInstance.getCommitsIndexed.mockReturnValue(100);
       mockSynchronizerInstance.getLastCommitHash.mockReturnValue("latest123");
-      mockSynchronizerInstance.getLastIndexedAt.mockReturnValue(
-        new Date("2024-01-15T10:00:00Z"),
-      );
+      mockSynchronizerInstance.getLastIndexedAt.mockReturnValue(new Date("2024-01-15T10:00:00Z"));
 
       const status = await indexer.getIndexStatus("/test/repo");
 
@@ -945,9 +921,9 @@ describe("GitHistoryIndexer", () => {
         indexer.searchHistory("/test/repo", "query", {
           dateFrom: "2024-12-31",
           dateTo: "2024-01-01",
-        }),
+        })
       ).rejects.toThrow(
-        "Invalid date range: dateFrom (2024-12-31) must be before dateTo (2024-01-01)",
+        "Invalid date range: dateFrom (2024-12-31) must be before dateTo (2024-01-01)"
       );
     });
 
@@ -1076,9 +1052,7 @@ describe("GitHistoryIndexer", () => {
       mockChunkerInstance.generateChunkId.mockReturnValue("chunk-1");
 
       // All retries fail
-      mockEmbeddings.embedBatch.mockRejectedValue(
-        new Error("Persistent error"),
-      );
+      mockEmbeddings.embedBatch.mockRejectedValue(new Error("Persistent error"));
 
       mockQdrant.collectionExists.mockResolvedValue(false);
       mockQdrant.getCollectionInfo.mockResolvedValue({ hybridEnabled: false });
@@ -1087,9 +1061,7 @@ describe("GitHistoryIndexer", () => {
 
       expect(stats.status).toBe("partial");
       expect(stats.errors).toBeDefined();
-      expect(stats.errors?.some((e) => e.includes("after 3 attempts"))).toBe(
-        true,
-      );
+      expect(stats.errors?.some((e) => e.includes("after 3 attempts"))).toBe(true);
     });
   });
 });

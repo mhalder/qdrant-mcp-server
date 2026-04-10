@@ -32,7 +32,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     name: string,
     _vectorSize: number,
     _distance: "Cosine" | "Euclid" | "Dot" = "Cosine",
-    _enableHybrid?: boolean,
+    _enableHybrid?: boolean
   ): Promise<void> {
     this.collections.set(name, {
       vectorSize: _vectorSize,
@@ -54,10 +54,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     this.points.set(collectionName, [...filtered, ...points]);
   }
 
-  async addPointsWithSparse(
-    collectionName: string,
-    points: any[],
-  ): Promise<void> {
+  async addPointsWithSparse(collectionName: string, points: any[]): Promise<void> {
     await this.addPoints(collectionName, points);
   }
 
@@ -65,7 +62,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     collectionName: string,
     _vector: number[],
     limit: number,
-    _filter?: any,
+    _filter?: any
   ): Promise<any[]> {
     const points = this.points.get(collectionName) || [];
     return points.slice(0, limit).map((p, idx) => ({
@@ -80,7 +77,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     _vector: number[],
     _sparseVector: any,
     limit: number,
-    _filter?: any,
+    _filter?: any
   ): Promise<any[]> {
     return this.search(collectionName, _vector, limit, _filter);
   }
@@ -97,7 +94,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
 
   async getPoint(
     collectionName: string,
-    id: string | number,
+    id: string | number
   ): Promise<{ id: string | number; payload?: Record<string, any> } | null> {
     const points = this.points.get(collectionName) || [];
     const point = points.find((p) => p.id === id);
@@ -110,16 +107,11 @@ class MockQdrantManager implements Partial<QdrantManager> {
     };
   }
 
-  async deletePointsByFilter(
-    collectionName: string,
-    filter: Record<string, any>,
-  ): Promise<void> {
+  async deletePointsByFilter(collectionName: string, filter: Record<string, any>): Promise<void> {
     const points = this.points.get(collectionName) || [];
     const pathToDelete = filter?.must?.[0]?.match?.value;
     if (pathToDelete) {
-      const filtered = points.filter(
-        (p) => p.payload?.relativePath !== pathToDelete,
-      );
+      const filtered = points.filter((p) => p.payload?.relativePath !== pathToDelete);
       this.points.set(collectionName, filtered);
     }
   }
@@ -134,15 +126,11 @@ class MockEmbeddingProvider implements EmbeddingProvider {
     return "mock-model";
   }
 
-  async embed(
-    _text: string,
-  ): Promise<{ embedding: number[]; dimensions: number }> {
+  async embed(_text: string): Promise<{ embedding: number[]; dimensions: number }> {
     return { embedding: new Array(384).fill(0.1), dimensions: 384 };
   }
 
-  async embedBatch(
-    texts: string[],
-  ): Promise<Array<{ embedding: number[]; dimensions: number }>> {
+  async embedBatch(texts: string[]): Promise<Array<{ embedding: number[]; dimensions: number }>> {
     return texts.map(() => ({
       embedding: new Array(384).fill(0.1),
       dimensions: 384,
@@ -162,7 +150,7 @@ describe("CodeIndexer", () => {
     // Create temporary test directory
     tempDir = join(
       tmpdir(),
-      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
     );
     codebaseDir = join(tempDir, "codebase");
     await fs.mkdir(codebaseDir, { recursive: true });
@@ -197,7 +185,7 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "hello.ts",
-        'export function hello(name: string): string {\n  console.log("Greeting user");\n  return `Hello, ${name}!`;\n}',
+        'export function hello(name: string): string {\n  console.log("Greeting user");\n  return `Hello, ${name}!`;\n}'
       );
 
       const stats = await indexer.indexCodebase(codebaseDir);
@@ -231,7 +219,7 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const configuration = {\n  apiKey: process.env.API_KEY,\n  timeout: 5000\n};",
+        "export const configuration = {\n  apiKey: process.env.API_KEY,\n  timeout: 5000\n};"
       );
 
       const createCollectionSpy = vi.spyOn(qdrant, "createCollection");
@@ -242,7 +230,7 @@ describe("CodeIndexer", () => {
         expect.stringContaining("code_"),
         384,
         "Cosine",
-        false,
+        false
       );
     });
 
@@ -250,7 +238,7 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export function calculateTotal(items: number[]): number {\n  return items.reduce((sum, item) => sum + item, 0);\n}",
+        "export function calculateTotal(items: number[]): number {\n  return items.reduce((sum, item) => sum + item, 0);\n}"
       );
 
       await indexer.indexCodebase(codebaseDir);
@@ -265,7 +253,7 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export interface User {\n  id: string;\n  name: string;\n  email: string;\n}",
+        "export interface User {\n  id: string;\n  name: string;\n  email: string;\n}"
       );
 
       const progressCallback = vi.fn();
@@ -273,16 +261,8 @@ describe("CodeIndexer", () => {
       await indexer.indexCodebase(codebaseDir, undefined, progressCallback);
 
       expect(progressCallback).toHaveBeenCalled();
-      expect(
-        progressCallback.mock.calls.some(
-          (call) => call[0].phase === "scanning",
-        ),
-      ).toBe(true);
-      expect(
-        progressCallback.mock.calls.some(
-          (call) => call[0].phase === "chunking",
-        ),
-      ).toBe(true);
+      expect(progressCallback.mock.calls.some((call) => call[0].phase === "scanning")).toBe(true);
+      expect(progressCallback.mock.calls.some((call) => call[0].phase === "chunking")).toBe(true);
     });
 
     it("should respect custom extensions", async () => {
@@ -300,7 +280,7 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "secrets.ts",
-        'const apiKey = "sk_test_FAKE_KEY_FOR_TESTING_ONLY_NOT_REAL";',
+        'const apiKey = "sk_test_FAKE_KEY_FOR_TESTING_ONLY_NOT_REAL";'
       );
 
       const stats = await indexer.indexCodebase(codebaseDir);
@@ -311,16 +291,12 @@ describe("CodeIndexer", () => {
 
     it("should enable hybrid search when configured", async () => {
       const hybridConfig = { ...config, enableHybridSearch: true };
-      const hybridIndexer = new CodeIndexer(
-        qdrant as any,
-        embeddings,
-        hybridConfig,
-      );
+      const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
 
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export class DataService {\n  async fetchData(): Promise<any[]> {\n    return [];\n  }\n}",
+        "export class DataService {\n  async fetchData(): Promise<any[]> {\n    return [];\n  }\n}"
       );
 
       const createCollectionSpy = vi.spyOn(qdrant, "createCollection");
@@ -331,7 +307,7 @@ describe("CodeIndexer", () => {
         expect.stringContaining("code_"),
         384,
         "Cosine",
-        true,
+        true
       );
     });
 
@@ -340,20 +316,16 @@ describe("CodeIndexer", () => {
 
       // Mock fs.readFile to throw error for this specific file
       const originalReadFile = fs.readFile;
-      vi.spyOn(fs, "readFile").mockImplementation(
-        async (path: any, ...args: any[]) => {
-          if (path.includes("test.ts")) {
-            throw new Error("Permission denied");
-          }
-          return originalReadFile(path, ...args);
-        },
-      );
+      vi.spyOn(fs, "readFile").mockImplementation(async (path: any, ...args: any[]) => {
+        if (path.includes("test.ts")) {
+          throw new Error("Permission denied");
+        }
+        return originalReadFile(path, ...args);
+      });
 
       const stats = await indexer.indexCodebase(codebaseDir);
 
-      expect(stats.errors?.some((e) => e.includes("Permission denied"))).toBe(
-        true,
-      );
+      expect(stats.errors?.some((e) => e.includes("Permission denied"))).toBe(true);
 
       vi.restoreAllMocks();
     });
@@ -364,7 +336,7 @@ describe("CodeIndexer", () => {
         await createTestFile(
           codebaseDir,
           `file${i}.ts`,
-          `export function test${i}() {\n  console.log('Test function ${i}');\n  return ${i};\n}`,
+          `export function test${i}() {\n  console.log('Test function ${i}');\n  return ${i};\n}`
         );
       }
 
@@ -381,7 +353,7 @@ describe("CodeIndexer", () => {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export function hello(name: string): string {\n  const greeting = `Hello, ${name}!`;\n  return greeting;\n}",
+        "export function hello(name: string): string {\n  const greeting = `Hello, ${name}!`;\n  return greeting;\n}"
       );
       await indexer.indexCodebase(codebaseDir);
     });
@@ -397,9 +369,7 @@ describe("CodeIndexer", () => {
       const nonIndexedDir = join(tempDir, "non-indexed");
       await fs.mkdir(nonIndexedDir, { recursive: true });
 
-      await expect(indexer.searchCode(nonIndexedDir, "test")).rejects.toThrow(
-        "not indexed",
-      );
+      await expect(indexer.searchCode(nonIndexedDir, "test")).rejects.toThrow("not indexed");
     });
 
     it("should respect limit option", async () => {
@@ -434,11 +404,7 @@ describe("CodeIndexer", () => {
 
     it("should use hybrid search when enabled", async () => {
       const hybridConfig = { ...config, enableHybridSearch: true };
-      const hybridIndexer = new CodeIndexer(
-        qdrant as any,
-        embeddings,
-        hybridConfig,
-      );
+      const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
 
       await createTestFile(
         codebaseDir,
@@ -455,7 +421,7 @@ function performValidation(): boolean {
 }
 function checkStatus(): boolean {
   return true;
-}`,
+}`
       );
       // Force reindex to recreate collection with hybrid search enabled
       await hybridIndexer.indexCodebase(codebaseDir, { forceReindex: true });
@@ -487,12 +453,12 @@ function checkStatus(): boolean {
       await createTestFile(
         join(codebaseDir, "src", "services"),
         "auth.ts",
-        "export function authenticate() { return true; }",
+        "export function authenticate() { return true; }"
       );
       await createTestFile(
         join(codebaseDir, "src", "utils"),
         "helpers.ts",
-        "export function authenticate() { return false; }",
+        "export function authenticate() { return false; }"
       );
       await indexer.indexCodebase(codebaseDir, { forceReindex: true });
 
@@ -519,11 +485,7 @@ function checkStatus(): boolean {
 
     it("should combine pathPattern with fileTypes filter", async () => {
       await fs.mkdir(join(codebaseDir, "src"), { recursive: true });
-      await createTestFile(
-        join(codebaseDir, "src"),
-        "code.ts",
-        "export const x = 1;",
-      );
+      await createTestFile(join(codebaseDir, "src"), "code.ts", "export const x = 1;");
       await createTestFile(join(codebaseDir, "src"), "code.py", "x = 1");
       await indexer.indexCodebase(codebaseDir, { forceReindex: true });
 
@@ -575,7 +537,7 @@ function checkStatus(): boolean {
         await createTestFile(
           codebaseDir,
           "test.ts",
-          "export const APP_CONFIG = {\n  port: 3000,\n  host: 'localhost',\n  debug: true,\n  apiUrl: 'https://api.example.com',\n  timeout: 5000\n};\nconsole.log('Config loaded');",
+          "export const APP_CONFIG = {\n  port: 3000,\n  host: 'localhost',\n  debug: true,\n  apiUrl: 'https://api.example.com',\n  timeout: 5000\n};\nconsole.log('Config loaded');"
         );
         await indexer.indexCodebase(codebaseDir);
 
@@ -591,7 +553,7 @@ function checkStatus(): boolean {
         await createTestFile(
           codebaseDir,
           "test.ts",
-          "export const value = 1;\nconsole.log('Testing timestamp');\nfunction test() { return value; }",
+          "export const value = 1;\nconsole.log('Testing timestamp');\nfunction test() { return value; }"
         );
 
         const beforeIndexing = new Date();
@@ -603,19 +565,15 @@ function checkStatus(): boolean {
         expect(status.status).toBe("indexed");
         expect(status.lastUpdated).toBeDefined();
         expect(status.lastUpdated).toBeInstanceOf(Date);
-        expect(status.lastUpdated!.getTime()).toBeGreaterThanOrEqual(
-          beforeIndexing.getTime(),
-        );
-        expect(status.lastUpdated!.getTime()).toBeLessThanOrEqual(
-          afterIndexing.getTime(),
-        );
+        expect(status.lastUpdated?.getTime()).toBeGreaterThanOrEqual(beforeIndexing.getTime());
+        expect(status.lastUpdated?.getTime()).toBeLessThanOrEqual(afterIndexing.getTime());
       });
 
       it("should return correct chunks count excluding metadata point", async () => {
         await createTestFile(
           codebaseDir,
           "test.ts",
-          "export const a = 1;\nexport const b = 2;\nconsole.log('File with content');\nfunction helper() { return a + b; }",
+          "export const a = 1;\nexport const b = 2;\nconsole.log('File with content');\nfunction helper() { return a + b; }"
         );
         await indexer.indexCodebase(codebaseDir);
 
@@ -633,7 +591,7 @@ function checkStatus(): boolean {
         await createTestFile(
           codebaseDir,
           "test.ts",
-          "export const data = { key: 'value' };\nconsole.log('Completion marker test');\nfunction process() { return data; }",
+          "export const data = { key: 'value' };\nconsole.log('Completion marker test');\nfunction process() { return data; }"
         );
         await indexer.indexCodebase(codebaseDir);
 
@@ -660,7 +618,7 @@ function checkStatus(): boolean {
         await createTestFile(
           codebaseDir,
           "test.ts",
-          "export const v1 = 'first';\nconsole.log('First indexing');\nfunction init() { return v1; }",
+          "export const v1 = 'first';\nconsole.log('First indexing');\nfunction init() { return v1; }"
         );
 
         await indexer.indexCodebase(codebaseDir);
@@ -691,7 +649,7 @@ function checkStatus(): boolean {
         await createTestFile(
           codebaseDir,
           "test.ts",
-          "export const test = true;\nconsole.log('Backwards compat test');\nfunction run() { return test; }",
+          "export const test = true;\nconsole.log('Backwards compat test');\nfunction run() { return test; }"
         );
         await indexer.indexCodebase(codebaseDir);
 
@@ -704,7 +662,7 @@ function checkStatus(): boolean {
         await createTestFile(
           codebaseDir,
           "test.ts",
-          "export const consistency = 1;\nconsole.log('Consistency check');\nfunction check() { return consistency; }",
+          "export const consistency = 1;\nconsole.log('Consistency check');\nfunction check() { return consistency; }"
         );
         await indexer.indexCodebase(codebaseDir);
 
@@ -726,26 +684,19 @@ function checkStatus(): boolean {
           await createTestFile(
             codebaseDir,
             `file${i}.ts`,
-            `export const value${i} = ${i};\nconsole.log('Processing file ${i}');\nfunction process${i}(x: number) {\n  const result = x * ${i};\n  console.log('Result:', result);\n  return result;\n}`,
+            `export const value${i} = ${i};\nconsole.log('Processing file ${i}');\nfunction process${i}(x: number) {\n  const result = x * ${i};\n  console.log('Result:', result);\n  return result;\n}`
           );
         }
 
         let statusDuringIndexing: any = null;
 
         // Use progress callback to check status mid-indexing
-        const indexingPromise = indexer.indexCodebase(
-          codebaseDir,
-          undefined,
-          async (progress) => {
-            // Check status during the embedding phase (when we know indexing is in progress)
-            if (
-              progress.phase === "embedding" &&
-              statusDuringIndexing === null
-            ) {
-              statusDuringIndexing = await indexer.getIndexStatus(codebaseDir);
-            }
-          },
-        );
+        const indexingPromise = indexer.indexCodebase(codebaseDir, undefined, async (progress) => {
+          // Check status during the embedding phase (when we know indexing is in progress)
+          if (progress.phase === "embedding" && statusDuringIndexing === null) {
+            statusDuringIndexing = await indexer.getIndexStatus(codebaseDir);
+          }
+        });
 
         await indexingPromise;
 
@@ -767,25 +718,18 @@ function checkStatus(): boolean {
           await createTestFile(
             codebaseDir,
             `module${i}.ts`,
-            `export class Module${i} {\n  constructor() {\n    console.log('Module ${i} initialized');\n  }\n  process(data: string): string {\n    return data.toUpperCase();\n  }\n}`,
+            `export class Module${i} {\n  constructor() {\n    console.log('Module ${i} initialized');\n  }\n  process(data: string): string {\n    return data.toUpperCase();\n  }\n}`
           );
         }
 
         let chunksCountDuringIndexing: number | undefined;
 
-        await indexer.indexCodebase(
-          codebaseDir,
-          undefined,
-          async (progress) => {
-            if (
-              progress.phase === "storing" &&
-              chunksCountDuringIndexing === undefined
-            ) {
-              const status = await indexer.getIndexStatus(codebaseDir);
-              chunksCountDuringIndexing = status.chunksCount;
-            }
-          },
-        );
+        await indexer.indexCodebase(codebaseDir, undefined, async (progress) => {
+          if (progress.phase === "storing" && chunksCountDuringIndexing === undefined) {
+            const status = await indexer.getIndexStatus(codebaseDir);
+            chunksCountDuringIndexing = status.chunksCount;
+          }
+        });
 
         // chunksCount during indexing should be a number (could be 0 or more depending on progress)
         if (chunksCountDuringIndexing !== undefined) {
@@ -802,7 +746,7 @@ function checkStatus(): boolean {
         await createTestFile(
           codebaseDir,
           "legacy.ts",
-          "export const legacy = true;\nconsole.log('Legacy test');\nfunction legacyFn() { return legacy; }",
+          "export const legacy = true;\nconsole.log('Legacy test');\nfunction legacyFn() { return legacy; }"
         );
         await indexer.indexCodebase(codebaseDir);
 
@@ -820,9 +764,7 @@ function checkStatus(): boolean {
 
   describe("reindexChanges", () => {
     it("should throw error if not previously indexed", async () => {
-      await expect(indexer.reindexChanges(codebaseDir)).rejects.toThrow(
-        "not indexed",
-      );
+      await expect(indexer.reindexChanges(codebaseDir)).rejects.toThrow("not indexed");
     });
 
     it("should detect and index new files", async () => {
@@ -834,7 +776,7 @@ console.log('Initial file created');
 function helper(param: string): boolean {
   console.log('Processing:', param);
   return true;
-}`,
+}`
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -861,7 +803,7 @@ function helper(param: string): boolean {
           "  console.log('Valid input');",
           "  return input.length > 5;",
           "}",
-        ].join("\n"),
+        ].join("\n")
       );
 
       const stats = await indexer.reindexChanges(codebaseDir);
@@ -874,14 +816,14 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const originalValue = 1;\nconsole.log('Original');",
+        "export const originalValue = 1;\nconsole.log('Original');"
       );
       await indexer.indexCodebase(codebaseDir);
 
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const updatedValue = 2;\nconsole.log('Updated');",
+        "export const updatedValue = 2;\nconsole.log('Updated');"
       );
 
       const stats = await indexer.reindexChanges(codebaseDir);
@@ -893,7 +835,7 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const toBeDeleted = 1;\nconsole.log('Will be deleted');",
+        "export const toBeDeleted = 1;\nconsole.log('Will be deleted');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -908,7 +850,7 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const unchangedValue = 1;\nconsole.log('No changes');",
+        "export const unchangedValue = 1;\nconsole.log('No changes');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -923,14 +865,14 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const existingValue = 1;\nconsole.log('Existing');",
+        "export const existingValue = 1;\nconsole.log('Existing');"
       );
       await indexer.indexCodebase(codebaseDir);
 
       await createTestFile(
         codebaseDir,
         "new.ts",
-        "export const newValue = 2;\nconsole.log('New file');",
+        "export const newValue = 2;\nconsole.log('New file');"
       );
 
       const progressCallback = vi.fn();
@@ -943,7 +885,7 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const originalValue = 1;\nconsole.log('Original version');",
+        "export const originalValue = 1;\nconsole.log('Original version');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -952,24 +894,21 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const modifiedValue = 2;\nconsole.log('Modified version');",
+        "export const modifiedValue = 2;\nconsole.log('Modified version');"
       );
 
       await indexer.reindexChanges(codebaseDir);
 
-      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(
-        expect.stringContaining("code_"),
-        {
-          must: [{ key: "relativePath", match: { value: "test.ts" } }],
-        },
-      );
+      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(expect.stringContaining("code_"), {
+        must: [{ key: "relativePath", match: { value: "test.ts" } }],
+      });
     });
 
     it("should delete all chunks when file is deleted", async () => {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const toDelete = 1;\nconsole.log('Will be deleted');",
+        "export const toDelete = 1;\nconsole.log('Will be deleted');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -979,24 +918,21 @@ function helper(param: string): boolean {
 
       await indexer.reindexChanges(codebaseDir);
 
-      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(
-        expect.stringContaining("code_"),
-        {
-          must: [{ key: "relativePath", match: { value: "test.ts" } }],
-        },
-      );
+      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(expect.stringContaining("code_"), {
+        must: [{ key: "relativePath", match: { value: "test.ts" } }],
+      });
     });
 
     it("should not affect chunks from unchanged files", async () => {
       await createTestFile(
         codebaseDir,
         "unchanged.ts",
-        "export const unchanged = 1;\nconsole.log('Unchanged');",
+        "export const unchanged = 1;\nconsole.log('Unchanged');"
       );
       await createTestFile(
         codebaseDir,
         "changed.ts",
-        "export const original = 2;\nconsole.log('Original');",
+        "export const original = 2;\nconsole.log('Original');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -1005,26 +941,23 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "changed.ts",
-        "export const modified = 3;\nconsole.log('Modified');",
+        "export const modified = 3;\nconsole.log('Modified');"
       );
 
       await indexer.reindexChanges(codebaseDir);
 
       // Should only delete chunks for changed.ts, not unchanged.ts
       expect(deletePointsByFilterSpy).toHaveBeenCalledTimes(1);
-      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(
-        expect.stringContaining("code_"),
-        {
-          must: [{ key: "relativePath", match: { value: "changed.ts" } }],
-        },
-      );
+      expect(deletePointsByFilterSpy).toHaveBeenCalledWith(expect.stringContaining("code_"), {
+        must: [{ key: "relativePath", match: { value: "changed.ts" } }],
+      });
     });
 
     it("should handle deletion errors gracefully", async () => {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const original = 1;\nconsole.log('Original');",
+        "export const original = 1;\nconsole.log('Original');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -1036,7 +969,7 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const modified = 2;\nconsole.log('Modified');",
+        "export const modified = 2;\nconsole.log('Modified');"
       );
 
       // Should not throw, should continue with reindexing
@@ -1073,7 +1006,7 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const configValue = 1;\nconsole.log('Config loaded');",
+        "export const configValue = 1;\nconsole.log('Config loaded');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -1091,7 +1024,7 @@ function helper(param: string): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const reindexValue = 1;\nconsole.log('Reindexing');",
+        "export const reindexValue = 1;\nconsole.log('Reindexing');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -1116,7 +1049,7 @@ function helper(param: string): boolean {
     console.log('Button clicked');
   };
   return '<button>Click me</button>';
-}`,
+}`
       );
 
       const stats = await indexer.indexCodebase(codebaseDir);
@@ -1125,11 +1058,7 @@ function helper(param: string): boolean {
     });
 
     it("should handle files with unicode content", async () => {
-      await createTestFile(
-        codebaseDir,
-        "test.ts",
-        "const greeting = '你好世界';",
-      );
+      await createTestFile(codebaseDir, "test.ts", "const greeting = '你好世界';");
 
       const stats = await indexer.indexCodebase(codebaseDir);
 
@@ -1182,19 +1111,12 @@ function helper(param: string): boolean {
         ...config,
         maxChunksPerFile: 2,
       };
-      const limitedIndexer = new CodeIndexer(
-        qdrant as any,
-        embeddings,
-        limitedConfig,
-      );
+      const limitedIndexer = new CodeIndexer(qdrant as any, embeddings, limitedConfig);
 
       // Create a large file that would generate many chunks
       const largeContent = Array(50)
         .fill(null)
-        .map(
-          (_, i) =>
-            `function test${i}() { console.log('test ${i}'); return ${i}; }`,
-        )
+        .map((_, i) => `function test${i}() { console.log('test ${i}'); return ${i}; }`)
         .join("\n\n");
 
       await createTestFile(codebaseDir, "large.ts", largeContent);
@@ -1211,18 +1133,14 @@ function helper(param: string): boolean {
         ...config,
         maxTotalChunks: 3,
       };
-      const limitedIndexer = new CodeIndexer(
-        qdrant as any,
-        embeddings,
-        limitedConfig,
-      );
+      const limitedIndexer = new CodeIndexer(qdrant as any, embeddings, limitedConfig);
 
       // Create multiple files
       for (let i = 0; i < 10; i++) {
         await createTestFile(
           codebaseDir,
           `file${i}.ts`,
-          `export function func${i}() { console.log('function ${i}'); return ${i}; }`,
+          `export function func${i}() { console.log('function ${i}'); return ${i}; }`
         );
       }
 
@@ -1238,11 +1156,7 @@ function helper(param: string): boolean {
         ...config,
         maxTotalChunks: 1,
       };
-      const limitedIndexer = new CodeIndexer(
-        qdrant as any,
-        embeddings,
-        limitedConfig,
-      );
+      const limitedIndexer = new CodeIndexer(qdrant as any, embeddings, limitedConfig);
 
       // Create a file with multiple chunks
       const content = `
@@ -1277,7 +1191,7 @@ function third() {
       await createTestFile(
         codebaseDir,
         "file1.ts",
-        "export const initial = 1;\nconsole.log('Initial');",
+        "export const initial = 1;\nconsole.log('Initial');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -1291,7 +1205,7 @@ console.log('Added file');
 export function process() {
   console.log('Processing');
   return true;
-}`,
+}`
       );
 
       const progressUpdates: string[] = [];
@@ -1319,11 +1233,7 @@ export function process() {
       // @ts-expect-error - Mocking for test
       fs.readFile = async (path: any, encoding: any) => {
         callCount++;
-        if (
-          callCount === 1 &&
-          typeof path === "string" &&
-          path.endsWith("test.ts")
-        ) {
+        if (callCount === 1 && typeof path === "string" && path.endsWith("test.ts")) {
           // Throw a non-Error object
           throw "String error";
         }
@@ -1335,9 +1245,7 @@ export function process() {
 
         // Should handle the error gracefully
         expect(stats.status).toBe("completed");
-        expect(stats.errors?.some((e) => e.includes("String error"))).toBe(
-          true,
-        );
+        expect(stats.errors?.some((e) => e.includes("String error"))).toBe(true);
       } finally {
         // Restore original function
         fs.readFile = originalReadFile;
@@ -1350,7 +1258,7 @@ export function process() {
 async function createTestFile(
   baseDir: string,
   relativePath: string,
-  content: string,
+  content: string
 ): Promise<void> {
   const fullPath = join(baseDir, relativePath);
   const dir = join(fullPath, "..");

@@ -24,10 +24,7 @@ export interface ToolDependencies {
 /**
  * Register all MCP tools on the server
  */
-export function registerAllTools(
-  server: McpServer,
-  deps: ToolDependencies,
-): void {
+export function registerAllTools(server: McpServer, deps: ToolDependencies): void {
   registerCollectionTools(server, {
     qdrant: deps.qdrant,
     embeddings: deps.embeddings,

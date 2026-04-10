@@ -40,36 +40,23 @@ describe("CohereEmbeddings", () => {
     });
 
     it("should use custom model", () => {
-      const customEmbeddings = new CohereEmbeddings(
-        "test-api-key",
-        "embed-multilingual-v3.0",
-      );
+      const customEmbeddings = new CohereEmbeddings("test-api-key", "embed-multilingual-v3.0");
       expect(customEmbeddings.getModel()).toBe("embed-multilingual-v3.0");
       expect(customEmbeddings.getDimensions()).toBe(1024);
     });
 
     it("should use custom dimensions", () => {
-      const customEmbeddings = new CohereEmbeddings(
-        "test-api-key",
-        "embed-english-v3.0",
-        512,
-      );
+      const customEmbeddings = new CohereEmbeddings("test-api-key", "embed-english-v3.0", 512);
       expect(customEmbeddings.getDimensions()).toBe(512);
     });
 
     it("should use default dimensions for light models", () => {
-      const lightEmbeddings = new CohereEmbeddings(
-        "test-api-key",
-        "embed-english-light-v3.0",
-      );
+      const lightEmbeddings = new CohereEmbeddings("test-api-key", "embed-english-light-v3.0");
       expect(lightEmbeddings.getDimensions()).toBe(384);
     });
 
     it("should default to 1024 for unknown models", () => {
-      const unknownEmbeddings = new CohereEmbeddings(
-        "test-api-key",
-        "custom-model",
-      );
+      const unknownEmbeddings = new CohereEmbeddings("test-api-key", "custom-model");
       expect(unknownEmbeddings.getDimensions()).toBe(1024);
     });
 
@@ -79,7 +66,7 @@ describe("CohereEmbeddings", () => {
         "embed-english-v3.0",
         undefined,
         undefined,
-        "search_query",
+        "search_query"
       );
       expect(searchQueryEmbeddings).toBeInstanceOf(CohereEmbeddings);
     });
@@ -130,7 +117,7 @@ describe("CohereEmbeddings", () => {
       const customEmbeddings = new CohereEmbeddings(
         "test-api-key",
         "embed-multilingual-v3.0",
-        1024,
+        1024
       );
       const mockEmbedding = Array(1024).fill(0.1);
       mockClient.embed.mockResolvedValue({
@@ -153,7 +140,7 @@ describe("CohereEmbeddings", () => {
       });
 
       await expect(embeddings.embed("test")).rejects.toThrow(
-        "No embedding returned from Cohere API",
+        "No embedding returned from Cohere API"
       );
     });
 
@@ -166,11 +153,7 @@ describe("CohereEmbeddings", () => {
 
   describe("embedBatch", () => {
     it("should generate embeddings for multiple texts", async () => {
-      const mockEmbeddings = [
-        Array(1024).fill(0.1),
-        Array(1024).fill(0.2),
-        Array(1024).fill(0.3),
-      ];
+      const mockEmbeddings = [Array(1024).fill(0.1), Array(1024).fill(0.2), Array(1024).fill(0.3)];
       mockClient.embed.mockResolvedValue({
         embeddings: mockEmbeddings,
       });
@@ -235,16 +218,14 @@ describe("CohereEmbeddings", () => {
       mockClient.embed.mockResolvedValue({});
 
       await expect(embeddings.embedBatch(["text1"])).rejects.toThrow(
-        "No embeddings returned from Cohere API",
+        "No embeddings returned from Cohere API"
       );
     });
 
     it("should propagate errors in batch", async () => {
       mockClient.embed.mockRejectedValue(new Error("Batch API Error"));
 
-      await expect(embeddings.embedBatch(["text1", "text2"])).rejects.toThrow(
-        "Batch API Error",
-      );
+      await expect(embeddings.embedBatch(["text1", "text2"])).rejects.toThrow("Batch API Error");
     });
   });
 
@@ -254,11 +235,7 @@ describe("CohereEmbeddings", () => {
     });
 
     it("should return custom dimensions", () => {
-      const customEmbeddings = new CohereEmbeddings(
-        "test-api-key",
-        "embed-english-v3.0",
-        512,
-      );
+      const customEmbeddings = new CohereEmbeddings("test-api-key", "embed-english-v3.0", 512);
       expect(customEmbeddings.getDimensions()).toBe(512);
     });
   });
@@ -269,10 +246,7 @@ describe("CohereEmbeddings", () => {
     });
 
     it("should return custom model", () => {
-      const customEmbeddings = new CohereEmbeddings(
-        "test-api-key",
-        "embed-multilingual-v3.0",
-      );
+      const customEmbeddings = new CohereEmbeddings("test-api-key", "embed-multilingual-v3.0");
       expect(customEmbeddings.getModel()).toBe("embed-multilingual-v3.0");
     });
   });
@@ -331,7 +305,7 @@ describe("CohereEmbeddings", () => {
         {
           retryAttempts: 3,
           retryDelayMs: 100,
-        },
+        }
       );
 
       const mockEmbedding = Array(1024).fill(0.5);
@@ -361,7 +335,7 @@ describe("CohereEmbeddings", () => {
         {
           retryAttempts: 2,
           retryDelayMs: 100,
-        },
+        }
       );
 
       const rateLimitError = {
@@ -372,7 +346,7 @@ describe("CohereEmbeddings", () => {
       mockClient.embed.mockRejectedValue(rateLimitError);
 
       await expect(rateLimitEmbeddings.embed("test text")).rejects.toThrow(
-        "Cohere API rate limit exceeded after 2 retry attempts",
+        "Cohere API rate limit exceeded after 2 retry attempts"
       );
 
       expect(mockClient.embed).toHaveBeenCalledTimes(3);
@@ -397,9 +371,7 @@ describe("CohereEmbeddings", () => {
       const apiError = new Error("Invalid API key");
       mockClient.embed.mockRejectedValue(apiError);
 
-      await expect(embeddings.embed("test text")).rejects.toThrow(
-        "Invalid API key",
-      );
+      await expect(embeddings.embed("test text")).rejects.toThrow("Invalid API key");
       expect(mockClient.embed).toHaveBeenCalledTimes(1);
     });
 
@@ -412,7 +384,7 @@ describe("CohereEmbeddings", () => {
           maxRequestsPerMinute: 200,
           retryAttempts: 5,
           retryDelayMs: 2000,
-        },
+        }
       );
 
       expect(customEmbeddings).toBeDefined();

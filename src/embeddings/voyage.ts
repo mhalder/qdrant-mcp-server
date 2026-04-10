@@ -1,6 +1,6 @@
 import Bottleneck from "bottleneck";
 import logger from "../logger.js";
-import { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
+import type { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
 
 interface VoyageError {
   status?: number;
@@ -32,7 +32,7 @@ export class VoyageEmbeddings implements EmbeddingProvider {
     dimensions?: number,
     rateLimitConfig?: RateLimitConfig,
     baseUrl: string = "https://api.voyageai.com/v1",
-    inputType?: "query" | "document",
+    inputType?: "query" | "document"
   ) {
     this.apiKey = apiKey;
     this.model = model;
@@ -63,20 +63,16 @@ export class VoyageEmbeddings implements EmbeddingProvider {
     });
   }
 
-  private async retryWithBackoff<T>(
-    fn: () => Promise<T>,
-    attempt: number = 0,
-  ): Promise<T> {
+  private async retryWithBackoff<T>(fn: () => Promise<T>, attempt: number = 0): Promise<T> {
     try {
       return await fn();
     } catch (error: unknown) {
       const apiError = error as VoyageError;
       const isRateLimitError =
-        apiError?.status === 429 ||
-        apiError?.message?.toLowerCase().includes("rate limit");
+        apiError?.status === 429 || apiError?.message?.toLowerCase().includes("rate limit");
 
       if (isRateLimitError && attempt < this.retryAttempts) {
-        const delayMs = this.retryDelayMs * Math.pow(2, attempt);
+        const delayMs = this.retryDelayMs * 2 ** attempt;
         const waitTimeSeconds = (delayMs / 1000).toFixed(1);
         this.log.warn(
           {
@@ -84,7 +80,7 @@ export class VoyageEmbeddings implements EmbeddingProvider {
             attempt: attempt + 1,
             maxAttempts: this.retryAttempts,
           },
-          "Rate limit reached, retrying",
+          "Rate limit reached, retrying"
         );
 
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -93,7 +89,7 @@ export class VoyageEmbeddings implements EmbeddingProvider {
 
       if (isRateLimitError) {
         throw new Error(
-          `Voyage AI API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`,
+          `Voyage AI API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`
         );
       }
 
@@ -144,7 +140,7 @@ export class VoyageEmbeddings implements EmbeddingProvider {
           embedding: response.data[0].embedding,
           dimensions: this.dimensions,
         };
-      }),
+      })
     );
   }
 
@@ -162,7 +158,7 @@ export class VoyageEmbeddings implements EmbeddingProvider {
           embedding: item.embedding,
           dimensions: this.dimensions,
         }));
-      }),
+      })
     );
   }
 

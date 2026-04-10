@@ -13,7 +13,7 @@ export class GitSynchronizer {
 
   constructor(
     private repoPath: string,
-    collectionName: string,
+    collectionName: string
   ) {
     // Store snapshots in ~/.qdrant-mcp/git-snapshots/
     const snapshotDir = join(homedir(), ".qdrant-mcp", "git-snapshots");
@@ -67,10 +67,7 @@ export class GitSynchronizer {
   /**
    * Update snapshot with new indexing state
    */
-  async updateSnapshot(
-    lastCommitHash: string,
-    commitsIndexed: number,
-  ): Promise<void> {
+  async updateSnapshot(lastCommitHash: string, commitsIndexed: number): Promise<void> {
     this.snapshot = {
       repoPath: this.repoPath,
       lastCommitHash,

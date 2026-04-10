@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { CommitChunker } from "./chunker.js";
 import { DEFAULT_GIT_CONFIG } from "./config.js";
 import type { GitConfig, RawCommit } from "./types.js";

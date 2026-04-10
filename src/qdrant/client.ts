@@ -39,8 +39,7 @@ export class QdrantManager {
     }
 
     // Check if already a valid UUID (8-4-4-4-12 format)
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(id)) {
       return id;
     }
@@ -54,12 +53,9 @@ export class QdrantManager {
     name: string,
     vectorSize: number,
     distance: "Cosine" | "Euclid" | "Dot" = "Cosine",
-    enableSparse: boolean = false,
+    enableSparse: boolean = false
   ): Promise<void> {
-    this.log.debug(
-      { collection: name, vectorSize, distance, enableSparse },
-      "createCollection",
-    );
+    this.log.debug({ collection: name, vectorSize, distance, enableSparse }, "createCollection");
     const config: any = {};
 
     // When hybrid search is enabled, use named vectors
@@ -147,12 +143,9 @@ export class QdrantManager {
       id: string | number;
       vector: number[];
       payload?: Record<string, any>;
-    }>,
+    }>
   ): Promise<void> {
-    this.log.debug(
-      { collection: collectionName, count: points.length },
-      "addPoints",
-    );
+    this.log.debug({ collection: collectionName, count: points.length }, "addPoints");
     try {
       // Normalize all IDs to ensure string IDs are in UUID format
       const normalizedPoints = points.map((point) => ({
@@ -165,11 +158,8 @@ export class QdrantManager {
         points: normalizedPoints,
       });
     } catch (error: any) {
-      const errorMessage =
-        error?.data?.status?.error || error?.message || String(error);
-      throw new Error(
-        `Failed to add points to collection "${collectionName}": ${errorMessage}`,
-      );
+      const errorMessage = error?.data?.status?.error || error?.message || String(error);
+      throw new Error(`Failed to add points to collection "${collectionName}": ${errorMessage}`);
     }
   }
 
@@ -177,7 +167,7 @@ export class QdrantManager {
     collectionName: string,
     vector: number[],
     limit: number = 5,
-    filter?: Record<string, any>,
+    filter?: Record<string, any>
   ): Promise<SearchResult[]> {
     this.log.debug({ collection: collectionName, limit }, "search");
     // Convert simple key-value filter to Qdrant filter format
@@ -218,7 +208,7 @@ export class QdrantManager {
 
   async getPoint(
     collectionName: string,
-    id: string | number,
+    id: string | number
   ): Promise<{ id: string | number; payload?: Record<string, any> } | null> {
     try {
       const normalizedId = this.normalizeId(id);
@@ -239,14 +229,8 @@ export class QdrantManager {
     }
   }
 
-  async deletePoints(
-    collectionName: string,
-    ids: (string | number)[],
-  ): Promise<void> {
-    this.log.debug(
-      { collection: collectionName, count: ids.length },
-      "deletePoints",
-    );
+  async deletePoints(collectionName: string, ids: (string | number)[]): Promise<void> {
+    this.log.debug({ collection: collectionName, count: ids.length }, "deletePoints");
     // Normalize IDs to ensure string IDs are in UUID format
     const normalizedIds = ids.map((id) => this.normalizeId(id));
 
@@ -260,10 +244,7 @@ export class QdrantManager {
    * Deletes points matching a filter condition.
    * Useful for deleting all chunks associated with a specific file path.
    */
-  async deletePointsByFilter(
-    collectionName: string,
-    filter: Record<string, any>,
-  ): Promise<void> {
+  async deletePointsByFilter(collectionName: string, filter: Record<string, any>): Promise<void> {
     this.log.debug({ collection: collectionName }, "deletePointsByFilter");
     await this.client.delete(collectionName, {
       wait: true,
@@ -281,7 +262,7 @@ export class QdrantManager {
     sparseVector: SparseVector,
     limit: number = 5,
     filter?: Record<string, any>,
-    _semanticWeight: number = 0.7,
+    _semanticWeight: number = 0.7
   ): Promise<SearchResult[]> {
     this.log.debug({ collection: collectionName, limit }, "hybridSearch");
     // Convert simple key-value filter to Qdrant filter format
@@ -332,11 +313,8 @@ export class QdrantManager {
         payload: result.payload || undefined,
       }));
     } catch (error: any) {
-      const errorMessage =
-        error?.data?.status?.error || error?.message || String(error);
-      throw new Error(
-        `Hybrid search failed on collection "${collectionName}": ${errorMessage}`,
-      );
+      const errorMessage = error?.data?.status?.error || error?.message || String(error);
+      throw new Error(`Hybrid search failed on collection "${collectionName}": ${errorMessage}`);
     }
   }
 
@@ -350,12 +328,9 @@ export class QdrantManager {
       vector: number[];
       sparseVector: SparseVector;
       payload?: Record<string, any>;
-    }>,
+    }>
   ): Promise<void> {
-    this.log.debug(
-      { collection: collectionName, count: points.length },
-      "addPointsWithSparse",
-    );
+    this.log.debug({ collection: collectionName, count: points.length }, "addPointsWithSparse");
     try {
       // Normalize all IDs to ensure string IDs are in UUID format
       const normalizedPoints = points.map((point) => ({
@@ -372,10 +347,9 @@ export class QdrantManager {
         points: normalizedPoints,
       });
     } catch (error: any) {
-      const errorMessage =
-        error?.data?.status?.error || error?.message || String(error);
+      const errorMessage = error?.data?.status?.error || error?.message || String(error);
       throw new Error(
-        `Failed to add points with sparse vectors to collection "${collectionName}": ${errorMessage}`,
+        `Failed to add points with sparse vectors to collection "${collectionName}": ${errorMessage}`
       );
     }
   }

@@ -36,58 +36,40 @@ export const AddDocumentsSchema = {
   documents: z
     .array(
       z.object({
-        id: z
-          .union([z.string(), z.number()])
-          .describe("Unique identifier for the document"),
+        id: z.union([z.string(), z.number()]).describe("Unique identifier for the document"),
         text: z.string().describe("Text content to embed and store"),
         metadata: z
           .record(z.string(), z.any())
           .optional()
           .describe("Optional metadata to store with the document"),
-      }),
+      })
     )
     .describe("Array of documents to add"),
 };
 
 export const DeleteDocumentsSchema = {
   collection: z.string().describe("Name of the collection"),
-  ids: z
-    .array(z.union([z.string(), z.number()]))
-    .describe("Array of document IDs to delete"),
+  ids: z.array(z.union([z.string(), z.number()])).describe("Array of document IDs to delete"),
 };
 
 // Search schemas
 export const SemanticSearchSchema = {
   collection: z.string().describe("Name of the collection to search"),
   query: z.string().describe("Search query text"),
-  limit: z
-    .number()
-    .optional()
-    .describe("Maximum number of results (default: 5)"),
-  filter: z
-    .record(z.string(), z.any())
-    .optional()
-    .describe("Optional metadata filter"),
+  limit: z.number().optional().describe("Maximum number of results (default: 5)"),
+  filter: z.record(z.string(), z.any()).optional().describe("Optional metadata filter"),
 };
 
 export const HybridSearchSchema = {
   collection: z.string().describe("Name of the collection to search"),
   query: z.string().describe("Search query text"),
-  limit: z
-    .number()
-    .optional()
-    .describe("Maximum number of results (default: 5)"),
-  filter: z
-    .record(z.string(), z.any())
-    .optional()
-    .describe("Optional metadata filter"),
+  limit: z.number().optional().describe("Maximum number of results (default: 5)"),
+  filter: z.record(z.string(), z.any()).optional().describe("Optional metadata filter"),
 };
 
 // Code indexing schemas
 export const IndexCodebaseSchema = {
-  path: z
-    .string()
-    .describe("Absolute or relative path to codebase root directory"),
+  path: z.string().describe("Absolute or relative path to codebase root directory"),
   forceReindex: z
     .boolean()
     .optional()
@@ -99,20 +81,13 @@ export const IndexCodebaseSchema = {
   ignorePatterns: z
     .array(z.string())
     .optional()
-    .describe(
-      "Additional patterns to ignore (e.g., ['**/test/**', '**/*.test.ts'])",
-    ),
+    .describe("Additional patterns to ignore (e.g., ['**/test/**', '**/*.test.ts'])"),
 };
 
 export const SearchCodeSchema = {
   path: z.string().describe("Path to codebase (must be indexed first)"),
-  query: z
-    .string()
-    .describe("Natural language search query (e.g., 'authentication logic')"),
-  limit: z
-    .number()
-    .optional()
-    .describe("Maximum number of results (default: 5, max: 100)"),
+  query: z.string().describe("Natural language search query (e.g., 'authentication logic')"),
+  limit: z.number().optional().describe("Maximum number of results (default: 5, max: 100)"),
   fileTypes: z
     .array(z.string())
     .optional()
@@ -145,26 +120,16 @@ export const IndexGitHistorySchema = {
   sinceDate: z
     .string()
     .optional()
-    .describe(
-      "Only index commits after this date (ISO format, e.g., '2024-01-01')",
-    ),
-  maxCommits: z
-    .number()
-    .optional()
-    .describe("Maximum number of commits to index (default: 5000)"),
+    .describe("Only index commits after this date (ISO format, e.g., '2024-01-01')"),
+  maxCommits: z.number().optional().describe("Maximum number of commits to index (default: 5000)"),
 };
 
 export const SearchGitHistorySchema = {
   path: z.string().describe("Path to git repository (must be indexed first)"),
   query: z
     .string()
-    .describe(
-      "Natural language search query (e.g., 'fix null pointer in authentication')",
-    ),
-  limit: z
-    .number()
-    .optional()
-    .describe("Maximum number of results (default: 10, max: 100)"),
+    .describe("Natural language search query (e.g., 'fix null pointer in authentication')"),
+  limit: z.number().optional().describe("Maximum number of results (default: 10, max: 100)"),
   commitTypes: z
     .array(
       z.enum([
@@ -180,22 +145,13 @@ export const SearchGitHistorySchema = {
         "ci",
         "revert",
         "other",
-      ]),
+      ])
     )
     .optional()
     .describe("Filter by commit type (e.g., ['fix', 'feat'])"),
-  authors: z
-    .array(z.string())
-    .optional()
-    .describe("Filter by author name or email"),
-  dateFrom: z
-    .string()
-    .optional()
-    .describe("Only commits after this date (ISO format)"),
-  dateTo: z
-    .string()
-    .optional()
-    .describe("Only commits before this date (ISO format)"),
+  authors: z.array(z.string()).optional().describe("Filter by author name or email"),
+  dateFrom: z.string().optional().describe("Only commits after this date (ISO format)"),
+  dateTo: z.string().optional().describe("Only commits before this date (ISO format)"),
 };
 
 export const IndexNewCommitsSchema = {
@@ -214,18 +170,10 @@ export const ClearGitIndexSchema = {
 export const ContextualSearchSchema = {
   path: z
     .string()
-    .describe(
-      "Path to git repository (must be indexed for both code and git history)",
-    ),
+    .describe("Path to git repository (must be indexed for both code and git history)"),
   query: z.string().describe("Natural language search query"),
-  codeLimit: z
-    .number()
-    .optional()
-    .describe("Maximum number of code results (default: 5)"),
-  gitLimit: z
-    .number()
-    .optional()
-    .describe("Maximum number of git history results (default: 5)"),
+  codeLimit: z.number().optional().describe("Maximum number of code results (default: 5)"),
+  gitLimit: z.number().optional().describe("Maximum number of git history results (default: 5)"),
   correlate: z
     .boolean()
     .optional()
@@ -239,10 +187,7 @@ export const FederatedSearchSchema = {
     .min(1)
     .describe("Array of repository paths to search (must all be indexed)"),
   query: z.string().describe("Natural language search query"),
-  searchType: z
-    .enum(["code", "git", "both"])
-    .optional()
-    .describe("Type of search (default: both)"),
+  searchType: z.enum(["code", "git", "both"]).optional().describe("Type of search (default: both)"),
   limit: z
     .number()
     .optional()

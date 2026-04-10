@@ -1,7 +1,7 @@
-import { CohereClient } from "cohere-ai";
 import Bottleneck from "bottleneck";
+import { CohereClient } from "cohere-ai";
 import logger from "../logger.js";
-import { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
+import type { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
 
 interface CohereError {
   status?: number;
@@ -17,11 +17,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
   private limiter: Bottleneck;
   private retryAttempts: number;
   private retryDelayMs: number;
-  private inputType:
-    | "search_document"
-    | "search_query"
-    | "classification"
-    | "clustering";
+  private inputType: "search_document" | "search_query" | "classification" | "clustering";
 
   constructor(
     apiKey: string,
@@ -32,7 +28,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
       | "search_document"
       | "search_query"
       | "classification"
-      | "clustering" = "search_document",
+      | "clustering" = "search_document"
   ) {
     this.client = new CohereClient({ token: apiKey });
     this.model = model;
@@ -62,10 +58,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
     });
   }
 
-  private async retryWithBackoff<T>(
-    fn: () => Promise<T>,
-    attempt: number = 0,
-  ): Promise<T> {
+  private async retryWithBackoff<T>(fn: () => Promise<T>, attempt: number = 0): Promise<T> {
     try {
       return await fn();
     } catch (error: unknown) {
@@ -76,7 +69,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
         apiError?.message?.toLowerCase().includes("rate limit");
 
       if (isRateLimitError && attempt < this.retryAttempts) {
-        const delayMs = this.retryDelayMs * Math.pow(2, attempt);
+        const delayMs = this.retryDelayMs * 2 ** attempt;
         const waitTimeSeconds = (delayMs / 1000).toFixed(1);
         this.log.warn(
           {
@@ -84,7 +77,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
             attempt: attempt + 1,
             maxAttempts: this.retryAttempts,
           },
-          "Rate limit reached, retrying",
+          "Rate limit reached, retrying"
         );
 
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -93,7 +86,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
 
       if (isRateLimitError) {
         throw new Error(
-          `Cohere API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`,
+          `Cohere API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`
         );
       }
 
@@ -121,7 +114,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
           embedding: embeddings[0],
           dimensions: this.dimensions,
         };
-      }),
+      })
     );
   }
 
@@ -146,7 +139,7 @@ export class CohereEmbeddings implements EmbeddingProvider {
           embedding,
           dimensions: this.dimensions,
         }));
-      }),
+      })
     );
   }
 

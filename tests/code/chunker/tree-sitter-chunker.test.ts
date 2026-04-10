@@ -126,10 +126,8 @@ def calculate_average(numbers):
       if (chunks.length > 0) {
         expect(
           chunks.some(
-            (c) =>
-              c.metadata.name === "calculate_sum" ||
-              c.metadata.name === "calculate_product",
-          ),
+            (c) => c.metadata.name === "calculate_sum" || c.metadata.name === "calculate_product"
+          )
         ).toBe(true);
       }
     });
@@ -184,11 +182,7 @@ function veryLargeFunction() {
 }
       `;
 
-      const chunks = await chunker.chunk(
-        largeFunction,
-        "test.js",
-        "javascript",
-      );
+      const chunks = await chunker.chunk(largeFunction, "test.js", "javascript");
       expect(chunks.length).toBeGreaterThan(0);
     });
 
@@ -216,13 +210,8 @@ function myFunction() {
     });
 
     it("should include file path and language", async () => {
-      const code =
-        "function test() {\n  console.log('Test function');\n  return true;\n}";
-      const chunks = await chunker.chunk(
-        code,
-        "/path/to/file.ts",
-        "typescript",
-      );
+      const code = "function test() {\n  console.log('Test function');\n  return true;\n}";
+      const chunks = await chunker.chunk(code, "/path/to/file.ts", "typescript");
 
       expect(chunks[0].metadata.filePath).toBe("/path/to/file.ts");
       expect(chunks[0].metadata.language).toBe("typescript");
@@ -337,9 +326,7 @@ trait Printable {
       expect(chunks.length).toBeGreaterThanOrEqual(0);
       // Should classify as interface type due to trait pattern
       if (chunks.length > 0) {
-        expect(chunks.some((c) => c.metadata.chunkType === "interface")).toBe(
-          true,
-        );
+        expect(chunks.some((c) => c.metadata.chunkType === "interface")).toBe(true);
       }
     });
 

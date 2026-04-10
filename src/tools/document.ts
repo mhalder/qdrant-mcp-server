@@ -3,9 +3,9 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import logger from "../logger.js";
 import type { EmbeddingProvider } from "../embeddings/base.js";
 import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
+import logger from "../logger.js";
 import type { QdrantManager } from "../qdrant/client.js";
 import { withToolLogging } from "./logging.js";
 import * as schemas from "./schemas.js";
@@ -17,10 +17,7 @@ export interface DocumentToolDependencies {
   embeddings: EmbeddingProvider;
 }
 
-export function registerDocumentTools(
-  server: McpServer,
-  deps: DocumentToolDependencies,
-): void {
+export function registerDocumentTools(server: McpServer, deps: DocumentToolDependencies): void {
   const { qdrant, embeddings } = deps;
 
   // add_documents
@@ -33,10 +30,7 @@ export function registerDocumentTools(
       inputSchema: schemas.AddDocumentsSchema,
     },
     withToolLogging("add_documents", async ({ collection, documents }) => {
-      log.info(
-        { tool: "add_documents", collection, count: documents.length },
-        "Tool called",
-      );
+      log.info({ tool: "add_documents", collection, count: documents.length }, "Tool called");
       // Check if collection exists and get info
       const exists = await qdrant.collectionExists(collection);
       if (!exists) {
@@ -69,7 +63,7 @@ export function registerDocumentTools(
               text: string;
               metadata?: Record<string, any>;
             },
-            index: number,
+            index: number
           ) => ({
             id: doc.id,
             vector: embeddingResults[index].embedding,
@@ -78,7 +72,7 @@ export function registerDocumentTools(
               text: doc.text,
               ...doc.metadata,
             },
-          }),
+          })
         );
 
         await qdrant.addPointsWithSparse(collection, points);
@@ -91,7 +85,7 @@ export function registerDocumentTools(
               text: string;
               metadata?: Record<string, any>;
             },
-            index: number,
+            index: number
           ) => ({
             id: doc.id,
             vector: embeddingResults[index].embedding,
@@ -99,7 +93,7 @@ export function registerDocumentTools(
               text: doc.text,
               ...doc.metadata,
             },
-          }),
+          })
         );
 
         await qdrant.addPoints(collection, points);
@@ -113,7 +107,7 @@ export function registerDocumentTools(
           },
         ],
       };
-    }),
+    })
   );
 
   // delete_documents
@@ -125,10 +119,7 @@ export function registerDocumentTools(
       inputSchema: schemas.DeleteDocumentsSchema,
     },
     withToolLogging("delete_documents", async ({ collection, ids }) => {
-      log.info(
-        { tool: "delete_documents", collection, count: ids.length },
-        "Tool called",
-      );
+      log.info({ tool: "delete_documents", collection, count: ids.length }, "Tool called");
       await qdrant.deletePoints(collection, ids);
       return {
         content: [
@@ -138,6 +129,6 @@ export function registerDocumentTools(
           },
         ],
       };
-    }),
+    })
   );
 }

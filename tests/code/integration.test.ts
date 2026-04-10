@@ -33,7 +33,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     name: string,
     vectorSize: number,
     distance: "Cosine" | "Euclid" | "Dot" = "Cosine",
-    enableHybrid?: boolean,
+    enableHybrid?: boolean
   ): Promise<void> {
     this.collections.set(name, {
       vectorSize,
@@ -56,10 +56,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     this.points.set(collectionName, [...filtered, ...points]);
   }
 
-  async addPointsWithSparse(
-    collectionName: string,
-    points: any[],
-  ): Promise<void> {
+  async addPointsWithSparse(collectionName: string, points: any[]): Promise<void> {
     await this.addPoints(collectionName, points);
   }
 
@@ -67,7 +64,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     collectionName: string,
     _vector: number[],
     limit: number,
-    filter?: any,
+    filter?: any
   ): Promise<any[]> {
     const points = this.points.get(collectionName) || [];
     let filtered = points;
@@ -76,9 +73,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     if (filter?.must) {
       for (const condition of filter.must) {
         if (condition.key === "fileExtension") {
-          filtered = filtered.filter((p) =>
-            condition.match.any.includes(p.payload.fileExtension),
-          );
+          filtered = filtered.filter((p) => condition.match.any.includes(p.payload.fileExtension));
         }
       }
     }
@@ -95,7 +90,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
     vector: number[],
     _sparseVector: any,
     limit: number,
-    filter?: any,
+    filter?: any
   ): Promise<any[]> {
     // Hybrid search returns similar results with slight boost
     const results = await this.search(collectionName, vector, limit, filter);
@@ -114,7 +109,7 @@ class MockQdrantManager implements Partial<QdrantManager> {
 
   async getPoint(
     collectionName: string,
-    id: string | number,
+    id: string | number
   ): Promise<{ id: string | number; payload?: Record<string, any> } | null> {
     const points = this.points.get(collectionName) || [];
     const point = points.find((p) => p.id === id);
@@ -127,16 +122,11 @@ class MockQdrantManager implements Partial<QdrantManager> {
     };
   }
 
-  async deletePointsByFilter(
-    collectionName: string,
-    filter: Record<string, any>,
-  ): Promise<void> {
+  async deletePointsByFilter(collectionName: string, filter: Record<string, any>): Promise<void> {
     const points = this.points.get(collectionName) || [];
     const pathToDelete = filter?.must?.[0]?.match?.value;
     if (pathToDelete) {
-      const filtered = points.filter(
-        (p) => p.payload?.relativePath !== pathToDelete,
-      );
+      const filtered = points.filter((p) => p.payload?.relativePath !== pathToDelete);
       this.points.set(collectionName, filtered);
     }
   }
@@ -151,20 +141,14 @@ class MockEmbeddingProvider implements EmbeddingProvider {
     return "mock-model";
   }
 
-  async embed(
-    text: string,
-  ): Promise<{ embedding: number[]; dimensions: number }> {
+  async embed(text: string): Promise<{ embedding: number[]; dimensions: number }> {
     // Simple hash-based mock embedding
-    const hash = text
-      .split("")
-      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const hash = text.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const base = (hash % 100) / 100;
     return { embedding: new Array(384).fill(base), dimensions: 384 };
   }
 
-  async embedBatch(
-    texts: string[],
-  ): Promise<Array<{ embedding: number[]; dimensions: number }>> {
+  async embedBatch(texts: string[]): Promise<Array<{ embedding: number[]; dimensions: number }>> {
     return Promise.all(texts.map((text) => this.embed(text)));
   }
 }
@@ -180,7 +164,7 @@ describe("CodeIndexer Integration Tests", () => {
   beforeEach(async () => {
     tempDir = join(
       tmpdir(),
-      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
     );
     codebaseDir = join(tempDir, "codebase");
     await fs.mkdir(codebaseDir, { recursive: true });
@@ -221,7 +205,7 @@ export class AuthService {
     return { token: 'jwt-token' };
   }
 }
-      `,
+      `
       );
 
       await createTestFile(
@@ -233,7 +217,7 @@ export class RegistrationService {
     return { id: '123', email: user.email };
   }
 }
-      `,
+      `
       );
 
       await createTestFile(
@@ -243,7 +227,7 @@ export class RegistrationService {
 export function validateEmail(email: string): boolean {
   return /^[^@]+@[^@]+\\.[^@]+$/.test(email);
 }
-      `,
+      `
       );
 
       // Index the codebase
@@ -255,10 +239,7 @@ export function validateEmail(email: string): boolean {
       expect(indexStats.status).toBe("completed");
 
       // Search for authentication-related code
-      const authResults = await indexer.searchCode(
-        codebaseDir,
-        "authentication login",
-      );
+      const authResults = await indexer.searchCode(codebaseDir, "authentication login");
 
       expect(authResults.length).toBeGreaterThan(0);
       expect(authResults[0].language).toBe("typescript");
@@ -278,7 +259,7 @@ export function validateEmail(email: string): boolean {
 import express from 'express';
 const app = express();
 app.listen(3000);
-      `,
+      `
       );
 
       await createTestFile(
@@ -287,7 +268,7 @@ app.listen(3000);
         `
 const API_URL = 'http://localhost:3000';
 fetch(API_URL).then(res => res.json());
-      `,
+      `
       );
 
       await createTestFile(
@@ -296,7 +277,7 @@ fetch(API_URL).then(res => res.json());
         `
 def process_data(data):
     return [x * 2 for x in data]
-      `,
+      `
       );
 
       const stats = await indexer.indexCodebase(codebaseDir);
@@ -322,7 +303,7 @@ console.log('First file loaded successfully');
 function init(): string {
   console.log('Initializing system');
   return 'ready';
-}`,
+}`
       );
       await createTestFile(
         codebaseDir,
@@ -332,7 +313,7 @@ console.log('Second file loaded successfully');
 function start(): string {
   console.log('Starting application');
   return 'started';
-}`,
+}`
       );
 
       const initialStats = await indexer.indexCodebase(codebaseDir);
@@ -354,7 +335,7 @@ export function process(): string {
   return status;
 }
 
-export const thirdValue = 3;`,
+export const thirdValue = 3;`
       );
 
       // Incremental update
@@ -373,7 +354,7 @@ export const thirdValue = 3;`,
       await createTestFile(
         codebaseDir,
         "config.ts",
-        "export const DEBUG_MODE = false;\nconsole.log('Debug mode off');",
+        "export const DEBUG_MODE = false;\nconsole.log('Debug mode off');"
       );
 
       await indexer.indexCodebase(codebaseDir);
@@ -382,7 +363,7 @@ export const thirdValue = 3;`,
       await createTestFile(
         codebaseDir,
         "config.ts",
-        "export const DEBUG_MODE = true;\nconsole.log('Debug mode on');",
+        "export const DEBUG_MODE = true;\nconsole.log('Debug mode on');"
       );
 
       const updateStats = await indexer.reindexChanges(codebaseDir);
@@ -395,12 +376,12 @@ export const thirdValue = 3;`,
       await createTestFile(
         codebaseDir,
         "temp.ts",
-        "export const tempValue = true;\nconsole.log('Temporary file created');\nfunction cleanup() { return null; }",
+        "export const tempValue = true;\nconsole.log('Temporary file created');\nfunction cleanup() { return null; }"
       );
       await createTestFile(
         codebaseDir,
         "keep.ts",
-        "export const keepValue = true;\nconsole.log('Permanent file stays');\nfunction maintain() { return true; }",
+        "export const keepValue = true;\nconsole.log('Permanent file stays');\nfunction maintain() { return true; }"
       );
 
       await indexer.indexCodebase(codebaseDir);
@@ -419,17 +400,17 @@ export const thirdValue = 3;`,
       await createTestFile(
         codebaseDir,
         "file1.ts",
-        "export const alpha = 1;\nconsole.log('Alpha file');",
+        "export const alpha = 1;\nconsole.log('Alpha file');"
       );
       await createTestFile(
         codebaseDir,
         "file2.ts",
-        "export const beta = 2;\nconsole.log('Beta file');",
+        "export const beta = 2;\nconsole.log('Beta file');"
       );
       await createTestFile(
         codebaseDir,
         "file3.ts",
-        "export const gamma = 3;\nconsole.log('Gamma file');",
+        "export const gamma = 3;\nconsole.log('Gamma file');"
       );
 
       await indexer.indexCodebase(codebaseDir);
@@ -438,12 +419,12 @@ export const thirdValue = 3;`,
       await createTestFile(
         codebaseDir,
         "file1.ts",
-        "export const alpha = 100;\nconsole.log('Alpha modified');",
+        "export const alpha = 100;\nconsole.log('Alpha modified');"
       ); // Modified
       await createTestFile(
         codebaseDir,
         "file4.ts",
-        "export const delta = 4;\nconsole.log('Delta file added');",
+        "export const delta = 4;\nconsole.log('Delta file added');"
       ); // Added
       await fs.unlink(join(codebaseDir, "file3.ts")); // Deleted
 
@@ -457,21 +438,9 @@ export const thirdValue = 3;`,
 
   describe("Search filtering and options", () => {
     beforeEach(async () => {
-      await createTestFile(
-        codebaseDir,
-        "users.ts",
-        "export class UserService {}",
-      );
-      await createTestFile(
-        codebaseDir,
-        "auth.ts",
-        "export class AuthService {}",
-      );
-      await createTestFile(
-        codebaseDir,
-        "utils.js",
-        "export function helper() {}",
-      );
+      await createTestFile(codebaseDir, "users.ts", "export class UserService {}");
+      await createTestFile(codebaseDir, "auth.ts", "export class AuthService {}");
+      await createTestFile(codebaseDir, "utils.js", "export function helper() {}");
       await createTestFile(codebaseDir, "data.py", "class DataProcessor: pass");
 
       await indexer.indexCodebase(codebaseDir);
@@ -506,11 +475,7 @@ export const thirdValue = 3;`,
     });
 
     it("should support path pattern filtering", async () => {
-      await createTestFile(
-        codebaseDir,
-        "src/api/endpoints.ts",
-        "export const API = {}",
-      );
+      await createTestFile(codebaseDir, "src/api/endpoints.ts", "export const API = {}");
       await indexer.indexCodebase(codebaseDir, { forceReindex: true });
 
       const results = await indexer.searchCode(codebaseDir, "export", {
@@ -524,35 +489,24 @@ export const thirdValue = 3;`,
   describe("Hybrid search workflow", () => {
     it("should enable and use hybrid search", async () => {
       const hybridConfig = { ...config, enableHybridSearch: true };
-      const hybridIndexer = new CodeIndexer(
-        qdrant as any,
-        embeddings,
-        hybridConfig,
-      );
+      const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
 
       await createTestFile(
         codebaseDir,
         "search.ts",
-        "function performSearch(query: string) { return results; }",
+        "function performSearch(query: string) { return results; }"
       );
 
       await hybridIndexer.indexCodebase(codebaseDir);
 
-      const results = await hybridIndexer.searchCode(
-        codebaseDir,
-        "search query",
-      );
+      const results = await hybridIndexer.searchCode(codebaseDir, "search query");
 
       expect(results.length).toBeGreaterThan(0);
     });
 
     it("should fallback to standard search if hybrid not available", async () => {
       const hybridConfig = { ...config, enableHybridSearch: true };
-      const hybridIndexer = new CodeIndexer(
-        qdrant as any,
-        embeddings,
-        hybridConfig,
-      );
+      const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
 
       // Index without hybrid
       await createTestFile(
@@ -563,7 +517,7 @@ console.log('Test value configured successfully');
 function validate(): boolean {
   console.log('Validating test value');
   return testValue === true;
-}`,
+}`
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -581,7 +535,7 @@ function validate(): boolean {
         await createTestFile(
           codebaseDir,
           `module${i}.ts`,
-          `export function func${i}() { return ${i}; }`,
+          `export function func${i}() { return ${i}; }`
         );
       }
 
@@ -611,12 +565,12 @@ function validate(): boolean {
       await createTestFile(
         codebaseDir,
         "valid.ts",
-        "export const validValue = true;\nconsole.log('Valid file');",
+        "export const validValue = true;\nconsole.log('Valid file');"
       );
       await createTestFile(
         codebaseDir,
         "secrets.ts",
-        'export const apiKey = "sk_test_FAKE_KEY_FOR_TESTING_NOT_REAL_KEY";\nconsole.log("Secrets file");',
+        'export const apiKey = "sk_test_FAKE_KEY_FOR_TESTING_NOT_REAL_KEY";\nconsole.log("Secrets file");'
       );
 
       const stats = await indexer.indexCodebase(codebaseDir);
@@ -631,7 +585,7 @@ function validate(): boolean {
       await createTestFile(
         codebaseDir,
         "test.ts",
-        "export const testData = true;\nconsole.log('Test data loaded');",
+        "export const testData = true;\nconsole.log('Test data loaded');"
       );
 
       const stats1 = await indexer.indexCodebase(codebaseDir);
@@ -683,7 +637,7 @@ function validate(): boolean {
         await createTestFile(
           codebaseDir,
           `component${i}.ts`,
-          `export class Component${i} {\n  private value = ${i};\n  render() {\n    console.log('Rendering component ${i}');\n    return this.value;\n  }\n}`,
+          `export class Component${i} {\n  private value = ${i};\n  render() {\n    console.log('Rendering component ${i}');\n    return this.value;\n  }\n}`
         );
       }
 
@@ -710,7 +664,7 @@ function validate(): boolean {
       await createTestFile(
         codebaseDir,
         "timestamped.ts",
-        "export const timestamp = Date.now();\nconsole.log('Timestamp test');\nfunction getTime() { return timestamp; }",
+        "export const timestamp = Date.now();\nconsole.log('Timestamp test');\nfunction getTime() { return timestamp; }"
       );
 
       const beforeIndexing = new Date();
@@ -722,12 +676,8 @@ function validate(): boolean {
       expect(status.status).toBe("indexed");
       expect(status.lastUpdated).toBeDefined();
       expect(status.lastUpdated).toBeInstanceOf(Date);
-      expect(status.lastUpdated!.getTime()).toBeGreaterThanOrEqual(
-        beforeIndexing.getTime(),
-      );
-      expect(status.lastUpdated!.getTime()).toBeLessThanOrEqual(
-        afterIndexing.getTime(),
-      );
+      expect(status.lastUpdated?.getTime()).toBeGreaterThanOrEqual(beforeIndexing.getTime());
+      expect(status.lastUpdated?.getTime()).toBeLessThanOrEqual(afterIndexing.getTime());
     });
 
     it("should correctly count chunks excluding metadata point", async () => {
@@ -736,11 +686,11 @@ function validate(): boolean {
         await createTestFile(
           codebaseDir,
           `service${i}.ts`,
-          `export class Service${i} {\n  async process(input: string): Promise<string> {\n    console.log('Processing in service ${i}:', input);\n    const result = input.toUpperCase();\n    return result;\n  }\n  async validate(data: any): Promise<boolean> {\n    console.log('Validating in service ${i}');\n    return data !== null;\n  }\n}`,
+          `export class Service${i} {\n  async process(input: string): Promise<string> {\n    console.log('Processing in service ${i}:', input);\n    const result = input.toUpperCase();\n    return result;\n  }\n  async validate(data: any): Promise<boolean> {\n    console.log('Validating in service ${i}');\n    return data !== null;\n  }\n}`
         );
       }
 
-      const stats = await indexer.indexCodebase(codebaseDir);
+      const _stats = await indexer.indexCodebase(codebaseDir);
       const status = await indexer.getIndexStatus(codebaseDir);
 
       // The chunks count in status should match what was indexed
@@ -755,7 +705,7 @@ function validate(): boolean {
       await createTestFile(
         codebaseDir,
         "reindexable.ts",
-        "export const version = 1;\nconsole.log('Version:', version);\nfunction getVersion() { return version; }",
+        "export const version = 1;\nconsole.log('Version:', version);\nfunction getVersion() { return version; }"
       );
 
       // Initial index
@@ -777,9 +727,7 @@ function validate(): boolean {
 
       // Timestamp should be updated
       if (firstTimestamp && status.lastUpdated) {
-        expect(status.lastUpdated.getTime()).toBeGreaterThanOrEqual(
-          firstTimestamp.getTime(),
-        );
+        expect(status.lastUpdated.getTime()).toBeGreaterThanOrEqual(firstTimestamp.getTime());
       }
     });
   });
@@ -790,7 +738,7 @@ function validate(): boolean {
         await createTestFile(
           codebaseDir,
           `file${i}.ts`,
-          `export const value${i} = ${i};\nconsole.log('File ${i} loaded successfully');\nfunction process${i}() { return value${i} * 2; }`,
+          `export const value${i} = ${i};\nconsole.log('File ${i} loaded successfully');\nfunction process${i}() { return value${i} * 2; }`
         );
       }
 
@@ -811,14 +759,14 @@ function validate(): boolean {
       await createTestFile(
         codebaseDir,
         "file1.ts",
-        "export const initial = 1;\nconsole.log('Initial file');",
+        "export const initial = 1;\nconsole.log('Initial file');"
       );
       await indexer.indexCodebase(codebaseDir);
 
       await createTestFile(
         codebaseDir,
         "file2.ts",
-        "export const additional = 2;\nconsole.log('Additional file');",
+        "export const additional = 2;\nconsole.log('Additional file');"
       );
 
       const progressUpdates: string[] = [];
@@ -835,17 +783,13 @@ function validate(): boolean {
   describe("Hybrid search with incremental updates", () => {
     it("should use hybrid search during reindexChanges", async () => {
       const hybridConfig = { ...config, enableHybridSearch: true };
-      const hybridIndexer = new CodeIndexer(
-        qdrant as any,
-        embeddings,
-        hybridConfig,
-      );
+      const hybridIndexer = new CodeIndexer(qdrant as any, embeddings, hybridConfig);
 
       // Initial indexing with hybrid search
       await createTestFile(
         codebaseDir,
         "initial.ts",
-        "export const initial = 1;\nconsole.log('Initial file');",
+        "export const initial = 1;\nconsole.log('Initial file');"
       );
       await hybridIndexer.indexCodebase(codebaseDir);
 
@@ -869,7 +813,7 @@ export class DataProcessor {
   process(input: string): string {
     return input.trim();
   }
-}`,
+}`
       );
 
       // Reindex with hybrid search - this should cover lines 540-545
@@ -886,7 +830,7 @@ export class DataProcessor {
       await createTestFile(
         codebaseDir,
         "file1.ts",
-        "export const value = 1;\nconsole.log('File 1');",
+        "export const value = 1;\nconsole.log('File 1');"
       );
       await indexer.indexCodebase(codebaseDir);
 
@@ -894,7 +838,7 @@ export class DataProcessor {
       await createTestFile(
         codebaseDir,
         "file2.ts",
-        "export const value2 = 2;\nconsole.log('File 2');",
+        "export const value2 = 2;\nconsole.log('File 2');"
       );
 
       // This should not throw even if there are processing errors
@@ -911,7 +855,7 @@ export class DataProcessor {
 async function createTestFile(
   baseDir: string,
   relativePath: string,
-  content: string,
+  content: string
 ): Promise<void> {
   const fullPath = join(baseDir, relativePath);
   const dir = join(fullPath, "..");

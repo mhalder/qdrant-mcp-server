@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GitSynchronizer } from "./synchronizer.js";
 
 // Mock fs module
@@ -51,9 +51,7 @@ describe("GitSynchronizer", () => {
     });
 
     it("should return false when snapshot does not exist", async () => {
-      vi.mocked(fs.readFile).mockRejectedValue(
-        new Error("ENOENT: no such file"),
-      );
+      vi.mocked(fs.readFile).mockRejectedValue(new Error("ENOENT: no such file"));
 
       const result = await synchronizer.initialize();
 
@@ -157,14 +155,13 @@ describe("GitSynchronizer", () => {
 
       await synchronizer.updateSnapshot("def456", 200);
 
-      expect(fs.mkdir).toHaveBeenCalledWith(
-        expect.stringContaining("git-snapshots"),
-        { recursive: true },
-      );
+      expect(fs.mkdir).toHaveBeenCalledWith(expect.stringContaining("git-snapshots"), {
+        recursive: true,
+      });
       // Check the file was written with correct data (JSON may be formatted)
       expect(fs.writeFile).toHaveBeenCalledWith(
         expect.stringContaining(".tmp"),
-        expect.stringMatching(/lastCommitHash.*def456/s),
+        expect.stringMatching(/lastCommitHash.*def456/s)
       );
       expect(fs.rename).toHaveBeenCalled();
 

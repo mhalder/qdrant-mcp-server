@@ -68,11 +68,7 @@ export class TreeSitterChunker implements CodeChunker {
     pyParser.setLanguage(Python as any);
     this.languages.set("python", {
       parser: pyParser,
-      chunkableTypes: [
-        "function_definition",
-        "class_definition",
-        "decorated_definition",
-      ],
+      chunkableTypes: ["function_definition", "class_definition", "decorated_definition"],
     });
 
     // Go
@@ -93,13 +89,7 @@ export class TreeSitterChunker implements CodeChunker {
     rustParser.setLanguage(Rust as any);
     this.languages.set("rust", {
       parser: rustParser,
-      chunkableTypes: [
-        "function_item",
-        "impl_item",
-        "trait_item",
-        "struct_item",
-        "enum_item",
-      ],
+      chunkableTypes: ["function_item", "impl_item", "trait_item", "struct_item", "enum_item"],
     });
 
     // Java
@@ -124,11 +114,7 @@ export class TreeSitterChunker implements CodeChunker {
     });
   }
 
-  async chunk(
-    code: string,
-    filePath: string,
-    language: string,
-  ): Promise<CodeChunk[]> {
+  async chunk(code: string, filePath: string, language: string): Promise<CodeChunk[]> {
     const langConfig = this.languages.get(language);
 
     if (!langConfig) {
@@ -141,10 +127,7 @@ export class TreeSitterChunker implements CodeChunker {
       const chunks: CodeChunk[] = [];
 
       // Find all chunkable nodes
-      const nodes = this.findChunkableNodes(
-        tree.rootNode,
-        langConfig.chunkableTypes,
-      );
+      const nodes = this.findChunkableNodes(tree.rootNode, langConfig.chunkableTypes);
 
       for (const [index, node] of nodes.entries()) {
         const content = code.substring(node.startIndex, node.endIndex);
@@ -156,11 +139,7 @@ export class TreeSitterChunker implements CodeChunker {
 
         // If chunk is too large, fall back to character chunking for this node
         if (content.length > this.config.maxChunkSize * 2) {
-          const subChunks = await this.fallbackChunker.chunk(
-            content,
-            filePath,
-            language,
-          );
+          const subChunks = await this.fallbackChunker.chunk(content, filePath, language);
           // Adjust line numbers for sub-chunks
           for (const subChunk of subChunks) {
             chunks.push({
@@ -200,7 +179,7 @@ export class TreeSitterChunker implements CodeChunker {
       // On parsing error, fallback to character-based chunking
       log.warn(
         { filePath, err: error },
-        "Tree-sitter parsing failed, falling back to character chunker",
+        "Tree-sitter parsing failed, falling back to character chunker"
       );
       return this.fallbackChunker.chunk(code, filePath, language);
     }
@@ -219,7 +198,7 @@ export class TreeSitterChunker implements CodeChunker {
    */
   private findChunkableNodes(
     node: Parser.SyntaxNode,
-    chunkableTypes: string[],
+    chunkableTypes: string[]
   ): Parser.SyntaxNode[] {
     const nodes: Parser.SyntaxNode[] = [];
 
@@ -242,10 +221,7 @@ export class TreeSitterChunker implements CodeChunker {
   /**
    * Extract function/class name from AST node
    */
-  private extractName(
-    node: Parser.SyntaxNode,
-    code: string,
-  ): string | undefined {
+  private extractName(node: Parser.SyntaxNode, code: string): string | undefined {
     // Try to find name node
     const nameNode = node.childForFieldName("name");
     if (nameNode) {
@@ -265,9 +241,7 @@ export class TreeSitterChunker implements CodeChunker {
   /**
    * Map AST node type to chunk type
    */
-  private getChunkType(
-    nodeType: string,
-  ): "function" | "class" | "interface" | "block" {
+  private getChunkType(nodeType: string): "function" | "class" | "interface" | "block" {
     if (nodeType.includes("function") || nodeType.includes("method")) {
       return "function";
     }

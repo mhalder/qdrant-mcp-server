@@ -14,7 +14,7 @@ describe("SnapshotManager", () => {
     // Create a temporary directory for test snapshots
     tempDir = join(
       tmpdir(),
-      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
     );
     await fs.mkdir(tempDir, { recursive: true });
 
@@ -177,11 +177,7 @@ describe("SnapshotManager", () => {
 
     it("should handle missing fields in snapshot", async () => {
       const snapshotPath = join(tempDir, `${collectionName}.json`);
-      await fs.writeFile(
-        snapshotPath,
-        JSON.stringify({ codebasePath: "/test" }),
-        "utf-8",
-      );
+      await fs.writeFile(snapshotPath, JSON.stringify({ codebasePath: "/test" }), "utf-8");
 
       const loaded = await snapshotManager.load();
 
@@ -376,9 +372,7 @@ describe("SnapshotManager", () => {
         const tree = new MerkleTree();
         tree.build(fileHashes);
 
-        promises.push(
-          snapshotManager.save(`/test/codebase${i}`, fileHashes, tree),
-        );
+        promises.push(snapshotManager.save(`/test/codebase${i}`, fileHashes, tree));
       }
 
       await Promise.all(promises);
@@ -395,11 +389,7 @@ describe("SnapshotManager", () => {
 
       await snapshotManager.save("/test/codebase", fileHashes, tree);
 
-      const promises = [
-        snapshotManager.load(),
-        snapshotManager.load(),
-        snapshotManager.load(),
-      ];
+      const promises = [snapshotManager.load(), snapshotManager.load(), snapshotManager.load()];
 
       const results = await Promise.all(promises);
 

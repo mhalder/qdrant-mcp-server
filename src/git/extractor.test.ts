@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GitExtractor, normalizeRemoteUrl } from "./extractor.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_GIT_CONFIG, GIT_LOG_COMMIT_DELIMITER } from "./config.js";
+import { GitExtractor, normalizeRemoteUrl } from "./extractor.js";
 import type { GitConfig } from "./types.js";
 
 // Mock child_process with promisify-compatible execFile
@@ -35,7 +35,7 @@ describe("GitExtractor", () => {
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         ["rev-parse", "--git-dir"],
-        expect.objectContaining({ cwd: "/test/repo" }),
+        expect.objectContaining({ cwd: "/test/repo" })
       );
     });
 
@@ -61,7 +61,7 @@ describe("GitExtractor", () => {
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         ["rev-parse", "HEAD"],
-        expect.objectContaining({ cwd: "/test/repo" }),
+        expect.objectContaining({ cwd: "/test/repo" })
       );
     });
   });
@@ -76,7 +76,7 @@ describe("GitExtractor", () => {
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         ["rev-list", "--count", "HEAD"],
-        expect.objectContaining({ cwd: "/test/repo" }),
+        expect.objectContaining({ cwd: "/test/repo" })
       );
     });
 
@@ -89,7 +89,7 @@ describe("GitExtractor", () => {
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         ["rev-list", "--count", "abc123..HEAD"],
-        expect.objectContaining({ cwd: "/test/repo" }),
+        expect.objectContaining({ cwd: "/test/repo" })
       );
     });
   });
@@ -202,7 +202,7 @@ describe("GitExtractor", () => {
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         expect.arrayContaining(["-n100"]),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -214,7 +214,7 @@ describe("GitExtractor", () => {
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         expect.arrayContaining(["abc123..HEAD"]),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -226,7 +226,7 @@ describe("GitExtractor", () => {
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         expect.arrayContaining(["--since=2024-01-01"]),
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -287,7 +287,7 @@ diff --git a/file.ts b/file.ts
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         ["show", "--no-color", "-p", "abc123"],
-        expect.objectContaining({ cwd: "/test/repo" }),
+        expect.objectContaining({ cwd: "/test/repo" })
       );
     });
 
@@ -326,14 +326,12 @@ diff --git a/file.ts b/file.ts
       expect(mockExecFile).toHaveBeenCalledWith(
         "git",
         ["remote", "get-url", "origin"],
-        expect.objectContaining({ cwd: "/test/repo" }),
+        expect.objectContaining({ cwd: "/test/repo" })
       );
     });
 
     it("should return empty string when no remote configured", async () => {
-      mockExecFile.mockRejectedValue(
-        new Error("fatal: No such remote 'origin'"),
-      );
+      mockExecFile.mockRejectedValue(new Error("fatal: No such remote 'origin'"));
 
       const result = await extractor.getRemoteUrl();
 
@@ -355,22 +353,16 @@ diff --git a/file.ts b/file.ts
 
 describe("normalizeRemoteUrl", () => {
   it("should normalize SSH URL", () => {
-    expect(normalizeRemoteUrl("git@github.com:user/repo.git")).toBe(
-      "user/repo",
-    );
+    expect(normalizeRemoteUrl("git@github.com:user/repo.git")).toBe("user/repo");
   });
 
   it("should normalize HTTPS URL", () => {
-    expect(normalizeRemoteUrl("https://github.com/user/repo.git")).toBe(
-      "user/repo",
-    );
+    expect(normalizeRemoteUrl("https://github.com/user/repo.git")).toBe("user/repo");
   });
 
   it("should handle URL without .git suffix", () => {
     expect(normalizeRemoteUrl("git@github.com:user/repo")).toBe("user/repo");
-    expect(normalizeRemoteUrl("https://github.com/user/repo")).toBe(
-      "user/repo",
-    );
+    expect(normalizeRemoteUrl("https://github.com/user/repo")).toBe("user/repo");
   });
 
   it("should return empty string for empty input", () => {
@@ -378,26 +370,20 @@ describe("normalizeRemoteUrl", () => {
   });
 
   it("should handle GitLab SSH URL", () => {
-    expect(normalizeRemoteUrl("git@gitlab.com:group/project.git")).toBe(
-      "group/project",
-    );
+    expect(normalizeRemoteUrl("git@gitlab.com:group/project.git")).toBe("group/project");
   });
 
   it("should handle Bitbucket SSH URL", () => {
-    expect(normalizeRemoteUrl("git@bitbucket.org:team/repo.git")).toBe(
-      "team/repo",
-    );
+    expect(normalizeRemoteUrl("git@bitbucket.org:team/repo.git")).toBe("team/repo");
   });
 
   it("should handle HTTP URL (not HTTPS)", () => {
-    expect(normalizeRemoteUrl("http://github.com/user/repo.git")).toBe(
-      "user/repo",
-    );
+    expect(normalizeRemoteUrl("http://github.com/user/repo.git")).toBe("user/repo");
   });
 
   it("should handle nested paths", () => {
-    expect(
-      normalizeRemoteUrl("https://github.com/org/group/subgroup/repo.git"),
-    ).toBe("org/group/subgroup/repo");
+    expect(normalizeRemoteUrl("https://github.com/org/group/subgroup/repo.git")).toBe(
+      "org/group/subgroup/repo"
+    );
   });
 });

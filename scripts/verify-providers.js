@@ -102,14 +102,10 @@ test("Ollama provider does not require API key", () => {
     throw new Error("Failed to create Ollama provider");
   }
   if (provider.getModel() !== "nomic-embed-text") {
-    throw new Error(
-      `Expected default model 'nomic-embed-text', got '${provider.getModel()}'`,
-    );
+    throw new Error(`Expected default model 'nomic-embed-text', got '${provider.getModel()}'`);
   }
   if (provider.getDimensions() !== 768) {
-    throw new Error(
-      `Expected default dimensions 768, got ${provider.getDimensions()}`,
-    );
+    throw new Error(`Expected default dimensions 768, got ${provider.getDimensions()}`);
   }
 });
 
@@ -124,13 +120,11 @@ test("OpenAI provider instantiates with API key", () => {
   }
   if (provider.getModel() !== "text-embedding-3-small") {
     throw new Error(
-      `Expected default model 'text-embedding-3-small', got '${provider.getModel()}'`,
+      `Expected default model 'text-embedding-3-small', got '${provider.getModel()}'`
     );
   }
   if (provider.getDimensions() !== 1536) {
-    throw new Error(
-      `Expected default dimensions 1536, got ${provider.getDimensions()}`,
-    );
+    throw new Error(`Expected default dimensions 1536, got ${provider.getDimensions()}`);
   }
 });
 
@@ -144,14 +138,10 @@ test("Cohere provider instantiates with API key", () => {
     throw new Error("Failed to create Cohere provider");
   }
   if (provider.getModel() !== "embed-english-v3.0") {
-    throw new Error(
-      `Expected default model 'embed-english-v3.0', got '${provider.getModel()}'`,
-    );
+    throw new Error(`Expected default model 'embed-english-v3.0', got '${provider.getModel()}'`);
   }
   if (provider.getDimensions() !== 1024) {
-    throw new Error(
-      `Expected default dimensions 1024, got ${provider.getDimensions()}`,
-    );
+    throw new Error(`Expected default dimensions 1024, got ${provider.getDimensions()}`);
   }
 });
 
@@ -165,14 +155,10 @@ test("Voyage AI provider instantiates with API key", () => {
     throw new Error("Failed to create Voyage AI provider");
   }
   if (provider.getModel() !== "voyage-2") {
-    throw new Error(
-      `Expected default model 'voyage-2', got '${provider.getModel()}'`,
-    );
+    throw new Error(`Expected default model 'voyage-2', got '${provider.getModel()}'`);
   }
   if (provider.getDimensions() !== 1024) {
-    throw new Error(
-      `Expected default dimensions 1024, got ${provider.getDimensions()}`,
-    );
+    throw new Error(`Expected default dimensions 1024, got ${provider.getDimensions()}`);
   }
 });
 
@@ -184,14 +170,10 @@ test("Custom model configuration works", () => {
     model: "text-embedding-3-large",
   });
   if (provider.getModel() !== "text-embedding-3-large") {
-    throw new Error(
-      `Expected model 'text-embedding-3-large', got '${provider.getModel()}'`,
-    );
+    throw new Error(`Expected model 'text-embedding-3-large', got '${provider.getModel()}'`);
   }
   if (provider.getDimensions() !== 3072) {
-    throw new Error(
-      `Expected dimensions 3072 for large model, got ${provider.getDimensions()}`,
-    );
+    throw new Error(`Expected dimensions 3072 for large model, got ${provider.getDimensions()}`);
   }
 });
 
@@ -203,9 +185,7 @@ test("Custom dimensions override works", () => {
     dimensions: 512,
   });
   if (provider.getDimensions() !== 512) {
-    throw new Error(
-      `Expected custom dimensions 512, got ${provider.getDimensions()}`,
-    );
+    throw new Error(`Expected custom dimensions 512, got ${provider.getDimensions()}`);
   }
 });
 
@@ -217,7 +197,7 @@ console.log(`Total Tests: ${results.passed + results.failed}`);
 console.log(`Passed: ${results.passed} ✅`);
 console.log(`Failed: ${results.failed} ${results.failed > 0 ? "❌" : ""}`);
 console.log(
-  `Success Rate: ${Math.round((results.passed / (results.passed + results.failed)) * 100)}%`,
+  `Success Rate: ${Math.round((results.passed / (results.passed + results.failed)) * 100)}%`
 );
 console.log("=".repeat(60));
 

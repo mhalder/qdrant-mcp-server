@@ -7,11 +7,11 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import logger from "../logger.js";
 import type { CodeIndexer } from "../code/indexer.js";
 import type { CodeSearchResult } from "../code/types.js";
 import type { GitHistoryIndexer } from "../git/indexer.js";
 import type { GitSearchResult } from "../git/types.js";
+import logger from "../logger.js";
 import { withToolLogging } from "./logging.js";
 import * as schemas from "./schemas.js";
 
@@ -85,7 +85,7 @@ export interface FederatedSearchResponse {
  */
 export function buildCorrelations(
   codeResults: CodeSearchResult[],
-  gitResults: GitSearchResult[],
+  gitResults: GitSearchResult[]
 ): CodeCommitCorrelation[] {
   const correlations: CodeCommitCorrelation[] = [];
 
@@ -95,9 +95,7 @@ export function buildCorrelations(
     // Find commits that modified this file
     for (const gitResult of gitResults) {
       // Check if any file in the commit matches the code result's file path
-      const matchesFile = gitResult.files.some((file) =>
-        pathsMatch(codeResult.filePath, file),
-      );
+      const matchesFile = gitResult.files.some((file) => pathsMatch(codeResult.filePath, file));
 
       if (matchesFile) {
         relatedCommits.push({
@@ -157,9 +155,7 @@ export function pathsMatch(path1: string, path2: string): boolean {
 /**
  * Normalize scores to [0, 1] range using min-max normalization
  */
-export function normalizeScores<T extends { score: number }>(
-  results: T[],
-): T[] {
+export function normalizeScores<T extends { score: number }>(results: T[]): T[] {
   if (results.length === 0) return [];
   if (results.length === 1) return results.map((r) => ({ ...r, score: 1 }));
 
@@ -203,7 +199,7 @@ async function performContextualSearch(
     codeLimit?: number;
     gitLimit?: number;
     correlate?: boolean;
-  },
+  }
 ): Promise<ContextualSearchResult> {
   const { path, query, codeLimit = 5, gitLimit = 5, correlate = true } = params;
 
@@ -214,15 +210,11 @@ async function performContextualSearch(
   ]);
 
   if (codeStatus.status !== "indexed") {
-    throw new Error(
-      `Code index not found for "${path}". Run index_codebase first.`,
-    );
+    throw new Error(`Code index not found for "${path}". Run index_codebase first.`);
   }
 
   if (gitStatus.status !== "indexed") {
-    throw new Error(
-      `Git history index not found for "${path}". Run index_git_history first.`,
-    );
+    throw new Error(`Git history index not found for "${path}". Run index_git_history first.`);
   }
 
   // Execute searches in parallel
@@ -232,9 +224,7 @@ async function performContextualSearch(
   ]);
 
   // Build correlations if requested
-  const correlations = correlate
-    ? buildCorrelations(codeResults, gitResults)
-    : [];
+  const correlations = correlate ? buildCorrelations(codeResults, gitResults) : [];
 
   return {
     codeResults,
@@ -261,7 +251,7 @@ async function performFederatedSearch(
     query: string;
     searchType?: "code" | "git" | "both";
     limit?: number;
-  },
+  }
 ): Promise<FederatedSearchResponse> {
   const { paths, query, searchType = "both", limit = 20 } = params;
 
@@ -306,8 +296,8 @@ async function performFederatedSearch(
               ...r,
               resultType: "code" as const,
               repoPath: path,
-            })),
-          ),
+            }))
+          )
       );
     }
 
@@ -322,8 +312,8 @@ async function performFederatedSearch(
               ...r,
               resultType: "git" as const,
               repoPath: path,
-            })),
-          ),
+            }))
+          )
       );
     }
   }
@@ -333,11 +323,10 @@ async function performFederatedSearch(
 
   // Normalize scores per result type to ensure fair comparison
   const codeResults = allResults.filter(
-    (r): r is FederatedResult & { resultType: "code" } =>
-      r.resultType === "code",
+    (r): r is FederatedResult & { resultType: "code" } => r.resultType === "code"
   );
   const gitResults = allResults.filter(
-    (r): r is FederatedResult & { resultType: "git" } => r.resultType === "git",
+    (r): r is FederatedResult & { resultType: "git" } => r.resultType === "git"
   );
 
   const normalizedCode = normalizeScores(codeResults);
@@ -353,7 +342,7 @@ async function performFederatedSearch(
     if (!groupedResults.has(key)) {
       groupedResults.set(key, []);
     }
-    groupedResults.get(key)!.push(result);
+    groupedResults.get(key)?.push(result);
   }
 
   // Sort each group by score and create rank lookup
@@ -399,10 +388,7 @@ async function performFederatedSearch(
 /**
  * Register federated search tools on the MCP server
  */
-export function registerFederatedTools(
-  server: McpServer,
-  deps: FederatedToolDependencies,
-): void {
+export function registerFederatedTools(server: McpServer, deps: FederatedToolDependencies): void {
   const { codeIndexer, gitHistoryIndexer } = deps;
 
   // contextual_search
@@ -419,16 +405,15 @@ export function registerFederatedTools(
     withToolLogging(
       "contextual_search",
       async ({ path, query, codeLimit, gitLimit, correlate }) => {
-        log.info(
-          { tool: "contextual_search", path, query: query.substring(0, 80) },
-          "Tool called",
-        );
+        log.info({ tool: "contextual_search", path, query: query.substring(0, 80) }, "Tool called");
         try {
-          const result = await performContextualSearch(
-            codeIndexer,
-            gitHistoryIndexer,
-            { path, query, codeLimit, gitLimit, correlate },
-          );
+          const result = await performContextualSearch(codeIndexer, gitHistoryIndexer, {
+            path,
+            query,
+            codeLimit,
+            gitLimit,
+            correlate,
+          });
 
           // Format output
           const sections: string[] = [];
@@ -444,7 +429,7 @@ export function registerFederatedTools(
                   r.language +
                   "\n" +
                   r.content +
-                  "\n```\n",
+                  "\n```\n"
               );
             });
           }
@@ -456,7 +441,7 @@ export function registerFederatedTools(
               sections.push(
                 `### ${idx + 1}. ${r.shortHash} - ${r.subject} (score: ${r.score.toFixed(3)})\n` +
                   `Author: ${r.author} | Date: ${r.date} | Type: ${r.commitType}\n` +
-                  `Files: ${r.files.slice(0, 5).join(", ")}${r.files.length > 5 ? ` (+${r.files.length - 5} more)` : ""}\n`,
+                  `Files: ${r.files.slice(0, 5).join(", ")}${r.files.length > 5 ? ` (+${r.files.length - 5} more)` : ""}\n`
               );
             });
           }
@@ -470,7 +455,7 @@ export function registerFederatedTools(
                 .map((commit) => `  - ${commit.shortHash}: ${commit.subject}`)
                 .join("\n");
               sections.push(
-                `**${c.codeResult.filePath}:${c.codeResult.startLine}** modified by:\n${commits}\n`,
+                `**${c.codeResult.filePath}:${c.codeResult.startLine}** modified by:\n${commits}\n`
               );
             });
           }
@@ -496,8 +481,8 @@ export function registerFederatedTools(
             isError: true,
           };
         }
-      },
-    ),
+      }
+    )
   );
 
   // federated_search
@@ -511,77 +496,72 @@ export function registerFederatedTools(
         "Supports code-only, git-only, or combined search modes.",
       inputSchema: schemas.FederatedSearchSchema,
     },
-    withToolLogging(
-      "federated_search",
-      async ({ paths, query, searchType, limit }) => {
-        log.info(
-          { tool: "federated_search", paths, query: query.substring(0, 80) },
-          "Tool called",
-        );
-        try {
-          const response = await performFederatedSearch(
-            codeIndexer,
-            gitHistoryIndexer,
-            { paths, query, searchType, limit },
-          );
+    withToolLogging("federated_search", async ({ paths, query, searchType, limit }) => {
+      log.info({ tool: "federated_search", paths, query: query.substring(0, 80) }, "Tool called");
+      try {
+        const response = await performFederatedSearch(codeIndexer, gitHistoryIndexer, {
+          paths,
+          query,
+          searchType,
+          limit,
+        });
 
-          if (response.results.length === 0) {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `No results found for query "${query}" across ${paths.length} repository(ies).`,
-                },
-              ],
-            };
-          }
-
-          // Format results
-          const sections: string[] = [
-            `# Federated Search Results\n` +
-              `Query: "${query}" | Type: ${response.metadata.searchType} | ` +
-              `Repositories: ${response.metadata.repositoriesSearched.length}\n`,
-          ];
-
-          response.results.forEach((r, idx) => {
-            if (r.resultType === "code") {
-              sections.push(
-                `## ${idx + 1}. [CODE] ${r.filePath}:${r.startLine}-${r.endLine}\n` +
-                  `Repository: ${r.repoPath} | Language: ${r.language} | Score: ${r.score.toFixed(3)}\n` +
-                  "```" +
-                  r.language +
-                  "\n" +
-                  r.content +
-                  "\n```\n",
-              );
-            } else {
-              sections.push(
-                `## ${idx + 1}. [GIT] ${r.shortHash} - ${r.subject}\n` +
-                  `Repository: ${r.repoPath} | Author: ${r.author} | Date: ${r.date} | Score: ${r.score.toFixed(3)}\n` +
-                  `Type: ${r.commitType} | Files: ${r.files.slice(0, 3).join(", ")}${r.files.length > 3 ? ` (+${r.files.length - 3} more)` : ""}\n`,
-              );
-            }
-          });
-
-          sections.push(
-            `\n---\nTotal: ${response.metadata.totalResults} result(s) from ${response.metadata.repositoriesSearched.length} repository(ies).`,
-          );
-
-          return {
-            content: [{ type: "text", text: sections.join("\n") }],
-          };
-        } catch (error) {
+        if (response.results.length === 0) {
           return {
             content: [
               {
                 type: "text",
-                text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                text: `No results found for query "${query}" across ${paths.length} repository(ies).`,
               },
             ],
-            isError: true,
           };
         }
-      },
-    ),
+
+        // Format results
+        const sections: string[] = [
+          `# Federated Search Results\n` +
+            `Query: "${query}" | Type: ${response.metadata.searchType} | ` +
+            `Repositories: ${response.metadata.repositoriesSearched.length}\n`,
+        ];
+
+        response.results.forEach((r, idx) => {
+          if (r.resultType === "code") {
+            sections.push(
+              `## ${idx + 1}. [CODE] ${r.filePath}:${r.startLine}-${r.endLine}\n` +
+                `Repository: ${r.repoPath} | Language: ${r.language} | Score: ${r.score.toFixed(3)}\n` +
+                "```" +
+                r.language +
+                "\n" +
+                r.content +
+                "\n```\n"
+            );
+          } else {
+            sections.push(
+              `## ${idx + 1}. [GIT] ${r.shortHash} - ${r.subject}\n` +
+                `Repository: ${r.repoPath} | Author: ${r.author} | Date: ${r.date} | Score: ${r.score.toFixed(3)}\n` +
+                `Type: ${r.commitType} | Files: ${r.files.slice(0, 3).join(", ")}${r.files.length > 3 ? ` (+${r.files.length - 3} more)` : ""}\n`
+            );
+          }
+        });
+
+        sections.push(
+          `\n---\nTotal: ${response.metadata.totalResults} result(s) from ${response.metadata.repositoriesSearched.length} repository(ies).`
+        );
+
+        return {
+          content: [{ type: "text", text: sections.join("\n") }],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    })
   );
 }
