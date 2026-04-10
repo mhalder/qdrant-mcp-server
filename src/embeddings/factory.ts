@@ -1,9 +1,9 @@
 import logger from "../logger.js";
-import { EmbeddingProvider, ProviderConfig } from "./base.js";
-import { OpenAIEmbeddings } from "./openai.js";
+import type { EmbeddingProvider, ProviderConfig } from "./base.js";
 import { CohereEmbeddings } from "./cohere.js";
-import { VoyageEmbeddings } from "./voyage.js";
 import { OllamaEmbeddings } from "./ollama.js";
+import { OpenAIEmbeddings } from "./openai.js";
+import { VoyageEmbeddings } from "./voyage.js";
 
 export type EmbeddingProviderType = "openai" | "cohere" | "voyage" | "ollama";
 
@@ -13,8 +13,7 @@ export interface FactoryConfig extends ProviderConfig {
 
 export class EmbeddingProviderFactory {
   static create(config: FactoryConfig): EmbeddingProvider {
-    const { provider, model, dimensions, rateLimitConfig, apiKey, baseUrl } =
-      config;
+    const { provider, model, dimensions, rateLimitConfig, apiKey, baseUrl } = config;
 
     logger.info({ provider, model }, "Creating embedding provider");
 
@@ -27,7 +26,7 @@ export class EmbeddingProviderFactory {
           apiKey,
           model || "text-embedding-3-small",
           dimensions,
-          rateLimitConfig,
+          rateLimitConfig
         );
 
       case "cohere":
@@ -38,7 +37,7 @@ export class EmbeddingProviderFactory {
           apiKey,
           model || "embed-english-v3.0",
           dimensions,
-          rateLimitConfig,
+          rateLimitConfig
         );
 
       case "voyage":
@@ -50,7 +49,7 @@ export class EmbeddingProviderFactory {
           model || "voyage-2",
           dimensions,
           rateLimitConfig,
-          baseUrl || "https://api.voyageai.com/v1",
+          baseUrl || "https://api.voyageai.com/v1"
         );
 
       case "ollama":
@@ -58,12 +57,12 @@ export class EmbeddingProviderFactory {
           model || "nomic-embed-text",
           dimensions,
           rateLimitConfig,
-          baseUrl || "http://localhost:11434",
+          baseUrl || "http://localhost:11434"
         );
 
       default:
         throw new Error(
-          `Unknown embedding provider: ${provider}. Supported providers: openai, cohere, voyage, ollama`,
+          `Unknown embedding provider: ${provider}. Supported providers: openai, cohere, voyage, ollama`
         );
     }
   }
@@ -97,9 +96,9 @@ export class EmbeddingProviderFactory {
       : undefined;
 
     // Validate dimensions
-    if (dimensions !== undefined && (isNaN(dimensions) || dimensions <= 0)) {
+    if (dimensions !== undefined && (Number.isNaN(dimensions) || dimensions <= 0)) {
       throw new Error(
-        `Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "${process.env.EMBEDDING_DIMENSIONS}"`,
+        `Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "${process.env.EMBEDDING_DIMENSIONS}"`
       );
     }
 
@@ -113,10 +112,10 @@ export class EmbeddingProviderFactory {
     // Validate maxRequestsPerMinute
     if (
       maxRequestsPerMinute !== undefined &&
-      (isNaN(maxRequestsPerMinute) || maxRequestsPerMinute <= 0)
+      (Number.isNaN(maxRequestsPerMinute) || maxRequestsPerMinute <= 0)
     ) {
       throw new Error(
-        `Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "${process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE}"`,
+        `Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "${process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE}"`
       );
     }
 
@@ -125,12 +124,9 @@ export class EmbeddingProviderFactory {
       : undefined;
 
     // Validate retryAttempts
-    if (
-      retryAttempts !== undefined &&
-      (isNaN(retryAttempts) || retryAttempts < 0)
-    ) {
+    if (retryAttempts !== undefined && (Number.isNaN(retryAttempts) || retryAttempts < 0)) {
       throw new Error(
-        `Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "${process.env.EMBEDDING_RETRY_ATTEMPTS}"`,
+        `Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "${process.env.EMBEDDING_RETRY_ATTEMPTS}"`
       );
     }
 
@@ -139,12 +135,9 @@ export class EmbeddingProviderFactory {
       : undefined;
 
     // Validate retryDelayMs
-    if (
-      retryDelayMs !== undefined &&
-      (isNaN(retryDelayMs) || retryDelayMs < 0)
-    ) {
+    if (retryDelayMs !== undefined && (Number.isNaN(retryDelayMs) || retryDelayMs < 0)) {
       throw new Error(
-        `Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "${process.env.EMBEDDING_RETRY_DELAY}"`,
+        `Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "${process.env.EMBEDDING_RETRY_DELAY}"`
       );
     }
 
@@ -154,7 +147,7 @@ export class EmbeddingProviderFactory {
       retryDelayMs,
     };
 
-    return this.create({
+    return EmbeddingProviderFactory.create({
       provider,
       model,
       dimensions,

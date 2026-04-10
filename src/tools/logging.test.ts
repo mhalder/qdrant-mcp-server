@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { withToolLogging } from "./logging.js";
 
 vi.mock("../logger.js", () => ({
@@ -45,7 +45,7 @@ describe("withToolLogging", () => {
         tool: "create_collection",
         durationMs: expect.any(Number),
       }),
-      "Tool completed",
+      "Tool completed"
     );
   });
 
@@ -65,7 +65,7 @@ describe("withToolLogging", () => {
         durationMs: expect.any(Number),
         error: "Error: Collection not found",
       }),
-      "Tool failed",
+      "Tool failed"
     );
     expect(mockLog.info).not.toHaveBeenCalled();
   });
@@ -83,7 +83,7 @@ describe("withToolLogging", () => {
         durationMs: expect.any(Number),
         err: testError,
       }),
-      "Tool threw an error",
+      "Tool threw an error"
     );
   });
 
@@ -100,7 +100,7 @@ describe("withToolLogging", () => {
         tool: "semantic_search",
         durationMs: expect.any(Number),
       }),
-      "Tool completed with no results",
+      "Tool completed with no results"
     );
     expect(mockLog.info).not.toHaveBeenCalled();
   });
@@ -115,7 +115,7 @@ describe("withToolLogging", () => {
 
     expect(mockLog.warn).toHaveBeenCalledWith(
       expect.objectContaining({ tool: "hybrid_search" }),
-      "Tool completed with no results",
+      "Tool completed with no results"
     );
   });
 
@@ -129,7 +129,7 @@ describe("withToolLogging", () => {
 
     expect(mockLog.warn).toHaveBeenCalledWith(
       expect.objectContaining({ tool: "search_code" }),
-      "Tool completed with no results",
+      "Tool completed with no results"
     );
   });
 
@@ -144,7 +144,7 @@ describe("withToolLogging", () => {
     // Should log info, not warn, because get_index_status is not a search tool
     expect(mockLog.info).toHaveBeenCalledWith(
       expect.objectContaining({ tool: "get_index_status" }),
-      "Tool completed",
+      "Tool completed"
     );
     expect(mockLog.warn).not.toHaveBeenCalled();
   });
@@ -159,7 +159,7 @@ describe("withToolLogging", () => {
 
     expect(mockLog.info).toHaveBeenCalledWith(
       expect.objectContaining({ tool: "search_code" }),
-      "Tool completed",
+      "Tool completed"
     );
     expect(mockLog.warn).not.toHaveBeenCalled();
   });
@@ -200,7 +200,7 @@ describe("withToolLogging", () => {
 
     expect(mockLog.warn).toHaveBeenCalledWith(
       expect.objectContaining({ tool: "search_git_history" }),
-      "Tool completed with no results",
+      "Tool completed with no results"
     );
   });
 });

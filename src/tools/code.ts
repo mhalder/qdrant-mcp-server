@@ -3,8 +3,8 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import logger from "../logger.js";
 import type { CodeIndexer } from "../code/indexer.js";
+import logger from "../logger.js";
 import { withToolLogging } from "./logging.js";
 import * as schemas from "./schemas.js";
 
@@ -14,10 +14,7 @@ export interface CodeToolDependencies {
   codeIndexer: CodeIndexer;
 }
 
-export function registerCodeTools(
-  server: McpServer,
-  deps: CodeToolDependencies,
-): void {
+export function registerCodeTools(server: McpServer, deps: CodeToolDependencies): void {
   const { codeIndexer } = deps;
 
   // index_codebase
@@ -39,10 +36,7 @@ export function registerCodeTools(
           path,
           { forceReindex, extensions, ignorePatterns },
           (progress) => {
-            log.debug(
-              { phase: progress.phase, percentage: progress.percentage },
-              progress.message,
-            );
+            log.debug({ phase: progress.phase, percentage: progress.percentage }, progress.message);
             if (progressToken !== undefined) {
               extra.sendNotification({
                 method: "notifications/progress",
@@ -54,7 +48,7 @@ export function registerCodeTools(
                 },
               });
             }
-          },
+          }
         );
 
         let statusMessage = `Indexed ${stats.filesIndexed}/${stats.filesScanned} files (${stats.chunksCreated} chunks) in ${(stats.durationMs / 1000).toFixed(1)}s`;
@@ -69,8 +63,8 @@ export function registerCodeTools(
           content: [{ type: "text", text: statusMessage }],
           isError: stats.status === "failed",
         };
-      },
-    ),
+      }
+    )
   );
 
   // search_code
@@ -82,48 +76,40 @@ export function registerCodeTools(
         "Search indexed codebase using natural language queries. Returns semantically relevant code chunks with file paths and line numbers.",
       inputSchema: schemas.SearchCodeSchema,
     },
-    withToolLogging(
-      "search_code",
-      async ({ path, query, limit, fileTypes, pathPattern }) => {
-        log.info(
-          { tool: "search_code", path, query: query.substring(0, 80) },
-          "Tool called",
-        );
-        const results = await codeIndexer.searchCode(path, query, {
-          limit,
-          fileTypes,
-          pathPattern,
-        });
+    withToolLogging("search_code", async ({ path, query, limit, fileTypes, pathPattern }) => {
+      log.info({ tool: "search_code", path, query: query.substring(0, 80) }, "Tool called");
+      const results = await codeIndexer.searchCode(path, query, {
+        limit,
+        fileTypes,
+        pathPattern,
+      });
 
-        if (results.length === 0) {
-          return {
-            content: [
-              { type: "text", text: `No results found for query: "${query}"` },
-            ],
-          };
-        }
-
-        // Format results with file references
-        const formattedResults = results
-          .map(
-            (r, idx) =>
-              `\n--- Result ${idx + 1} (score: ${r.score.toFixed(3)}) ---\n` +
-              `File: ${r.filePath}:${r.startLine}-${r.endLine}\n` +
-              `Language: ${r.language}\n\n` +
-              `${r.content}\n`,
-          )
-          .join("\n");
-
+      if (results.length === 0) {
         return {
-          content: [
-            {
-              type: "text",
-              text: `Found ${results.length} result(s):\n${formattedResults}`,
-            },
-          ],
+          content: [{ type: "text", text: `No results found for query: "${query}"` }],
         };
-      },
-    ),
+      }
+
+      // Format results with file references
+      const formattedResults = results
+        .map(
+          (r, idx) =>
+            `\n--- Result ${idx + 1} (score: ${r.score.toFixed(3)}) ---\n` +
+            `File: ${r.filePath}:${r.startLine}-${r.endLine}\n` +
+            `Language: ${r.language}\n\n` +
+            `${r.content}\n`
+        )
+        .join("\n");
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Found ${results.length} result(s):\n${formattedResults}`,
+          },
+        ],
+      };
+    })
   );
 
   // reindex_changes
@@ -140,10 +126,7 @@ export function registerCodeTools(
       const progressToken = extra._meta?.progressToken;
 
       const stats = await codeIndexer.reindexChanges(path, (progress) => {
-        log.debug(
-          { phase: progress.phase, percentage: progress.percentage },
-          progress.message,
-        );
+        log.debug({ phase: progress.phase, percentage: progress.percentage }, progress.message);
         if (progressToken !== undefined) {
           extra.sendNotification({
             method: "notifications/progress",
@@ -164,18 +147,14 @@ export function registerCodeTools(
       message += `- Chunks added: ${stats.chunksAdded}\n`;
       message += `- Duration: ${(stats.durationMs / 1000).toFixed(1)}s`;
 
-      if (
-        stats.filesAdded === 0 &&
-        stats.filesModified === 0 &&
-        stats.filesDeleted === 0
-      ) {
+      if (stats.filesAdded === 0 && stats.filesModified === 0 && stats.filesDeleted === 0) {
         message = `No changes detected. Codebase is up to date.`;
       }
 
       return {
         content: [{ type: "text", text: message }],
       };
-    }),
+    })
   );
 
   // get_index_status
@@ -215,7 +194,7 @@ export function registerCodeTools(
       return {
         content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
       };
-    }),
+    })
   );
 
   // clear_index
@@ -231,10 +210,8 @@ export function registerCodeTools(
       log.info({ tool: "clear_index", path }, "Tool called");
       await codeIndexer.clearIndex(path);
       return {
-        content: [
-          { type: "text", text: `Index cleared for codebase at "${path}".` },
-        ],
+        content: [{ type: "text", text: `Index cleared for codebase at "${path}".` }],
       };
-    }),
+    })
   );
 }

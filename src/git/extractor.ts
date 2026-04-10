@@ -5,11 +5,7 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import {
-  GIT_LOG_COMMIT_DELIMITER,
-  GIT_LOG_FORMAT,
-  GIT_MAX_BUFFER,
-} from "./config.js";
+import { GIT_LOG_COMMIT_DELIMITER, GIT_LOG_FORMAT, GIT_MAX_BUFFER } from "./config.js";
 import type { GitConfig, GitExtractOptions, RawCommit } from "./types.js";
 
 const execFileAsync = promisify(execFile);
@@ -34,7 +30,7 @@ export function normalizeRemoteUrl(url: string): string {
 export class GitExtractor {
   constructor(
     private repoPath: string,
-    private config: GitConfig,
+    private config: GitConfig
   ) {}
 
   /**
@@ -70,15 +66,11 @@ export class GitExtractor {
    */
   async getRemoteUrl(): Promise<string> {
     try {
-      const { stdout } = await execFileAsync(
-        "git",
-        ["remote", "get-url", "origin"],
-        {
-          cwd: this.repoPath,
-          maxBuffer: GIT_MAX_BUFFER,
-          timeout: this.config.gitTimeout,
-        },
-      );
+      const { stdout } = await execFileAsync("git", ["remote", "get-url", "origin"], {
+        cwd: this.repoPath,
+        maxBuffer: GIT_MAX_BUFFER,
+        timeout: this.config.gitTimeout,
+      });
       return stdout.trim();
     } catch {
       return ""; // No remote configured
@@ -144,15 +136,11 @@ export class GitExtractor {
    */
   async getCommitDiff(commitHash: string): Promise<string> {
     try {
-      const { stdout } = await execFileAsync(
-        "git",
-        ["show", "--no-color", "-p", commitHash],
-        {
-          cwd: this.repoPath,
-          maxBuffer: GIT_MAX_BUFFER,
-          timeout: this.config.gitTimeout,
-        },
-      );
+      const { stdout } = await execFileAsync("git", ["show", "--no-color", "-p", commitHash], {
+        cwd: this.repoPath,
+        maxBuffer: GIT_MAX_BUFFER,
+        timeout: this.config.gitTimeout,
+      });
 
       // Truncate diff if it exceeds maxDiffSize
       if (stdout.length > this.config.maxDiffSize) {
@@ -204,15 +192,7 @@ export class GitExtractor {
 
     if (parts.length < 6) return null;
 
-    const [
-      hash,
-      shortHash,
-      author,
-      authorEmail,
-      dateStr,
-      subject,
-      ...bodyParts
-    ] = parts;
+    const [hash, shortHash, author, authorEmail, dateStr, subject, ...bodyParts] = parts;
 
     // Parse files and stats from numstat output
     const { files, insertions, deletions } = this.parseNumstat(lines.slice(1));
@@ -266,9 +246,7 @@ export class GitExtractor {
         if (filename.includes(" => ")) {
           const renameParts = filename.match(/(.+)\{(.+) => (.+)\}(.+)?/);
           if (renameParts) {
-            files.push(
-              `${renameParts[1]}${renameParts[3]}${renameParts[4] || ""}`,
-            );
+            files.push(`${renameParts[1]}${renameParts[3]}${renameParts[4] || ""}`);
           } else {
             const simpleRename = filename.split(" => ");
             files.push(simpleRename[1] || filename);

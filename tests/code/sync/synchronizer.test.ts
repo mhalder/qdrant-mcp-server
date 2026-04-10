@@ -14,7 +14,7 @@ describe("FileSynchronizer", () => {
     // Create temporary directories for testing
     tempDir = join(
       tmpdir(),
-      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      `qdrant-mcp-test-${Date.now()}-${Math.random().toString(36).substring(7)}`
     );
     codebaseDir = join(tempDir, "codebase");
     await fs.mkdir(codebaseDir, { recursive: true });
@@ -34,12 +34,7 @@ describe("FileSynchronizer", () => {
 
     // Clean up snapshot file
     try {
-      const snapshotPath = join(
-        homedir(),
-        ".qdrant-mcp",
-        "snapshots",
-        `${collectionName}.json`,
-      );
+      const snapshotPath = join(homedir(), ".qdrant-mcp", "snapshots", `${collectionName}.json`);
       await fs.rm(snapshotPath, { force: true });
     } catch (_error) {
       // Ignore cleanup errors
@@ -88,11 +83,7 @@ describe("FileSynchronizer", () => {
 
       await synchronizer.updateSnapshot(["file1.ts", "file2.ts"]);
 
-      const newSync = new FileSynchronizer(
-        codebaseDir,
-        collectionName,
-        tempDir,
-      );
+      const newSync = new FileSynchronizer(codebaseDir, collectionName, tempDir);
       const hasSnapshot = await newSync.initialize();
 
       expect(hasSnapshot).toBe(true);
@@ -147,10 +138,7 @@ describe("FileSynchronizer", () => {
       await createFile(codebaseDir, "file1.ts", "content1");
       await createFile(codebaseDir, "file2.ts", "content2");
 
-      const changes = await synchronizer.detectChanges([
-        "file1.ts",
-        "file2.ts",
-      ]);
+      const changes = await synchronizer.detectChanges(["file1.ts", "file2.ts"]);
 
       expect(changes.added).toContain("file1.ts");
       expect(changes.added).toContain("file2.ts");
@@ -198,10 +186,7 @@ describe("FileSynchronizer", () => {
 
       // Delete file2
 
-      const changes = await synchronizer.detectChanges([
-        "file1.ts",
-        "file3.ts",
-      ]);
+      const changes = await synchronizer.detectChanges(["file1.ts", "file3.ts"]);
 
       expect(changes.added).toEqual(["file3.ts"]);
       expect(changes.modified).toEqual(["file1.ts"]);
@@ -223,10 +208,7 @@ describe("FileSynchronizer", () => {
       await createFile(codebaseDir, "file1.ts", "content1");
       await createFile(codebaseDir, "file2.ts", "content2");
 
-      const changes = await synchronizer.detectChanges([
-        "file1.ts",
-        "file2.ts",
-      ]);
+      const changes = await synchronizer.detectChanges(["file1.ts", "file2.ts"]);
 
       expect(changes.added).toContain("file1.ts");
       expect(changes.added).toContain("file2.ts");
@@ -276,10 +258,7 @@ describe("FileSynchronizer", () => {
 
       await synchronizer.updateSnapshot(["file1.ts", "file2.ts"]);
 
-      const changes = await synchronizer.detectChanges([
-        "file1.ts",
-        "file2.ts",
-      ]);
+      const changes = await synchronizer.detectChanges(["file1.ts", "file2.ts"]);
 
       expect(changes.added).toEqual([]);
       expect(changes.modified).toEqual([]);
@@ -336,9 +315,7 @@ describe("FileSynchronizer", () => {
 
       await synchronizer.updateSnapshot(["src/components/Button.tsx"]);
 
-      const changes = await synchronizer.detectChanges([
-        "src/components/Button.tsx",
-      ]);
+      const changes = await synchronizer.detectChanges(["src/components/Button.tsx"]);
 
       expect(changes.modified).toEqual([]);
     });
@@ -498,10 +475,7 @@ describe("FileSynchronizer", () => {
 
       await createFile(codebaseDir, "file2.ts", "content2");
 
-      const needsReindex = await synchronizer.needsReindex([
-        "file1.ts",
-        "file2.ts",
-      ]);
+      const needsReindex = await synchronizer.needsReindex(["file1.ts", "file2.ts"]);
 
       expect(needsReindex).toBe(true);
     });
@@ -565,11 +539,7 @@ describe("FileSynchronizer", () => {
 });
 
 // Helper function to create files in the test codebase
-async function createFile(
-  baseDir: string,
-  relativePath: string,
-  content: string,
-): Promise<void> {
+async function createFile(baseDir: string, relativePath: string, content: string): Promise<void> {
   const fullPath = join(baseDir, relativePath);
   const dir = join(fullPath, "..");
   await fs.mkdir(dir, { recursive: true });

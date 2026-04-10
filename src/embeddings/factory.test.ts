@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { EmbeddingProviderFactory, type FactoryConfig } from "./factory.js";
-import { OpenAIEmbeddings } from "./openai.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CohereEmbeddings } from "./cohere.js";
-import { VoyageEmbeddings } from "./voyage.js";
+import { EmbeddingProviderFactory } from "./factory.js";
 import { OllamaEmbeddings } from "./ollama.js";
+import { OpenAIEmbeddings } from "./openai.js";
+import { VoyageEmbeddings } from "./voyage.js";
 
 vi.mock("../logger.js", () => ({
   default: {
@@ -36,7 +36,7 @@ describe("EmbeddingProviderFactory", () => {
         expect(() =>
           EmbeddingProviderFactory.create({
             provider: "unknown" as any,
-          }),
+          })
         ).toThrow("Unknown embedding provider: unknown");
       });
 
@@ -44,7 +44,7 @@ describe("EmbeddingProviderFactory", () => {
         expect(() =>
           EmbeddingProviderFactory.create({
             provider: "invalid" as any,
-          }),
+          })
         ).toThrow("openai, cohere, voyage, ollama");
       });
     });
@@ -54,7 +54,7 @@ describe("EmbeddingProviderFactory", () => {
         expect(() =>
           EmbeddingProviderFactory.create({
             provider: "openai",
-          }),
+          })
         ).toThrow("API key is required for OpenAI provider");
       });
 
@@ -110,7 +110,7 @@ describe("EmbeddingProviderFactory", () => {
         expect(() =>
           EmbeddingProviderFactory.create({
             provider: "cohere",
-          }),
+          })
         ).toThrow("API key is required for Cohere provider");
       });
 
@@ -151,7 +151,7 @@ describe("EmbeddingProviderFactory", () => {
         expect(() =>
           EmbeddingProviderFactory.create({
             provider: "voyage",
-          }),
+          })
         ).toThrow("API key is required for Voyage AI provider");
       });
 
@@ -357,7 +357,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_DIMENSIONS = "not-a-number";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "not-a-number"',
+          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "not-a-number"'
         );
       });
 
@@ -367,7 +367,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_DIMENSIONS = "-100";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "-100"',
+          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "-100"'
         );
       });
 
@@ -377,7 +377,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_DIMENSIONS = "0";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "0"',
+          'Invalid EMBEDDING_DIMENSIONS: must be a positive integer, got "0"'
         );
       });
 
@@ -387,7 +387,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE = "invalid";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "invalid"',
+          'Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "invalid"'
         );
       });
 
@@ -397,7 +397,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_MAX_REQUESTS_PER_MINUTE = "-50";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "-50"',
+          'Invalid EMBEDDING_MAX_REQUESTS_PER_MINUTE: must be a positive integer, got "-50"'
         );
       });
 
@@ -407,7 +407,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_RETRY_ATTEMPTS = "abc";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "abc"',
+          'Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "abc"'
         );
       });
 
@@ -417,7 +417,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_RETRY_ATTEMPTS = "-5";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "-5"',
+          'Invalid EMBEDDING_RETRY_ATTEMPTS: must be a non-negative integer, got "-5"'
         );
       });
 
@@ -427,7 +427,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_RETRY_DELAY = "xyz";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "xyz"',
+          'Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "xyz"'
         );
       });
 
@@ -437,7 +437,7 @@ describe("EmbeddingProviderFactory", () => {
         process.env.EMBEDDING_RETRY_DELAY = "-1000";
 
         expect(() => EmbeddingProviderFactory.createFromEnv()).toThrow(
-          'Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "-1000"',
+          'Invalid EMBEDDING_RETRY_DELAY: must be a non-negative integer, got "-1000"'
         );
       });
 

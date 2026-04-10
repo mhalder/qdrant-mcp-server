@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OllamaEmbeddings } from "./ollama.js";
 
 // Mock fetch globally
@@ -54,7 +54,7 @@ describe("OllamaEmbeddings", () => {
         "nomic-embed-text",
         undefined,
         undefined,
-        "http://custom:11434",
+        "http://custom:11434"
       );
       expect(customEmbeddings).toBeDefined();
     });
@@ -89,19 +89,16 @@ describe("OllamaEmbeddings", () => {
         embedding: mockEmbedding,
         dimensions: 768,
       });
-      expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:11434/api/embeddings",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "nomic-embed-text",
-            prompt: "test text",
-          }),
+      expect(mockFetch).toHaveBeenCalledWith("http://localhost:11434/api/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          model: "nomic-embed-text",
+          prompt: "test text",
+        }),
+      });
     });
 
     it("should handle long text", async () => {
@@ -124,7 +121,7 @@ describe("OllamaEmbeddings", () => {
         "nomic-embed-text",
         undefined,
         undefined,
-        "http://custom:11434",
+        "http://custom:11434"
       );
 
       const mockEmbedding = Array(768).fill(0.1);
@@ -139,7 +136,7 @@ describe("OllamaEmbeddings", () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         "http://custom:11434/api/embeddings",
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -150,7 +147,7 @@ describe("OllamaEmbeddings", () => {
       });
 
       await expect(embeddings.embed("test")).rejects.toThrow(
-        "No embedding returned from Ollama API",
+        "No embedding returned from Ollama API"
       );
     });
 
@@ -181,7 +178,7 @@ describe("OllamaEmbeddings", () => {
       await expect(embeddings.embed(longText)).rejects.toThrow(
         expect.objectContaining({
           message: expect.stringContaining("Text preview:"),
-        }),
+        })
       );
     });
 
@@ -189,7 +186,7 @@ describe("OllamaEmbeddings", () => {
       mockFetch.mockRejectedValue("Connection refused");
 
       await expect(embeddings.embed("test")).rejects.toThrow(
-        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text",
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text"
       );
     });
 
@@ -198,27 +195,21 @@ describe("OllamaEmbeddings", () => {
         message: "Custom error message",
       });
 
-      await expect(embeddings.embed("test")).rejects.toThrow(
-        "Custom error message",
-      );
+      await expect(embeddings.embed("test")).rejects.toThrow("Custom error message");
     });
 
     it("should handle non-Error objects in catch block", async () => {
       mockFetch.mockRejectedValue({ code: "ERR_UNKNOWN", details: "info" });
 
       await expect(embeddings.embed("test")).rejects.toThrow(
-        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text",
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text"
       );
     });
   });
 
   describe("embedBatch", () => {
     it("should generate embeddings for multiple texts in parallel", async () => {
-      const mockEmbeddings = [
-        Array(768).fill(0.1),
-        Array(768).fill(0.2),
-        Array(768).fill(0.3),
-      ];
+      const mockEmbeddings = [Array(768).fill(0.1), Array(768).fill(0.2), Array(768).fill(0.3)];
 
       // Mock sequential calls for each text
       mockEmbeddings.forEach((embedding) => {
@@ -290,9 +281,7 @@ describe("OllamaEmbeddings", () => {
         })
         .mockRejectedValueOnce(new Error("Batch API Error"));
 
-      await expect(embeddings.embedBatch(["text1", "text2"])).rejects.toThrow(
-        "Batch API Error",
-      );
+      await expect(embeddings.embedBatch(["text1", "text2"])).rejects.toThrow("Batch API Error");
     });
 
     it("should handle partial failures in batch", async () => {
@@ -378,14 +367,10 @@ describe("OllamaEmbeddings", () => {
     });
 
     it("should use exponential backoff with faster default delay", async () => {
-      const rateLimitEmbeddings = new OllamaEmbeddings(
-        "nomic-embed-text",
-        undefined,
-        {
-          retryAttempts: 3,
-          retryDelayMs: 100,
-        },
-      );
+      const rateLimitEmbeddings = new OllamaEmbeddings("nomic-embed-text", undefined, {
+        retryAttempts: 3,
+        retryDelayMs: 100,
+      });
 
       const mockEmbedding = Array(768).fill(0.5);
 
@@ -414,14 +399,10 @@ describe("OllamaEmbeddings", () => {
     });
 
     it("should throw error after max retries exceeded", async () => {
-      const rateLimitEmbeddings = new OllamaEmbeddings(
-        "nomic-embed-text",
-        undefined,
-        {
-          retryAttempts: 2,
-          retryDelayMs: 100,
-        },
-      );
+      const rateLimitEmbeddings = new OllamaEmbeddings("nomic-embed-text", undefined, {
+        retryAttempts: 2,
+        retryDelayMs: 100,
+      });
 
       mockFetch.mockResolvedValue({
         ok: false,
@@ -430,7 +411,7 @@ describe("OllamaEmbeddings", () => {
       });
 
       await expect(rateLimitEmbeddings.embed("test text")).rejects.toThrow(
-        "Ollama API rate limit exceeded after 2 retry attempts",
+        "Ollama API rate limit exceeded after 2 retry attempts"
       );
 
       expect(mockFetch).toHaveBeenCalledTimes(3);
@@ -473,15 +454,11 @@ describe("OllamaEmbeddings", () => {
     });
 
     it("should accept custom rate limit configuration", () => {
-      const customEmbeddings = new OllamaEmbeddings(
-        "nomic-embed-text",
-        undefined,
-        {
-          maxRequestsPerMinute: 2000,
-          retryAttempts: 5,
-          retryDelayMs: 1000,
-        },
-      );
+      const customEmbeddings = new OllamaEmbeddings("nomic-embed-text", undefined, {
+        maxRequestsPerMinute: 2000,
+        retryAttempts: 5,
+        retryDelayMs: 1000,
+      });
 
       expect(customEmbeddings).toBeDefined();
     });
@@ -503,9 +480,7 @@ describe("OllamaEmbeddings", () => {
     it("should handle string primitive errors", async () => {
       mockFetch.mockRejectedValue("Network unreachable");
 
-      await expect(embeddings.embed("test")).rejects.toThrow(
-        "Network unreachable",
-      );
+      await expect(embeddings.embed("test")).rejects.toThrow("Network unreachable");
     });
 
     it("should handle error objects with non-string message property", async () => {
@@ -523,9 +498,7 @@ describe("OllamaEmbeddings", () => {
       const testError = new Error("Connection timeout");
       mockFetch.mockRejectedValue(testError);
 
-      await expect(embeddings.embed("test")).rejects.toThrow(
-        "Connection timeout",
-      );
+      await expect(embeddings.embed("test")).rejects.toThrow("Connection timeout");
     });
 
     it("should handle Error instance from network error with enhanced message", async () => {
@@ -534,7 +507,7 @@ describe("OllamaEmbeddings", () => {
       mockFetch.mockRejectedValue(networkError);
 
       await expect(embeddings.embed("test")).rejects.toThrow(
-        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text: ECONNREFUSED. Text preview:",
+        "Failed to call Ollama API at http://localhost:11434 with model nomic-embed-text: ECONNREFUSED. Text preview:"
       );
     });
 
@@ -547,9 +520,7 @@ describe("OllamaEmbeddings", () => {
       };
       mockFetch.mockRejectedValue(customError);
 
-      await expect(embeddings.embed("test")).rejects.toThrow(
-        "Custom API failure",
-      );
+      await expect(embeddings.embed("test")).rejects.toThrow("Custom API failure");
     });
   });
 });

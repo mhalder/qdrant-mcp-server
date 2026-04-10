@@ -3,12 +3,12 @@
  * These tests run against real git repositories (not mocked)
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
-import { GitExtractor } from "./extractor.js";
-import { DEFAULT_GIT_CONFIG } from "./config.js";
-import type { GitConfig } from "./types.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { beforeAll, describe, expect, it } from "vitest";
+import { DEFAULT_GIT_CONFIG } from "./config.js";
+import { GitExtractor } from "./extractor.js";
+import type { GitConfig } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -93,11 +93,9 @@ describe("GitExtractor Integration Tests", () => {
 
     it("should return correct commit count matching git rev-list", async () => {
       // Get expected count from git directly
-      const { stdout } = await execFileAsync(
-        "git",
-        ["rev-list", "--count", "-n", "50", "HEAD"],
-        { cwd: repoPath },
-      );
+      const { stdout } = await execFileAsync("git", ["rev-list", "--count", "-n", "50", "HEAD"], {
+        cwd: repoPath,
+      });
       const expectedCount = Math.min(parseInt(stdout.trim(), 10), 50);
 
       // Get commits via extractor
@@ -112,7 +110,7 @@ describe("GitExtractor Integration Tests", () => {
       const { stdout: logOutput } = await execFileAsync(
         "git",
         ["log", "--oneline", "--shortstat", "-n", "10", "HEAD"],
-        { cwd: repoPath },
+        { cwd: repoPath }
       );
 
       // If there are commits with files changed, verify our extractor gets them
@@ -199,11 +197,9 @@ describe("GitExtractor Integration Tests", () => {
       const count = await extractor.getCommitCount();
 
       // Verify against git rev-list
-      const { stdout } = await execFileAsync(
-        "git",
-        ["rev-list", "--count", "HEAD"],
-        { cwd: repoPath },
-      );
+      const { stdout } = await execFileAsync("git", ["rev-list", "--count", "HEAD"], {
+        cwd: repoPath,
+      });
       expect(count).toBe(parseInt(stdout.trim(), 10));
     });
 
@@ -218,7 +214,7 @@ describe("GitExtractor Integration Tests", () => {
         const { stdout } = await execFileAsync(
           "git",
           ["rev-list", "--count", `${sinceHash}..HEAD`],
-          { cwd: repoPath },
+          { cwd: repoPath }
         );
         expect(count).toBe(parseInt(stdout.trim(), 10));
       }

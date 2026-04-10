@@ -1,12 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CodeSearchResult } from "../code/types.js";
 import type { GitSearchResult } from "../git/types.js";
-import {
-  buildCorrelations,
-  normalizeScores,
-  calculateRRFScore,
-  pathsMatch,
-} from "./federated.js";
+import { buildCorrelations, calculateRRFScore, normalizeScores, pathsMatch } from "./federated.js";
 
 vi.mock("../logger.js", () => ({
   default: {
@@ -137,9 +132,7 @@ describe("pathsMatch", () => {
   it("should NOT match paths with different parent directories", () => {
     // This was the false positive case
     expect(pathsMatch("app/models/user.ts", "lib/user.ts")).toBe(false);
-    expect(pathsMatch("src/auth/middleware.ts", "other/middleware.ts")).toBe(
-      false,
-    );
+    expect(pathsMatch("src/auth/middleware.ts", "other/middleware.ts")).toBe(false);
   });
 
   it("should NOT match completely different filenames", () => {
@@ -162,9 +155,7 @@ describe("pathsMatch", () => {
 });
 
 describe("buildCorrelations", () => {
-  const createCodeResult = (
-    overrides: Partial<CodeSearchResult> = {},
-  ): CodeSearchResult => ({
+  const createCodeResult = (overrides: Partial<CodeSearchResult> = {}): CodeSearchResult => ({
     content: "function test() {}",
     filePath: "src/utils/helper.ts",
     startLine: 10,
@@ -175,9 +166,7 @@ describe("buildCorrelations", () => {
     ...overrides,
   });
 
-  const createGitResult = (
-    overrides: Partial<GitSearchResult> = {},
-  ): GitSearchResult => ({
+  const createGitResult = (overrides: Partial<GitSearchResult> = {}): GitSearchResult => ({
     content: "Commit content",
     commitHash: "abc123def456",
     shortHash: "abc123d",
@@ -192,9 +181,7 @@ describe("buildCorrelations", () => {
 
   it("should find correlations when file paths match", () => {
     const codeResults = [createCodeResult({ filePath: "src/utils/helper.ts" })];
-    const gitResults = [
-      createGitResult({ files: ["src/utils/helper.ts", "src/index.ts"] }),
-    ];
+    const gitResults = [createGitResult({ files: ["src/utils/helper.ts", "src/index.ts"] })];
 
     const correlations = buildCorrelations(codeResults, gitResults);
 
@@ -205,9 +192,7 @@ describe("buildCorrelations", () => {
   });
 
   it("should match partial paths (relative vs absolute)", () => {
-    const codeResults = [
-      createCodeResult({ filePath: "/home/user/project/src/utils/helper.ts" }),
-    ];
+    const codeResults = [createCodeResult({ filePath: "/home/user/project/src/utils/helper.ts" })];
     const gitResults = [createGitResult({ files: ["src/utils/helper.ts"] })];
 
     const correlations = buildCorrelations(codeResults, gitResults);
@@ -242,12 +227,8 @@ describe("buildCorrelations", () => {
 
     expect(correlations).toHaveLength(1);
     expect(correlations[0].relatedCommits).toHaveLength(2);
-    expect(correlations[0].relatedCommits.map((c) => c.shortHash)).toContain(
-      "abc123d",
-    );
-    expect(correlations[0].relatedCommits.map((c) => c.shortHash)).toContain(
-      "xyz789a",
-    );
+    expect(correlations[0].relatedCommits.map((c) => c.shortHash)).toContain("abc123d");
+    expect(correlations[0].relatedCommits.map((c) => c.shortHash)).toContain("xyz789a");
   });
 
   it("should handle multiple code results with different correlations", () => {
@@ -297,9 +278,7 @@ describe("buildCorrelations", () => {
   });
 
   it("should normalize Windows-style paths", () => {
-    const codeResults = [
-      createCodeResult({ filePath: "src\\utils\\helper.ts" }),
-    ];
+    const codeResults = [createCodeResult({ filePath: "src\\utils\\helper.ts" })];
     const gitResults = [createGitResult({ files: ["src/utils/helper.ts"] })];
 
     const correlations = buildCorrelations(codeResults, gitResults);
@@ -379,11 +358,11 @@ describe("contextual_search integration", () => {
 
     // Get the handler for contextual_search
     const contextualSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "contextual_search",
+      (call) => call[0] === "contextual_search"
     );
     expect(contextualSearchCall).toBeDefined();
 
-    const handler = contextualSearchCall![2];
+    const handler = contextualSearchCall?.[2];
     const result = await handler({
       path: "/test/repo",
       query: "test function",
@@ -392,15 +371,13 @@ describe("contextual_search integration", () => {
       correlate: true,
     });
 
-    expect(mockCodeIndexer.searchCode).toHaveBeenCalledWith(
-      "/test/repo",
-      "test function",
-      { limit: 5 },
-    );
+    expect(mockCodeIndexer.searchCode).toHaveBeenCalledWith("/test/repo", "test function", {
+      limit: 5,
+    });
     expect(mockGitHistoryIndexer.searchHistory).toHaveBeenCalledWith(
       "/test/repo",
       "test function",
-      { limit: 5 },
+      { limit: 5 }
     );
     expect(result.content[0].text).toContain("Code Results");
     expect(result.content[0].text).toContain("Git History Results");
@@ -422,9 +399,9 @@ describe("contextual_search integration", () => {
     });
 
     const contextualSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "contextual_search",
+      (call) => call[0] === "contextual_search"
     );
-    const handler = contextualSearchCall![2];
+    const handler = contextualSearchCall?.[2];
     const result = await handler({
       path: "/test/repo",
       query: "test",
@@ -449,9 +426,9 @@ describe("contextual_search integration", () => {
     });
 
     const contextualSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "contextual_search",
+      (call) => call[0] === "contextual_search"
     );
-    const handler = contextualSearchCall![2];
+    const handler = contextualSearchCall?.[2];
     const result = await handler({
       path: "/test/repo",
       query: "test",
@@ -500,9 +477,9 @@ describe("contextual_search integration", () => {
     });
 
     const contextualSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "contextual_search",
+      (call) => call[0] === "contextual_search"
     );
-    const handler = contextualSearchCall![2];
+    const handler = contextualSearchCall?.[2];
     const result = await handler({
       path: "/test/repo",
       query: "test",
@@ -574,9 +551,9 @@ describe("federated_search integration", () => {
     });
 
     const federatedSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "federated_search",
+      (call) => call[0] === "federated_search"
     );
-    const handler = federatedSearchCall![2];
+    const handler = federatedSearchCall?.[2];
     const result = await handler({
       paths: ["/repo1", "/repo2"],
       query: "test function",
@@ -608,9 +585,9 @@ describe("federated_search integration", () => {
     });
 
     const federatedSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "federated_search",
+      (call) => call[0] === "federated_search"
     );
-    const handler = federatedSearchCall![2];
+    const handler = federatedSearchCall?.[2];
     const result = await handler({
       paths: ["/repo1", "/repo2"],
       query: "test",
@@ -636,9 +613,9 @@ describe("federated_search integration", () => {
     });
 
     const federatedSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "federated_search",
+      (call) => call[0] === "federated_search"
     );
-    const handler = federatedSearchCall![2];
+    const handler = federatedSearchCall?.[2];
     await handler({
       paths: ["/repo1"],
       query: "test",
@@ -664,9 +641,9 @@ describe("federated_search integration", () => {
     });
 
     const federatedSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "federated_search",
+      (call) => call[0] === "federated_search"
     );
-    const handler = federatedSearchCall![2];
+    const handler = federatedSearchCall?.[2];
     await handler({
       paths: ["/repo1"],
       query: "test",
@@ -721,9 +698,9 @@ describe("federated_search integration", () => {
     });
 
     const federatedSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "federated_search",
+      (call) => call[0] === "federated_search"
     );
-    const handler = federatedSearchCall![2];
+    const handler = federatedSearchCall?.[2];
     const result = await handler({
       paths: ["/repo1"],
       query: "test",
@@ -751,9 +728,9 @@ describe("federated_search integration", () => {
     });
 
     const federatedSearchCall = mockServer.registerTool.mock.calls.find(
-      (call) => call[0] === "federated_search",
+      (call) => call[0] === "federated_search"
     );
-    const handler = federatedSearchCall![2];
+    const handler = federatedSearchCall?.[2];
     const result = await handler({
       paths: ["/repo1"],
       query: "nonexistent query",

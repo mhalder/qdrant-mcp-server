@@ -41,9 +41,7 @@ describe("FileScanner", () => {
     it("should respect supported extensions", async () => {
       const files = await scanner.scanDirectory(join(fixturesDir, "sample-ts"));
       files.forEach((file) => {
-        const hasValidExt = config.supportedExtensions.some((ext) =>
-          file.endsWith(ext),
-        );
+        const hasValidExt = config.supportedExtensions.some((ext) => file.endsWith(ext));
         expect(hasValidExt).toBe(true);
       });
     });
@@ -69,9 +67,7 @@ describe("FileScanner", () => {
     });
 
     it("should handle missing ignore files gracefully", async () => {
-      await expect(
-        scanner.loadIgnorePatterns("/nonexistent/path"),
-      ).resolves.not.toThrow();
+      await expect(scanner.loadIgnorePatterns("/nonexistent/path")).resolves.not.toThrow();
     });
   });
 
@@ -92,12 +88,7 @@ describe("FileScanner", () => {
       await ignoreScanner.loadIgnorePatterns(join(fixturesDir, "sample-ts"));
 
       const rootPath = join(fixturesDir, "sample-ts");
-      const ignoredPath = join(
-        rootPath,
-        "node_modules",
-        "some-package",
-        "index.js",
-      );
+      const ignoredPath = join(rootPath, "node_modules", "some-package", "index.js");
 
       expect(ignoreScanner.shouldIgnore(ignoredPath, rootPath)).toBe(true);
     });
@@ -127,21 +118,11 @@ describe("FileScanner", () => {
 
       const rootPath = join(fixturesDir, "sample-ts");
 
-      expect(
-        customScanner.shouldIgnore(
-          join(rootPath, "src", "utils.test.ts"),
-          rootPath,
-        ),
-      ).toBe(true);
-      expect(
-        customScanner.shouldIgnore(
-          join(rootPath, "tests", "main.ts"),
-          rootPath,
-        ),
-      ).toBe(true);
-      expect(
-        customScanner.shouldIgnore(join(rootPath, "src", "utils.ts"), rootPath),
-      ).toBe(false);
+      expect(customScanner.shouldIgnore(join(rootPath, "src", "utils.test.ts"), rootPath)).toBe(
+        true
+      );
+      expect(customScanner.shouldIgnore(join(rootPath, "tests", "main.ts"), rootPath)).toBe(true);
+      expect(customScanner.shouldIgnore(join(rootPath, "src", "utils.ts"), rootPath)).toBe(false);
     });
   });
 
@@ -164,9 +145,7 @@ describe("FileScanner", () => {
       };
       const customScanner = new FileScanner(customConfig);
       await customScanner.loadIgnorePatterns(join(fixturesDir, "sample-ts"));
-      const files = await customScanner.scanDirectory(
-        join(fixturesDir, "sample-ts"),
-      );
+      const files = await customScanner.scanDirectory(join(fixturesDir, "sample-ts"));
       expect(files.some((f) => f.includes(".test.ts"))).toBe(false);
     });
 
@@ -177,9 +156,7 @@ describe("FileScanner", () => {
       };
       const ignoreScanner = new FileScanner(ignoreConfig);
       await ignoreScanner.loadIgnorePatterns(join(fixturesDir, "sample-ts"));
-      const files = await ignoreScanner.scanDirectory(
-        join(fixturesDir, "sample-ts"),
-      );
+      const files = await ignoreScanner.scanDirectory(join(fixturesDir, "sample-ts"));
 
       // Should not include auth.ts due to ignore pattern
       expect(files.some((f) => f.endsWith("auth.ts"))).toBe(false);
@@ -187,12 +164,8 @@ describe("FileScanner", () => {
 
     it("should handle directories with .gitignore", async () => {
       const scannerWithGitignore = new FileScanner(config);
-      await scannerWithGitignore.loadIgnorePatterns(
-        join(fixturesDir, "sample-ts"),
-      );
-      const files = await scannerWithGitignore.scanDirectory(
-        join(fixturesDir, "sample-ts"),
-      );
+      await scannerWithGitignore.loadIgnorePatterns(join(fixturesDir, "sample-ts"));
+      const files = await scannerWithGitignore.scanDirectory(join(fixturesDir, "sample-ts"));
 
       // Files matching .gitignore patterns should be excluded
       expect(Array.isArray(files)).toBe(true);

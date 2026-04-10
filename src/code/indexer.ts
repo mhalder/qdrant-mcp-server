@@ -8,10 +8,10 @@ import { promises as fs } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import picomatch from "picomatch";
-import logger from "../logger.js";
 import type { EmbeddingProvider } from "../embeddings/base.js";
 import { BM25SparseVectorGenerator } from "../embeddings/sparse.js";
 import { normalizeRemoteUrl } from "../git/extractor.js";
+import logger from "../logger.js";
 import type { QdrantManager } from "../qdrant/client.js";
 import { TreeSitterChunker } from "./chunker/tree-sitter-chunker.js";
 import { MetadataExtractor } from "./metadata.js";
@@ -40,7 +40,7 @@ export class CodeIndexer {
   constructor(
     private qdrant: QdrantManager,
     private embeddings: EmbeddingProvider,
-    private config: CodeConfig,
+    private config: CodeConfig
   ) {}
 
   /**
@@ -57,7 +57,7 @@ export class CodeIndexer {
       // For now, we just ensure the path exists and is resolved
       // In a more restrictive environment, you could check against an allowlist
       return realPath;
-    } catch (error) {
+    } catch (_error) {
       // If realpath fails, the path doesn't exist yet or is invalid
       // For operations like indexing, we still need to accept non-existent paths
       // so we just return the resolved absolute path
@@ -71,7 +71,7 @@ export class CodeIndexer {
   async indexCodebase(
     path: string,
     options?: IndexOptions,
-    progressCallback?: ProgressCallback,
+    progressCallback?: ProgressCallback
   ): Promise<IndexStats> {
     const startTime = Date.now();
     const stats: IndexStats = {
@@ -99,11 +99,9 @@ export class CodeIndexer {
       });
 
       const scanner = new FileScanner({
-        supportedExtensions:
-          options?.extensions || this.config.supportedExtensions,
+        supportedExtensions: options?.extensions || this.config.supportedExtensions,
         ignorePatterns: this.config.ignorePatterns,
-        customIgnorePatterns:
-          options?.ignorePatterns || this.config.customIgnorePatterns,
+        customIgnorePatterns: options?.ignorePatterns || this.config.customIgnorePatterns,
       });
 
       await scanner.loadIgnorePatterns(absolutePath);
@@ -119,8 +117,7 @@ export class CodeIndexer {
       }
 
       // 2. Create or verify collection
-      const collectionExists =
-        await this.qdrant.collectionExists(collectionName);
+      const collectionExists = await this.qdrant.collectionExists(collectionName);
 
       if (options?.forceReindex && collectionExists) {
         await this.qdrant.deleteCollection(collectionName);
@@ -132,7 +129,7 @@ export class CodeIndexer {
           collectionName,
           vectorSize,
           "Cosine",
-          this.config.enableHybridSearch,
+          this.config.enableHybridSearch
         );
         this.log.debug({ collectionName, vectorSize }, "Collection created");
       }
@@ -163,9 +160,7 @@ export class CodeIndexer {
 
           // Check for secrets (basic detection)
           if (metadataExtractor.containsSecrets(code)) {
-            stats.errors?.push(
-              `Skipped ${filePath}: potential secrets detected`,
-            );
+            stats.errors?.push(`Skipped ${filePath}: potential secrets detected`);
             continue;
           }
 
@@ -182,10 +177,7 @@ export class CodeIndexer {
             allChunks.push({ chunk, id });
 
             // Check total chunk limit
-            if (
-              this.config.maxTotalChunks &&
-              allChunks.length >= this.config.maxTotalChunks
-            ) {
+            if (this.config.maxTotalChunks && allChunks.length >= this.config.maxTotalChunks) {
               break;
             }
           }
@@ -193,15 +185,11 @@ export class CodeIndexer {
           stats.filesIndexed++;
 
           // Check total chunk limit
-          if (
-            this.config.maxTotalChunks &&
-            allChunks.length >= this.config.maxTotalChunks
-          ) {
+          if (this.config.maxTotalChunks && allChunks.length >= this.config.maxTotalChunks) {
             break;
           }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
           stats.errors?.push(`Failed to process ${filePath}: ${errorMessage}`);
         }
       }
@@ -214,8 +202,7 @@ export class CodeIndexer {
         await synchronizer.updateSnapshot(files);
       } catch (error) {
         // Snapshot failure shouldn't fail the entire indexing
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         this.log.error({ err: error }, "Failed to save snapshot");
         stats.errors?.push(`Snapshot save failed: ${errorMessage}`);
       }
@@ -230,10 +217,7 @@ export class CodeIndexer {
 
       // 4. Generate embeddings and store in batches
       const batchSize = this.config.batchSize;
-      this.log.debug(
-        { totalChunks: allChunks.length, batchSize },
-        "Starting embedding generation",
-      );
+      this.log.debug({ totalChunks: allChunks.length, batchSize }, "Starting embedding generation");
       for (let i = 0; i < allChunks.length; i += batchSize) {
         const batch = allChunks.slice(i, i + batchSize);
 
@@ -241,8 +225,7 @@ export class CodeIndexer {
           phase: "embedding",
           current: i + batch.length,
           total: allChunks.length,
-          percentage:
-            40 + Math.round(((i + batch.length) / allChunks.length) * 30), // 40-70%
+          percentage: 40 + Math.round(((i + batch.length) / allChunks.length) * 30), // 40-70%
           message: `Generating embeddings ${i + batch.length}/${allChunks.length}`,
         });
 
@@ -274,8 +257,7 @@ export class CodeIndexer {
             phase: "storing",
             current: i + batch.length,
             total: allChunks.length,
-            percentage:
-              70 + Math.round(((i + batch.length) / allChunks.length) * 30), // 70-100%
+            percentage: 70 + Math.round(((i + batch.length) / allChunks.length) * 30), // 70-100%
             message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
           });
 
@@ -307,11 +289,8 @@ export class CodeIndexer {
             await this.qdrant.addPoints(collectionName, points);
           }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          stats.errors?.push(
-            `Failed to process batch at index ${i}: ${errorMessage}`,
-          );
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          stats.errors?.push(`Failed to process batch at index ${i}: ${errorMessage}`);
           stats.status = "partial";
         }
       }
@@ -326,12 +305,11 @@ export class CodeIndexer {
           chunksCreated: stats.chunksCreated,
           durationMs: stats.durationMs,
         },
-        "Indexing complete",
+        "Indexing complete"
       );
       return stats;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       stats.status = "failed";
       stats.errors?.push(`Indexing failed: ${errorMessage}`);
       stats.durationMs = Date.now() - startTime;
@@ -343,18 +321,14 @@ export class CodeIndexer {
    * Store an indexing status marker in the collection.
    * Called at the start of indexing with complete=false, and at the end with complete=true.
    */
-  private async storeIndexingMarker(
-    collectionName: string,
-    complete: boolean,
-  ): Promise<void> {
+  private async storeIndexingMarker(collectionName: string, complete: boolean): Promise<void> {
     try {
       // Create a dummy vector of zeros (required by Qdrant)
       const vectorSize = this.embeddings.getDimensions();
       const zeroVector = new Array(vectorSize).fill(0);
 
       // Check if collection uses hybrid mode
-      const collectionInfo =
-        await this.qdrant.getCollectionInfo(collectionName);
+      const collectionInfo = await this.qdrant.getCollectionInfo(collectionName);
 
       const payload = {
         _type: "indexing_metadata",
@@ -394,7 +368,7 @@ export class CodeIndexer {
   async searchCode(
     path: string,
     query: string,
-    options?: SearchOptions,
+    options?: SearchOptions
   ): Promise<CodeSearchResult[]> {
     const absolutePath = await this.validatePath(path);
     const collectionName = await this.getCollectionName(absolutePath);
@@ -408,8 +382,7 @@ export class CodeIndexer {
     // Check if collection has hybrid search enabled
     const collectionInfo = await this.qdrant.getCollectionInfo(collectionName);
     const useHybrid =
-      (options?.useHybrid ?? this.config.enableHybridSearch) &&
-      collectionInfo.hybridEnabled;
+      (options?.useHybrid ?? this.config.enableHybridSearch) && collectionInfo.hybridEnabled;
 
     // Generate query embedding
     const { embedding } = await this.embeddings.embed(query);
@@ -429,9 +402,7 @@ export class CodeIndexer {
 
     // Prepare pathPattern matcher for post-filtering
     // Qdrant doesn't support regex/glob filtering, so we filter results in JS
-    const pathMatcher = options?.pathPattern
-      ? picomatch(options.pathPattern, { dot: true })
-      : null;
+    const pathMatcher = options?.pathPattern ? picomatch(options.pathPattern, { dot: true }) : null;
 
     // When using pathPattern, fetch more results to account for filtering
     const fetchLimit = pathMatcher
@@ -448,15 +419,10 @@ export class CodeIndexer {
         embedding,
         sparseVector,
         fetchLimit,
-        filter,
+        filter
       );
     } else {
-      results = await this.qdrant.search(
-        collectionName,
-        embedding,
-        fetchLimit,
-        filter,
-      );
+      results = await this.qdrant.search(collectionName, embedding, fetchLimit, filter);
     }
 
     // Apply pathPattern post-filtering if specified
@@ -470,9 +436,7 @@ export class CodeIndexer {
 
     // Apply score threshold if specified
     if (options?.scoreThreshold) {
-      filteredResults = filteredResults.filter(
-        (r) => r.score >= (options.scoreThreshold || 0),
-      );
+      filteredResults = filteredResults.filter((r) => r.score >= (options.scoreThreshold || 0));
     }
 
     // Apply the requested limit after all filtering
@@ -504,10 +468,7 @@ export class CodeIndexer {
     }
 
     // Check for indexing marker in Qdrant (persisted across instances)
-    const indexingMarker = await this.qdrant.getPoint(
-      collectionName,
-      INDEXING_METADATA_ID,
-    );
+    const indexingMarker = await this.qdrant.getPoint(collectionName, INDEXING_METADATA_ID);
     const info = await this.qdrant.getCollectionInfo(collectionName);
 
     // Check marker status
@@ -515,9 +476,7 @@ export class CodeIndexer {
     const isInProgress = indexingMarker?.payload?.indexingComplete === false;
 
     // Subtract 1 from points count if marker exists (metadata point doesn't count as a chunk)
-    const actualChunksCount = indexingMarker
-      ? Math.max(0, info.pointsCount - 1)
-      : info.pointsCount;
+    const actualChunksCount = indexingMarker ? Math.max(0, info.pointsCount - 1) : info.pointsCount;
 
     if (isInProgress) {
       // Indexing in progress - marker exists with indexingComplete=false
@@ -565,10 +524,7 @@ export class CodeIndexer {
   /**
    * Incrementally re-index only changed files
    */
-  async reindexChanges(
-    path: string,
-    progressCallback?: ProgressCallback,
-  ): Promise<ChangeStats> {
+  async reindexChanges(path: string, progressCallback?: ProgressCallback): Promise<ChangeStats> {
     const startTime = Date.now();
     const stats: ChangeStats = {
       filesAdded: 0,
@@ -596,9 +552,7 @@ export class CodeIndexer {
       const hasSnapshot = await synchronizer.initialize();
 
       if (!hasSnapshot) {
-        throw new Error(
-          "No previous snapshot found. Use index_codebase for initial indexing.",
-        );
+        throw new Error("No previous snapshot found. Use index_codebase for initial indexing.");
       }
 
       // Scan current files
@@ -625,11 +579,7 @@ export class CodeIndexer {
       stats.filesModified = changes.modified.length;
       stats.filesDeleted = changes.deleted.length;
 
-      if (
-        stats.filesAdded === 0 &&
-        stats.filesModified === 0 &&
-        stats.filesDeleted === 0
-      ) {
+      if (stats.filesAdded === 0 && stats.filesModified === 0 && stats.filesDeleted === 0) {
         stats.durationMs = Date.now() - startTime;
         return stats;
       }
@@ -661,10 +611,7 @@ export class CodeIndexer {
             await this.qdrant.deletePointsByFilter(collectionName, filter);
           } catch (error) {
             // Log but don't fail - file might not have any chunks
-            this.log.error(
-              { relativePath, err: error },
-              "Failed to delete chunks during reindex",
-            );
+            this.log.error({ relativePath, err: error }, "Failed to delete chunks during reindex");
           }
         }
       }
@@ -698,10 +645,7 @@ export class CodeIndexer {
             allChunks.push({ chunk, id });
           }
         } catch (error) {
-          this.log.error(
-            { filePath, err: error },
-            "Failed to process file during reindex",
-          );
+          this.log.error({ filePath, err: error }, "Failed to process file during reindex");
         }
       }
 
@@ -716,8 +660,7 @@ export class CodeIndexer {
           phase: "embedding",
           current: i + batch.length,
           total: allChunks.length,
-          percentage:
-            40 + Math.round(((i + batch.length) / allChunks.length) * 30),
+          percentage: 40 + Math.round(((i + batch.length) / allChunks.length) * 30),
           message: `Generating embeddings ${i + batch.length}/${allChunks.length}`,
         });
 
@@ -747,8 +690,7 @@ export class CodeIndexer {
           phase: "storing",
           current: i + batch.length,
           total: allChunks.length,
-          percentage:
-            70 + Math.round(((i + batch.length) / allChunks.length) * 30),
+          percentage: 70 + Math.round(((i + batch.length) / allChunks.length) * 30),
           message: `Storing chunks ${i + batch.length}/${allChunks.length}`,
         });
 
@@ -756,9 +698,7 @@ export class CodeIndexer {
           const sparseGenerator = new BM25SparseVectorGenerator();
           const hybridPoints = points.map((point, idx) => ({
             ...point,
-            sparseVector: sparseGenerator.generate(
-              allChunks[i + idx].chunk.content,
-            ),
+            sparseVector: sparseGenerator.generate(allChunks[i + idx].chunk.content),
           }));
           await this.qdrant.addPointsWithSparse(collectionName, hybridPoints);
         } else {
@@ -778,12 +718,11 @@ export class CodeIndexer {
           chunksAdded: stats.chunksAdded,
           durationMs: stats.durationMs,
         },
-        "Reindex complete",
+        "Reindex complete"
       );
       return stats;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Incremental re-indexing failed: ${errorMessage}`);
     }
   }
@@ -830,17 +769,16 @@ export class CodeIndexer {
       const { stdout: gitRootResult } = await execFileAsync(
         "git",
         ["rev-parse", "--show-toplevel"],
-        { cwd: absolutePath, env: cleanEnv },
+        { cwd: absolutePath, env: cleanEnv }
       );
       const gitRoot = gitRootResult.trim();
 
       // Only use git remote if this path IS the git root
       if (gitRoot === absolutePath) {
-        const { stdout } = await execFileAsync(
-          "git",
-          ["remote", "get-url", "origin"],
-          { cwd: absolutePath, env: cleanEnv },
-        );
+        const { stdout } = await execFileAsync("git", ["remote", "get-url", "origin"], {
+          cwd: absolutePath,
+          env: cleanEnv,
+        });
         const normalized = normalizeRemoteUrl(stdout.trim());
         if (normalized) {
           const hash = createHash("md5").update(normalized).digest("hex");

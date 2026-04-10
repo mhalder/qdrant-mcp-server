@@ -124,8 +124,18 @@ describe("BM25SparseVectorGenerator", () => {
   it("should map different tokens to different indices (within hash collision tolerance)", () => {
     const generator = new BM25SparseVectorGenerator();
     // Use a set of clearly distinct tokens
-    const tokens = ["apple", "banana", "cherry", "dragon", "elephant",
-      "flamingo", "giraffe", "helicopter", "igloo", "jungle"];
+    const tokens = [
+      "apple",
+      "banana",
+      "cherry",
+      "dragon",
+      "elephant",
+      "flamingo",
+      "giraffe",
+      "helicopter",
+      "igloo",
+      "jungle",
+    ];
 
     const indices = new Set<number>();
     for (const token of tokens) {

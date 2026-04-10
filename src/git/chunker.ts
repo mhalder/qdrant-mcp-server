@@ -32,22 +32,14 @@ export class CommitChunker {
    * Currently produces one chunk per commit, but could be extended
    * to handle very large commits differently
    */
-  createChunks(
-    commit: RawCommit,
-    repoPath: string,
-    diff?: string,
-  ): CommitChunk[] {
+  createChunks(commit: RawCommit, repoPath: string, diff?: string): CommitChunk[] {
     const commitType = this.classifyCommitType(commit);
     const content = this.formatChunkContent(commit, commitType, diff);
 
     // Check if content exceeds max chunk size
     if (content.length > this.config.maxChunkSize) {
       // Truncate content but keep essential metadata visible
-      const truncatedContent = this.truncateContent(
-        content,
-        commit,
-        commitType,
-      );
+      const truncatedContent = this.truncateContent(content, commit, commitType);
       return [
         {
           content: truncatedContent,
@@ -77,11 +69,7 @@ export class CommitChunker {
   /**
    * Format the chunk content for embedding
    */
-  private formatChunkContent(
-    commit: RawCommit,
-    commitType: CommitType,
-    diff?: string,
-  ): string {
+  private formatChunkContent(commit: RawCommit, commitType: CommitType, diff?: string): string {
     const lines: string[] = [];
 
     // Header section
@@ -181,11 +169,7 @@ export class CommitChunker {
   /**
    * Truncate content while preserving essential information
    */
-  private truncateContent(
-    content: string,
-    commit: RawCommit,
-    commitType: CommitType,
-  ): string {
+  private truncateContent(_content: string, commit: RawCommit, commitType: CommitType): string {
     // Keep the header and subject, truncate the rest
     const essentialLines: string[] = [
       `Commit: ${commit.shortHash}`,
@@ -203,7 +187,7 @@ export class CommitChunker {
       const body = commit.body.trim();
       if (body.length > maxBodyLength) {
         essentialLines.push("Description:");
-        essentialLines.push(body.substring(0, maxBodyLength) + "...");
+        essentialLines.push(`${body.substring(0, maxBodyLength)}...`);
         essentialLines.push("");
       } else {
         essentialLines.push("Description:");
@@ -237,7 +221,7 @@ export class CommitChunker {
   private createMetadata(
     commit: RawCommit,
     commitType: CommitType,
-    repoPath: string,
+    repoPath: string
   ): CommitChunk["metadata"] {
     return {
       commitHash: commit.hash,

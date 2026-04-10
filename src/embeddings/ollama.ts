@@ -1,6 +1,6 @@
 import Bottleneck from "bottleneck";
 import logger from "../logger.js";
-import { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
+import type { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
 
 interface OllamaError {
   status?: number;
@@ -24,7 +24,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
     model: string = "nomic-embed-text",
     dimensions?: number,
     rateLimitConfig?: RateLimitConfig,
-    baseUrl: string = "http://localhost:11434",
+    baseUrl: string = "http://localhost:11434"
   ) {
     this.model = model;
     this.baseUrl = baseUrl;
@@ -53,22 +53,15 @@ export class OllamaEmbeddings implements EmbeddingProvider {
   }
 
   private isOllamaError(e: unknown): e is OllamaError {
-    return (
-      typeof e === "object" && e !== null && ("status" in e || "message" in e)
-    );
+    return typeof e === "object" && e !== null && ("status" in e || "message" in e);
   }
 
-  private async retryWithBackoff<T>(
-    fn: () => Promise<T>,
-    attempt: number = 0,
-  ): Promise<T> {
+  private async retryWithBackoff<T>(fn: () => Promise<T>, attempt: number = 0): Promise<T> {
     try {
       return await fn();
     } catch (error: unknown) {
       // Type guard for OllamaError
-      const apiError = this.isOllamaError(error)
-        ? error
-        : { status: 0, message: String(error) };
+      const apiError = this.isOllamaError(error) ? error : { status: 0, message: String(error) };
 
       const isRateLimitError =
         apiError.status === 429 ||
@@ -76,7 +69,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
           apiError.message.toLowerCase().includes("rate limit"));
 
       if (isRateLimitError && attempt < this.retryAttempts) {
-        const delayMs = this.retryDelayMs * Math.pow(2, attempt);
+        const delayMs = this.retryDelayMs * 2 ** attempt;
         const waitTimeSeconds = (delayMs / 1000).toFixed(1);
         this.log.warn(
           {
@@ -84,7 +77,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
             attempt: attempt + 1,
             maxAttempts: this.retryAttempts,
           },
-          "Rate limit reached, retrying",
+          "Rate limit reached, retrying"
         );
 
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -93,7 +86,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
 
       if (isRateLimitError) {
         throw new Error(
-          `Ollama API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`,
+          `Ollama API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`
         );
       }
 
@@ -116,8 +109,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        const textPreview =
-          text.length > 100 ? text.substring(0, 100) + "..." : text;
+        const textPreview = text.length > 100 ? `${text.substring(0, 100)}...` : text;
         const error: OllamaError = {
           status: response.status,
           message: `Ollama API error (${response.status}) for model "${this.model}": ${errorBody}. Text preview: "${textPreview}"`,
@@ -134,10 +126,9 @@ export class OllamaEmbeddings implements EmbeddingProvider {
 
       // For Error instances (like network errors), enhance the message
       if (error instanceof Error) {
-        const textPreview =
-          text.length > 100 ? text.substring(0, 100) + "..." : text;
+        const textPreview = text.length > 100 ? `${text.substring(0, 100)}...` : text;
         throw new Error(
-          `Failed to call Ollama API at ${this.baseUrl} with model ${this.model}: ${error.message}. Text preview: "${textPreview}"`,
+          `Failed to call Ollama API at ${this.baseUrl} with model ${this.model}: ${error.message}. Text preview: "${textPreview}"`
         );
       }
 
@@ -148,12 +139,11 @@ export class OllamaEmbeddings implements EmbeddingProvider {
       }
 
       // For other types, create a descriptive error message
-      const textPreview =
-        text.length > 100 ? text.substring(0, 100) + "..." : text;
+      const textPreview = text.length > 100 ? `${text.substring(0, 100)}...` : text;
       const errorMessage = JSON.stringify(error);
 
       throw new Error(
-        `Failed to call Ollama API at ${this.baseUrl} with model ${this.model}: ${errorMessage}. Text preview: "${textPreview}"`,
+        `Failed to call Ollama API at ${this.baseUrl} with model ${this.model}: ${errorMessage}. Text preview: "${textPreview}"`
       );
     }
   }
@@ -171,7 +161,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
           embedding: response.embedding,
           dimensions: this.dimensions,
         };
-      }),
+      })
     );
   }
 
@@ -185,9 +175,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
     for (let i = 0; i < texts.length; i += CHUNK_SIZE) {
       const chunk = texts.slice(i, i + CHUNK_SIZE);
       // The Bottleneck limiter will handle rate limiting and concurrency (maxConcurrent: 10)
-      const chunkResults = await Promise.all(
-        chunk.map((text) => this.embed(text)),
-      );
+      const chunkResults = await Promise.all(chunk.map((text) => this.embed(text)));
       results.push(...chunkResults);
     }
 

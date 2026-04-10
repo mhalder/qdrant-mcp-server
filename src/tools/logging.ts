@@ -29,9 +29,7 @@ function isEmptySearchResult(result: CallToolResult): boolean {
   if (first.type === "text") {
     const text = (first as { type: "text"; text: string }).text;
     return (
-      text.startsWith("No results found") ||
-      text === "[]" ||
-      text.includes("Found 0 result(s)")
+      text.startsWith("No results found") || text === "[]" || text.includes("Found 0 result(s)")
     );
   }
   return false;
@@ -44,9 +42,10 @@ function isEmptySearchResult(result: CallToolResult): boolean {
  * - Logs "Tool completed with no results" at warn level for search tools
  * - Logs "Tool threw an error" at error level when handler throws (re-throws)
  */
-export function withToolLogging<
-  T extends (...args: any[]) => Promise<CallToolResult>,
->(toolName: string, handler: T): T {
+export function withToolLogging<T extends (...args: any[]) => Promise<CallToolResult>>(
+  toolName: string,
+  handler: T
+): T {
   const wrapped = async (...args: Parameters<T>): Promise<CallToolResult> => {
     const startTime = Date.now();
     try {
@@ -58,15 +57,9 @@ export function withToolLogging<
           result.content?.[0]?.type === "text"
             ? (result.content[0] as { type: "text"; text: string }).text
             : "Unknown error";
-        log.error(
-          { tool: toolName, durationMs, error: errorText },
-          "Tool failed",
-        );
+        log.error({ tool: toolName, durationMs, error: errorText }, "Tool failed");
       } else if (SEARCH_TOOLS.has(toolName) && isEmptySearchResult(result)) {
-        log.warn(
-          { tool: toolName, durationMs },
-          "Tool completed with no results",
-        );
+        log.warn({ tool: toolName, durationMs }, "Tool completed with no results");
       } else {
         log.info({ tool: toolName, durationMs }, "Tool completed");
       }
@@ -74,10 +67,7 @@ export function withToolLogging<
       return result;
     } catch (error) {
       const durationMs = Date.now() - startTime;
-      log.error(
-        { tool: toolName, durationMs, err: error },
-        "Tool threw an error",
-      );
+      log.error({ tool: toolName, durationMs, err: error }, "Tool threw an error");
       throw error;
     }
   };

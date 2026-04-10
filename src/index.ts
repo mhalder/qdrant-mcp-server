@@ -8,7 +8,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import Bottleneck from "bottleneck";
 import express from "express";
-import logger from "./logger.js";
 import {
   DEFAULT_BATCH_SIZE,
   DEFAULT_CHUNK_OVERLAP,
@@ -19,9 +18,10 @@ import {
 } from "./code/config.js";
 import { CodeIndexer } from "./code/indexer.js";
 import type { CodeConfig } from "./code/types.js";
+import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { DEFAULT_GIT_CONFIG, GitHistoryIndexer } from "./git/index.js";
 import type { GitConfig } from "./git/types.js";
-import { EmbeddingProviderFactory } from "./embeddings/factory.js";
+import logger from "./logger.js";
 import { loadPromptsConfig, type PromptsConfig } from "./prompts/index.js";
 import { registerAllPrompts } from "./prompts/register.js";
 import { QdrantManager } from "./qdrant/client.js";
@@ -30,27 +30,22 @@ import { registerAllTools } from "./tools/index.js";
 
 // Read package.json for version
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(
-  readFileSync(join(__dirname, "../package.json"), "utf-8"),
-);
+const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf-8"));
 
 // Validate environment variables
 const QDRANT_URL = process.env.QDRANT_URL || "http://localhost:6333";
 const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
-const EMBEDDING_PROVIDER = (
-  process.env.EMBEDDING_PROVIDER || "ollama"
-).toLowerCase();
+const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER || "ollama").toLowerCase();
 const TRANSPORT_MODE = (process.env.TRANSPORT_MODE || "stdio").toLowerCase();
 const HTTP_PORT = parseInt(process.env.HTTP_PORT || "3000", 10);
-const PROMPTS_CONFIG_FILE =
-  process.env.PROMPTS_CONFIG_FILE || join(__dirname, "../prompts.json");
+const PROMPTS_CONFIG_FILE = process.env.PROMPTS_CONFIG_FILE || join(__dirname, "../prompts.json");
 
 // Validate HTTP_PORT when HTTP mode is selected
 if (TRANSPORT_MODE === "http") {
   if (Number.isNaN(HTTP_PORT) || HTTP_PORT < 1 || HTTP_PORT > 65535) {
     logger.fatal(
       { port: process.env.HTTP_PORT },
-      "Invalid HTTP_PORT. Must be a number between 1 and 65535",
+      "Invalid HTTP_PORT. Must be a number between 1 and 65535"
     );
     process.exit(1);
   }
@@ -77,7 +72,7 @@ if (EMBEDDING_PROVIDER !== "ollama") {
     default:
       logger.fatal(
         { provider: EMBEDDING_PROVIDER },
-        "Unknown embedding provider. Supported providers: openai, cohere, voyage, ollama",
+        "Unknown embedding provider. Supported providers: openai, cohere, voyage, ollama"
       );
       process.exit(1);
   }
@@ -85,7 +80,7 @@ if (EMBEDDING_PROVIDER !== "ollama") {
   if (!apiKey) {
     logger.fatal(
       { provider: EMBEDDING_PROVIDER, requiredKey: requiredKeyName },
-      `${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider`,
+      `${requiredKeyName} is required for ${EMBEDDING_PROVIDER} provider`
     );
     process.exit(1);
   }
@@ -95,8 +90,7 @@ if (EMBEDDING_PROVIDER !== "ollama") {
 async function checkOllamaAvailability() {
   if (EMBEDDING_PROVIDER === "ollama") {
     const baseUrl = process.env.EMBEDDING_BASE_URL || "http://localhost:11434";
-    const isLocalhost =
-      baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
+    const isLocalhost = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");
 
     try {
       const response = await fetch(`${baseUrl}/api/version`);
@@ -109,7 +103,7 @@ async function checkOllamaAvailability() {
       const { models } = await tagsResponse.json();
       const modelName = process.env.EMBEDDING_MODEL || "nomic-embed-text";
       const modelExists = models.some(
-        (m: any) => m.name === modelName || m.name.startsWith(`${modelName}:`),
+        (m: any) => m.name === modelName || m.name.startsWith(`${modelName}:`)
       );
 
       if (!modelExists) {
@@ -132,9 +126,7 @@ async function checkOllamaAvailability() {
       }
     } catch (error) {
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : `Ollama is not running at ${baseUrl}`;
+        error instanceof Error ? error.message : `Ollama is not running at ${baseUrl}`;
 
       let helpText = "";
       if (isLocalhost) {
@@ -170,30 +162,18 @@ logger.info(
     model: embeddings.getModel(),
     dimensions: embeddings.getDimensions(),
   },
-  "Embedding provider initialized",
+  "Embedding provider initialized"
 );
 
 // Initialize code indexer
 const codeConfig: CodeConfig = {
-  chunkSize: parseInt(
-    process.env.CODE_CHUNK_SIZE || String(DEFAULT_CHUNK_SIZE),
-    10,
-  ),
-  chunkOverlap: parseInt(
-    process.env.CODE_CHUNK_OVERLAP || String(DEFAULT_CHUNK_OVERLAP),
-    10,
-  ),
+  chunkSize: parseInt(process.env.CODE_CHUNK_SIZE || String(DEFAULT_CHUNK_SIZE), 10),
+  chunkOverlap: parseInt(process.env.CODE_CHUNK_OVERLAP || String(DEFAULT_CHUNK_OVERLAP), 10),
   enableASTChunking: process.env.CODE_ENABLE_AST !== "false",
   supportedExtensions: DEFAULT_CODE_EXTENSIONS,
   ignorePatterns: DEFAULT_IGNORE_PATTERNS,
-  batchSize: parseInt(
-    process.env.CODE_BATCH_SIZE || String(DEFAULT_BATCH_SIZE),
-    10,
-  ),
-  defaultSearchLimit: parseInt(
-    process.env.CODE_SEARCH_LIMIT || String(DEFAULT_SEARCH_LIMIT),
-    10,
-  ),
+  batchSize: parseInt(process.env.CODE_BATCH_SIZE || String(DEFAULT_BATCH_SIZE), 10),
+  defaultSearchLimit: parseInt(process.env.CODE_SEARCH_LIMIT || String(DEFAULT_SEARCH_LIMIT), 10),
   enableHybridSearch: process.env.CODE_ENABLE_HYBRID === "true",
 };
 
@@ -202,37 +182,26 @@ logger.debug({ codeConfig }, "Code indexer configured");
 
 // Initialize git history indexer
 const gitConfig: GitConfig = {
-  maxCommits: parseInt(
-    process.env.GIT_MAX_COMMITS || String(DEFAULT_GIT_CONFIG.maxCommits),
-    10,
-  ),
+  maxCommits: parseInt(process.env.GIT_MAX_COMMITS || String(DEFAULT_GIT_CONFIG.maxCommits), 10),
   includeFileList: process.env.GIT_INCLUDE_FILES !== "false",
   includeDiff: process.env.GIT_INCLUDE_DIFF !== "false",
   maxDiffSize: parseInt(
     process.env.GIT_MAX_DIFF_SIZE || String(DEFAULT_GIT_CONFIG.maxDiffSize),
-    10,
+    10
   ),
-  gitTimeout: parseInt(
-    process.env.GIT_TIMEOUT || String(DEFAULT_GIT_CONFIG.gitTimeout),
-    10,
-  ),
+  gitTimeout: parseInt(process.env.GIT_TIMEOUT || String(DEFAULT_GIT_CONFIG.gitTimeout), 10),
   maxChunkSize: parseInt(
     process.env.GIT_MAX_CHUNK_SIZE || String(DEFAULT_GIT_CONFIG.maxChunkSize),
-    10,
+    10
   ),
-  batchSize: parseInt(
-    process.env.GIT_BATCH_SIZE || String(DEFAULT_GIT_CONFIG.batchSize),
-    10,
-  ),
+  batchSize: parseInt(process.env.GIT_BATCH_SIZE || String(DEFAULT_GIT_CONFIG.batchSize), 10),
   batchRetryAttempts: parseInt(
-    process.env.GIT_BATCH_RETRY_ATTEMPTS ||
-      String(DEFAULT_GIT_CONFIG.batchRetryAttempts),
-    10,
+    process.env.GIT_BATCH_RETRY_ATTEMPTS || String(DEFAULT_GIT_CONFIG.batchRetryAttempts),
+    10
   ),
   defaultSearchLimit: parseInt(
-    process.env.GIT_SEARCH_LIMIT ||
-      String(DEFAULT_GIT_CONFIG.defaultSearchLimit),
-    10,
+    process.env.GIT_SEARCH_LIMIT || String(DEFAULT_GIT_CONFIG.defaultSearchLimit),
+    10
   ),
   enableHybridSearch: process.env.GIT_ENABLE_HYBRID !== "false",
 };
@@ -247,13 +216,10 @@ if (existsSync(PROMPTS_CONFIG_FILE)) {
     promptsConfig = loadPromptsConfig(PROMPTS_CONFIG_FILE);
     logger.info(
       { count: promptsConfig.prompts.length, file: PROMPTS_CONFIG_FILE },
-      "Loaded prompts config",
+      "Loaded prompts config"
     );
   } catch (error) {
-    logger.fatal(
-      { file: PROMPTS_CONFIG_FILE, err: error },
-      "Failed to load prompts configuration",
-    );
+    logger.fatal({ file: PROMPTS_CONFIG_FILE, err: error }, "Failed to load prompts configuration");
     process.exit(1);
   }
 }
@@ -303,17 +269,14 @@ const RATE_LIMIT_MAX_REQUESTS = 100; // Max requests per window
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_CONCURRENT = 10; // Max concurrent requests per IP
 const RATE_LIMITER_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const REQUEST_TIMEOUT_MS = parseInt(
-  process.env.HTTP_REQUEST_TIMEOUT_MS || "300000",
-  10,
-);
+const REQUEST_TIMEOUT_MS = parseInt(process.env.HTTP_REQUEST_TIMEOUT_MS || "300000", 10);
 const SHUTDOWN_GRACE_PERIOD_MS = 10 * 1000; // 10 seconds
 
 // Validate REQUEST_TIMEOUT_MS
 if (Number.isNaN(REQUEST_TIMEOUT_MS) || REQUEST_TIMEOUT_MS <= 0) {
   logger.fatal(
     { value: process.env.HTTP_REQUEST_TIMEOUT_MS },
-    "Invalid HTTP_REQUEST_TIMEOUT_MS. Must be a positive integer",
+    "Invalid HTTP_REQUEST_TIMEOUT_MS. Must be a positive integer"
   );
   process.exit(1);
 }
@@ -341,7 +304,7 @@ async function startHttpServer() {
     res: express.Response,
     code: number,
     message: string,
-    httpStatus: number = 500,
+    httpStatus: number = 500
   ) => {
     if (!res.headersSent) {
       res.status(httpStatus).json({
@@ -372,10 +335,7 @@ async function startHttpServer() {
     });
 
     if (keysToDelete.length > 0) {
-      logger.debug(
-        { count: keysToDelete.length },
-        "Cleaned up inactive rate limiters",
-      );
+      logger.debug({ count: keysToDelete.length }, "Cleaned up inactive rate limiters");
     }
   }, RATE_LIMITER_CLEANUP_INTERVAL_MS);
 
@@ -383,7 +343,7 @@ async function startHttpServer() {
   const rateLimitMiddleware = async (
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction,
+    next: express.NextFunction
   ) => {
     const clientIp = req.ip || req.socket.remoteAddress || "unknown";
 
@@ -400,10 +360,7 @@ async function startHttpServer() {
       if (error instanceof Bottleneck.BottleneckError) {
         logger.warn({ clientIp }, "Rate limit exceeded");
       } else {
-        logger.error(
-          { clientIp, err: error },
-          "Unexpected rate limiting error",
-        );
+        logger.error({ clientIp, err: error }, "Unexpected rate limiting error");
       }
       sendErrorResponse(res, -32000, "Too many requests", 429);
     }
@@ -522,10 +479,7 @@ async function main() {
   } else if (TRANSPORT_MODE === "stdio") {
     await startStdioServer();
   } else {
-    logger.fatal(
-      { mode: TRANSPORT_MODE },
-      "Invalid TRANSPORT_MODE. Supported modes: stdio, http",
-    );
+    logger.fatal({ mode: TRANSPORT_MODE }, "Invalid TRANSPORT_MODE. Supported modes: stdio, http");
     process.exit(1);
   }
 }

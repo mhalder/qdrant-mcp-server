@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./qdrant/client.js");
 vi.mock("./embeddings/openai.js");
@@ -31,9 +31,7 @@ describe("MCP Server Tool Schemas", () => {
         name: "test-collection",
         distance: "Cosine" as const,
       };
-      expect(() =>
-        CreateCollectionSchema.parse(validInputWithDistance),
-      ).not.toThrow();
+      expect(() => CreateCollectionSchema.parse(validInputWithDistance)).not.toThrow();
     });
 
     it("should reject invalid distance metric", async () => {
@@ -72,7 +70,7 @@ describe("MCP Server Tool Schemas", () => {
             id: z.union([z.string(), z.number()]),
             text: z.string(),
             metadata: z.record(z.string(), z.any()).optional(),
-          }),
+          })
         ),
       });
 
@@ -97,7 +95,7 @@ describe("MCP Server Tool Schemas", () => {
             id: z.union([z.string(), z.number()]),
             text: z.string(),
             metadata: z.record(z.string(), z.any()).optional(),
-          }),
+          })
         ),
       });
 
@@ -124,7 +122,7 @@ describe("MCP Server Tool Schemas", () => {
             id: z.union([z.string(), z.number()]),
             text: z.string(),
             metadata: z.record(z.string(), z.any()).optional(),
-          }),
+          })
         ),
       });
 
@@ -292,7 +290,7 @@ describe("MCP Server Resource URIs", () => {
     const match = collectionUri.match(/^qdrant:\/\/collection\/(.+)$/);
 
     expect(match).not.toBeNull();
-    expect(match![1]).toBe("my-collection");
+    expect(match?.[1]).toBe("my-collection");
   });
 
   it("should extract collection name from URI", () => {
@@ -304,7 +302,7 @@ describe("MCP Server Resource URIs", () => {
 
     testCases.forEach(({ uri, expected }) => {
       const match = uri.match(/^qdrant:\/\/collection\/(.+)$/);
-      expect(match![1]).toBe(expected);
+      expect(match?.[1]).toBe(expected);
     });
   });
 

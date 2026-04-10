@@ -1,12 +1,7 @@
-import OpenAI from "openai";
 import Bottleneck from "bottleneck";
+import OpenAI from "openai";
 import logger from "../logger.js";
-import {
-  EmbeddingProvider,
-  EmbeddingResult,
-  RateLimitConfig,
-  ProviderConfig,
-} from "./base.js";
+import type { EmbeddingProvider, EmbeddingResult, RateLimitConfig } from "./base.js";
 
 interface OpenAIError {
   status?: number;
@@ -31,7 +26,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
     apiKey: string,
     model: string = "text-embedding-3-small",
     dimensions?: number,
-    rateLimitConfig?: RateLimitConfig,
+    rateLimitConfig?: RateLimitConfig
   ) {
     this.client = new OpenAI({ apiKey });
     this.model = model;
@@ -64,10 +59,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
     });
   }
 
-  private async retryWithBackoff<T>(
-    fn: () => Promise<T>,
-    attempt: number = 0,
-  ): Promise<T> {
+  private async retryWithBackoff<T>(fn: () => Promise<T>, attempt: number = 0): Promise<T> {
     try {
       return await fn();
     } catch (error: unknown) {
@@ -80,20 +72,17 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
       if (isRateLimitError && attempt < this.retryAttempts) {
         // Check for Retry-After header (different HTTP clients may nest differently)
         const retryAfter =
-          apiError?.response?.headers?.["retry-after"] ||
-          apiError?.headers?.["retry-after"];
+          apiError?.response?.headers?.["retry-after"] || apiError?.headers?.["retry-after"];
         let delayMs: number;
 
         if (retryAfter) {
           // Use Retry-After header if available (in seconds)
           const parsed = parseInt(retryAfter, 10);
           delayMs =
-            !isNaN(parsed) && parsed > 0
-              ? parsed * 1000
-              : this.retryDelayMs * Math.pow(2, attempt);
+            !Number.isNaN(parsed) && parsed > 0 ? parsed * 1000 : this.retryDelayMs * 2 ** attempt;
         } else {
           // Exponential backoff: 1s, 2s, 4s, 8s...
-          delayMs = this.retryDelayMs * Math.pow(2, attempt);
+          delayMs = this.retryDelayMs * 2 ** attempt;
         }
 
         const waitTimeSeconds = (delayMs / 1000).toFixed(1);
@@ -103,7 +92,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
             attempt: attempt + 1,
             maxAttempts: this.retryAttempts,
           },
-          "Rate limit reached, retrying",
+          "Rate limit reached, retrying"
         );
 
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -113,7 +102,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
       // If not a rate limit error or max retries exceeded, throw
       if (isRateLimitError) {
         throw new Error(
-          `OpenAI API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`,
+          `OpenAI API rate limit exceeded after ${this.retryAttempts} retry attempts. Please try again later or reduce request frequency.`
         );
       }
 
@@ -134,7 +123,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
           embedding: response.data[0].embedding,
           dimensions: this.dimensions,
         };
-      }),
+      })
     );
   }
 
@@ -152,7 +141,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
           embedding: item.embedding,
           dimensions: this.dimensions,
         }));
-      }),
+      })
     );
   }
 
