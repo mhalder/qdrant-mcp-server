@@ -1,3 +1,9 @@
+## [3.3.4](https://github.com/mhalder/qdrant-mcp-server/compare/v3.3.3...v3.3.4) (2026-05-16)
+
+### Bug Fixes
+
+* **scanner:** do not load .npmignore patterns ([babdf53](https://github.com/mhalder/qdrant-mcp-server/commit/babdf538938231bec78f642a78eff073869ff750))
+
 ## [3.3.3](https://github.com/mhalder/qdrant-mcp-server/compare/v3.3.2...v3.3.3) (2026-03-26)
 
 ### Bug Fixes
