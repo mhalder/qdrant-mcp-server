@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { VoyageEmbeddings } from "./voyage.js";
 
 // Mock fetch globally
-global.fetch = vi.fn();
+global.fetch = vi.fn() as unknown as typeof fetch;
 
 vi.mock("../logger.js", () => ({
   default: {
