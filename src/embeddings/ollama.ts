@@ -95,6 +95,9 @@ export class OllamaEmbeddings implements EmbeddingProvider {
   }
 
   private async callApi(text: string): Promise<OllamaEmbedResponse> {
+    // Truncate text to avoid exceeding the model's context window (~4000 chars safe limit for nomic-embed-text)
+    const MAX_CHARS = 3800;
+    const safeText = text.length > MAX_CHARS ? text.substring(0, MAX_CHARS) : text;
     try {
       const response = await fetch(`${this.baseUrl}/api/embeddings`, {
         method: "POST",
@@ -103,7 +106,7 @@ export class OllamaEmbeddings implements EmbeddingProvider {
         },
         body: JSON.stringify({
           model: this.model,
-          prompt: text,
+          prompt: safeText,
         }),
       });
 
