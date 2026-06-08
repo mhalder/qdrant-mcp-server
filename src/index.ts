@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync } from "node:fs";
+import type { Server as HttpServer } from "node:http";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -18,6 +19,7 @@ import {
 } from "./code/config.js";
 import { CodeIndexer } from "./code/indexer.js";
 import type { CodeConfig } from "./code/types.js";
+import { registerDashboardRoutes } from "./dashboard.js";
 import { EmbeddingProviderFactory } from "./embeddings/factory.js";
 import { DEFAULT_GIT_CONFIG, GitHistoryIndexer } from "./git/index.js";
 import type { GitConfig } from "./git/types.js";
@@ -270,6 +272,7 @@ const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_CONCURRENT = 10; // Max concurrent requests per IP
 const RATE_LIMITER_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const REQUEST_TIMEOUT_MS = parseInt(process.env.HTTP_REQUEST_TIMEOUT_MS || "300000", 10);
+const HTTP_PORT_MAX_ATTEMPTS = parseInt(process.env.HTTP_PORT_MAX_ATTEMPTS || "20", 10);
 const SHUTDOWN_GRACE_PERIOD_MS = 10 * 1000; // 10 seconds
 
 // Validate REQUEST_TIMEOUT_MS
@@ -279,6 +282,46 @@ if (Number.isNaN(REQUEST_TIMEOUT_MS) || REQUEST_TIMEOUT_MS <= 0) {
     "Invalid HTTP_REQUEST_TIMEOUT_MS. Must be a positive integer"
   );
   process.exit(1);
+}
+
+// Validate HTTP_PORT_MAX_ATTEMPTS
+if (Number.isNaN(HTTP_PORT_MAX_ATTEMPTS) || HTTP_PORT_MAX_ATTEMPTS < 1) {
+  logger.fatal(
+    { value: process.env.HTTP_PORT_MAX_ATTEMPTS },
+    "Invalid HTTP_PORT_MAX_ATTEMPTS. Must be a positive integer"
+  );
+  process.exit(1);
+}
+
+function listenWithPortFallback(app: express.Express, startPort: number): Promise<HttpServer> {
+  return new Promise((resolve, reject) => {
+    let currentPort = startPort;
+    let attempts = 0;
+
+    const tryListen = () => {
+      attempts++;
+
+      const server = app.listen(currentPort);
+
+      server.once("listening", () => {
+        logger.info({ port: currentPort }, "Qdrant MCP server running on HTTP");
+        resolve(server);
+      });
+
+      server.once("error", (error: NodeJS.ErrnoException) => {
+        if (error.code === "EADDRINUSE" && attempts < HTTP_PORT_MAX_ATTEMPTS) {
+          logger.warn({ port: currentPort }, "HTTP port in use, trying next port");
+          currentPort++;
+          tryListen();
+          return;
+        }
+
+        reject(error);
+      });
+    };
+
+    tryListen();
+  });
 }
 
 // Start server with HTTP transport
@@ -376,6 +419,8 @@ async function startHttpServer() {
     });
   });
 
+  registerDashboardRoutes(app, qdrant);
+
   app.post("/mcp", rateLimitMiddleware, async (req, res) => {
     // Create a new server for each request
     const requestServer = createAndConfigureServer();
@@ -434,14 +479,13 @@ async function startHttpServer() {
     }
   });
 
-  const httpServer = app
-    .listen(HTTP_PORT, () => {
-      logger.info({ port: HTTP_PORT }, "Qdrant MCP server running on HTTP");
-    })
-    .on("error", (error) => {
-      logger.fatal({ err: error }, "HTTP server error");
-      process.exit(1);
-    });
+  let httpServer: HttpServer;
+  try {
+    httpServer = await listenWithPortFallback(app, HTTP_PORT);
+  } catch (error) {
+    logger.fatal({ err: error }, "HTTP server error");
+    process.exit(1);
+  }
 
   // Graceful shutdown handling
   let isShuttingDown = false;

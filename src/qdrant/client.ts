@@ -25,7 +25,10 @@ export class QdrantManager {
   private log = logger.child({ component: "qdrant" });
   private client: QdrantClient;
 
-  constructor(url: string = "http://localhost:6333", apiKey?: string) {
+  constructor(
+    private url: string = "http://localhost:6333",
+    private apiKey?: string
+  ) {
     this.client = new QdrantClient({ url, apiKey });
   }
 
@@ -135,6 +138,32 @@ export class QdrantManager {
   async deleteCollection(name: string): Promise<void> {
     this.log.debug({ collection: name }, "deleteCollection");
     await this.client.deleteCollection(name);
+  }
+
+  async createCollectionAlias(aliasName: string, collectionName: string): Promise<void> {
+    this.log.debug({ alias: aliasName, collection: collectionName }, "createCollectionAlias");
+    const response = await fetch(`${this.url.replace(/\/$/, "")}/collections/aliases`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.apiKey ? { "api-key": this.apiKey } : {}),
+      },
+      body: JSON.stringify({
+        actions: [
+          {
+            create_alias: {
+              collection_name: collectionName,
+              alias_name: aliasName,
+            },
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Failed to create alias "${aliasName}" for "${collectionName}": ${body}`);
+    }
   }
 
   async addPoints(
