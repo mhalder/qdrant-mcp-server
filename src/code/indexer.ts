@@ -5,6 +5,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
+import { homedir } from "node:os";
 import { extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import picomatch from "picomatch";
@@ -84,7 +85,9 @@ export class CodeIndexer {
     };
 
     const absolutePath = await this.validatePath(path);
-    const collectionName = await this.getCollectionName(absolutePath);
+    const collectionName = await this.resolveCollectionName(absolutePath, {
+      migrateLegacyAlias: true,
+    });
 
     this.log.info({ path: absolutePath, collectionName }, "Indexing started");
 
@@ -371,7 +374,9 @@ export class CodeIndexer {
     options?: SearchOptions
   ): Promise<CodeSearchResult[]> {
     const absolutePath = await this.validatePath(path);
-    const collectionName = await this.getCollectionName(absolutePath);
+    const collectionName = await this.resolveCollectionName(absolutePath, {
+      migrateLegacyAlias: true,
+    });
 
     // Check if collection exists
     const exists = await this.qdrant.collectionExists(collectionName);
@@ -460,7 +465,9 @@ export class CodeIndexer {
    */
   async getIndexStatus(path: string): Promise<IndexStatus> {
     const absolutePath = await this.validatePath(path);
-    const collectionName = await this.getCollectionName(absolutePath);
+    const collectionName = await this.resolveCollectionName(absolutePath, {
+      migrateLegacyAlias: true,
+    });
     const exists = await this.qdrant.collectionExists(collectionName);
 
     if (!exists) {
@@ -537,7 +544,9 @@ export class CodeIndexer {
 
     try {
       const absolutePath = await this.validatePath(path);
-      const collectionName = await this.getCollectionName(absolutePath);
+      const collectionName = await this.resolveCollectionName(absolutePath, {
+        migrateLegacyAlias: true,
+      });
 
       this.log.info({ path: absolutePath }, "Reindex started");
 
@@ -733,7 +742,9 @@ export class CodeIndexer {
   async clearIndex(path: string): Promise<void> {
     this.log.info({ path }, "Clearing index");
     const absolutePath = await this.validatePath(path);
-    const collectionName = await this.getCollectionName(absolutePath);
+    const collectionName = await this.resolveCollectionName(absolutePath, {
+      migrateLegacyAlias: true,
+    });
     const exists = await this.qdrant.collectionExists(collectionName);
 
     if (exists) {
@@ -751,12 +762,90 @@ export class CodeIndexer {
 
   /**
    * Generate deterministic collection name from codebase path.
-   * Uses git remote URL for consistent naming across machines, with fallback to directory name.
+   * Uses git remote URL for consistent naming across machines, with fallback to the absolute path.
+   * When migrateLegacyAlias is true, a legacy path-based collection is aliased to the
+   * remote-based name if the remote-based collection does not exist yet.
    */
-  private async getCollectionName(path: string): Promise<string> {
+  private async resolveCollectionName(
+    path: string,
+    options: { migrateLegacyAlias?: boolean } = {}
+  ): Promise<string> {
+    const absolutePath = resolve(path);
+    const legacyCollectionName = this.getPathCollectionName(absolutePath);
+    const remoteCollectionName = await this.getGitRemoteCollectionName(absolutePath);
+
+    if (!remoteCollectionName) {
+      return legacyCollectionName;
+    }
+
+    if (options.migrateLegacyAlias) {
+      if (await this.qdrant.collectionExists(remoteCollectionName)) {
+        return remoteCollectionName;
+      }
+
+      if (await this.qdrant.collectionExists(legacyCollectionName)) {
+        try {
+          await this.qdrant.createCollectionAlias(remoteCollectionName, legacyCollectionName);
+          await this.copySnapshotIfMissing(legacyCollectionName, remoteCollectionName);
+          this.log.info(
+            {
+              remoteCollectionName,
+              legacyCollectionName,
+              path: absolutePath,
+            },
+            "Created remote-based alias for legacy path-based collection"
+          );
+          return remoteCollectionName;
+        } catch (error) {
+          this.log.warn(
+            {
+              remoteCollectionName,
+              legacyCollectionName,
+              path: absolutePath,
+              err: error,
+            },
+            "Failed to create alias for legacy path-based collection"
+          );
+        }
+
+        return legacyCollectionName;
+      }
+    }
+
+    return remoteCollectionName;
+  }
+
+  private async copySnapshotIfMissing(
+    sourceCollection: string,
+    targetCollection: string
+  ): Promise<void> {
+    const snapshotDir = join(homedir(), ".qdrant-mcp", "snapshots");
+    const sourcePath = join(snapshotDir, `${sourceCollection}.json`);
+    const targetPath = join(snapshotDir, `${targetCollection}.json`);
+
+    try {
+      await fs.access(targetPath);
+      return;
+    } catch {
+      // Target snapshot does not exist yet.
+    }
+
+    try {
+      await fs.copyFile(sourcePath, targetPath);
+    } catch {
+      // Older indexes may not have an incremental snapshot. Reindexing can rebuild it.
+    }
+  }
+
+  private getPathCollectionName(path: string): string {
+    const absolutePath = resolve(path);
+    const hash = createHash("md5").update(absolutePath).digest("hex");
+    return `code_${hash.substring(0, 8)}`;
+  }
+
+  private async getGitRemoteCollectionName(path: string): Promise<string | null> {
     const absolutePath = resolve(path);
 
-    // Try git remote URL for consistent naming
     // Check if THIS directory is the git root (not just inside a git repo)
     try {
       // Clear git environment variables that may be set during pre-commit hooks
@@ -789,8 +878,6 @@ export class CodeIndexer {
       // Not a git repo or no remote
     }
 
-    // Fallback: full absolute path (consistent with original behavior)
-    const hash = createHash("md5").update(absolutePath).digest("hex");
-    return `code_${hash.substring(0, 8)}`;
+    return null;
   }
 }
