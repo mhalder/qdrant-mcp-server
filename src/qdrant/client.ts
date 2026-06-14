@@ -26,7 +26,7 @@ export class QdrantManager {
   private client: QdrantClient;
 
   constructor(url: string = "http://localhost:6333", apiKey?: string) {
-    this.client = new QdrantClient({ url, apiKey });
+    this.client = new QdrantClient({ url, apiKey, checkCompatibility: false });
   }
 
   /**
