@@ -1,3 +1,9 @@
+## [3.3.5](https://github.com/mhalder/qdrant-mcp-server/compare/v3.3.4...v3.3.5) (2026-06-14)
+
+### Bug Fixes
+
+* support self-hosted Qdrant servers and prevent silent batch failures with local Ollama models ([#60](https://github.com/mhalder/qdrant-mcp-server/issues/60)) ([135c53a](https://github.com/mhalder/qdrant-mcp-server/commit/135c53a8337f34387f5658a0b9ab8c39e0a14b5a))
+
 ## [3.3.4](https://github.com/mhalder/qdrant-mcp-server/compare/v3.3.3...v3.3.4) (2026-05-16)
 
 ### Bug Fixes
